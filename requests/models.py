@@ -127,6 +127,9 @@ class Request(models.Model):
     
     def update_financial_totals(self):
         """Update all financial totals: cost, rooms, and room nights"""
+        # Refresh from database to ensure we have latest related objects
+        self.refresh_from_db()
+        
         # Calculate totals from room entries
         room_total = self.get_room_total()
         transport_total = self.get_transportation_total()
@@ -148,6 +151,13 @@ class Request(models.Model):
             room_total = series_room_total
             total_rooms = series_total_rooms
             total_room_nights = series_total_room_nights
+        
+        # Debug logging to help identify calculation issues
+        print(f"DEBUG - Request {self.id}: room_total={room_total}, transport_total={transport_total}, nights={self.nights}")
+        print(f"DEBUG - Room entries count: {self.room_entries.count()}")
+        for i, room in enumerate(self.room_entries.all()):
+            room_cost = room.get_total_cost()
+            print(f"DEBUG - Room {i+1}: {room.quantity}x {room.category} @ {room.rate_per_night}/night * {self.nights} nights = {room_cost}")
         
         # Update fields
         self.total_cost = room_total + transport_total

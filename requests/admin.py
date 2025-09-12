@@ -5,6 +5,8 @@ class RoomEntryInline(admin.TabularInline):
     model = RoomEntry
     extra = 1
     fields = ['category', 'occupancy', 'quantity', 'rate_per_night']
+    verbose_name = "Room Entry (part of Accommodation Details)"
+    verbose_name_plural = "Room Entries (part of Accommodation Details)"
 
 class TransportationInline(admin.TabularInline):
     model = Transportation
@@ -37,16 +39,16 @@ class RequestAdmin(admin.ModelAdmin):
         ('Basic Information', {
             'fields': ('request_type', 'account', 'confirmation_number', 'request_received_date')
         }),
-        ('Accommodation Details', {
+        ('Accommodation Details & Room Configuration', {
             'fields': ('check_in_date', 'check_out_date', 'nights', 'meal_plan'),
-            'classes': ('collapse',)
+            'description': 'Add room entries below in the "Room entries" section - room costs will be automatically included in total cost calculation.'
         }),
         ('Status & Payment', {
             'fields': ('status', 'cancellation_reason', 'offer_acceptance_deadline', 'deposit_deadline', 'full_payment_deadline')
         }),
         ('Financial Tracking (Auto-Calculated)', {
             'fields': ('total_cost', 'total_rooms', 'total_room_nights', 'deposit_amount', 'paid_amount'),
-            'description': 'Financial totals are automatically calculated from room entries and transportation.'
+            'description': 'Financial totals are automatically calculated from room entries and transportation. If total_cost shows zero, ensure room entries have been added with valid rates.'
         }),
         ('File & Notes', {
             'fields': ('agreement_file', 'notes'),
@@ -62,7 +64,15 @@ class RequestAdmin(admin.ModelAdmin):
     
     def save_model(self, request_obj, obj, form, change):
         super().save_model(request_obj, obj, form, change)
+        # Force update financial totals after model save
         obj.update_financial_totals()
+    
+    def save_formset(self, request, form, formset, change):
+        """Save formset and update totals after room/transportation entries are saved"""
+        super().save_formset(request, form, formset, change)
+        # Update financial totals after any inline forms (room entries, transportation) are saved
+        if formset.model in [RoomEntry, Transportation]:
+            form.instance.update_financial_totals()
 
 @admin.register(SeriesGroupEntry)
 class SeriesGroupEntryAdmin(admin.ModelAdmin):
