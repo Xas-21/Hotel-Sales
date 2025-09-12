@@ -38,32 +38,53 @@ class RequestAdmin(admin.ModelAdmin):
     list_filter = ['request_type', 'meal_plan', 'status', 'created_at', 'check_in_date']
     search_fields = ['confirmation_number', 'account__name', 'account__contact_person']
     readonly_fields = ['nights', 'total_cost', 'total_rooms', 'total_room_nights', 'created_at', 'updated_at']
-    fieldsets = (
-        ('Basic Information', {
-            'fields': ('request_type', 'account', 'confirmation_number', 'request_received_date')
-        }),
-        ('Accommodation Details & Room Configuration', {
-            'fields': ('check_in_date', 'check_out_date', 'nights', 'meal_plan'),
-            'description': 'Add room entries below in the "Room entries" section - room costs will be automatically included in total cost calculation.'
-        }),
-        ('Status & Payment', {
-            'fields': ('status', 'cancellation_reason', 'offer_acceptance_deadline', 'deposit_deadline', 'full_payment_deadline')
-        }),
-        ('Financial Tracking (Auto-Calculated)', {
-            'fields': ('total_cost', 'total_rooms', 'total_room_nights', 'deposit_amount', 'paid_amount'),
-            'description': 'Financial totals are automatically calculated from room entries and transportation. If total_cost shows zero, ensure room entries have been added with valid rates.'
-        }),
-        ('File & Notes', {
-            'fields': ('agreement_file', 'notes'),
-            'classes': ('collapse',)
-        }),
-        ('Metadata', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        })
-    )
     inlines = [RoomEntryInline, TransportationInline, EventAgendaInline, SeriesGroupEntryInline]
     ordering = ['-created_at']
+    
+    def get_fieldsets(self, request, obj=None):
+        """
+        Dynamically modify fieldsets based on the request status.
+        Only show cancellation_reason when status is 'Cancelled'.
+        """
+        # Base fieldsets
+        fieldsets = [
+            ('Basic Information', {
+                'fields': ('request_type', 'account', 'confirmation_number', 'request_received_date')
+            }),
+            ('Accommodation Details & Room Configuration', {
+                'fields': ('check_in_date', 'check_out_date', 'nights', 'meal_plan'),
+                'description': 'Add room entries below in the "Room entries" section - room costs will be automatically included in total cost calculation.'
+            }),
+        ]
+        
+        # Status & Payment section - conditionally include cancellation_reason
+        status_fields = ['status']
+        if obj and obj.status == 'Cancelled':
+            status_fields.append('cancellation_reason')
+        
+        status_fields.extend(['offer_acceptance_deadline', 'deposit_deadline', 'full_payment_deadline'])
+        
+        fieldsets.append(('Status & Payment', {
+            'fields': tuple(status_fields)
+        }))
+        
+        # Add remaining fieldsets
+        fieldsets.extend([
+            ('Financial Tracking (Auto-Calculated)', {
+                'fields': ('total_cost', 'total_rooms', 'total_room_nights', 'deposit_amount', 'paid_amount'),
+                'description': 'Financial totals are automatically calculated from room entries and transportation. If total_cost shows zero, ensure room entries have been added with valid rates.'
+            }),
+            ('File & Notes', {
+                'fields': ('agreement_file', 'notes'),
+                'classes': ('collapse',)
+            }),
+            ('Metadata', {
+                'fields': ('created_at', 'updated_at'),
+                'classes': ('collapse',)
+            })
+        ])
+        
+        return fieldsets
     
     def save_model(self, request_obj, obj, form, change):
         super().save_model(request_obj, obj, form, change)
