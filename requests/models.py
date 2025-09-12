@@ -31,6 +31,13 @@ class Request(models.Model):
         ('Partially Paid', 'Partially Paid'),
     ]
     
+    MEAL_PLAN_CHOICES = [
+        ('RO', 'Room Only'),
+        ('BB', 'Bed & Breakfast'),
+        ('HB', 'Half Board (Breakfast + Dinner)'),
+        ('FB', 'Full Board (All Meals)'),
+    ]
+    
     # Basic information
     request_type = models.CharField(max_length=30, choices=REQUEST_TYPES)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='requests')
@@ -41,6 +48,7 @@ class Request(models.Model):
     check_in_date = models.DateField(null=True, blank=True)
     check_out_date = models.DateField(null=True, blank=True)
     nights = models.PositiveIntegerField(null=True, blank=True, editable=False, help_text="Automatically calculated")
+    meal_plan = models.CharField(max_length=2, choices=MEAL_PLAN_CHOICES, default='RO')
     
     # Status and payment
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Draft')
@@ -51,8 +59,10 @@ class Request(models.Model):
     deposit_deadline = models.DateField(null=True, blank=True)
     full_payment_deadline = models.DateField(null=True, blank=True)
     
-    # Financial tracking
-    total_cost = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(Decimal('0.00'))])
+    # Financial tracking (automatically calculated)
+    total_cost = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(Decimal('0.00'))], editable=False, help_text="Automatically calculated from room entries and transportation")
+    total_rooms = models.PositiveIntegerField(default=0, editable=False, help_text="Total number of rooms across all entries")
+    total_room_nights = models.PositiveIntegerField(default=0, editable=False, help_text="Total room nights (rooms × nights)")
     deposit_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(Decimal('0.00'))])
     paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(Decimal('0.00'))])
     
@@ -116,12 +126,36 @@ class Request(models.Model):
         """Calculate total transportation cost"""
         return sum((transport.cost for transport in self.transportation_entries.all()), Decimal('0'))
     
-    def update_total_cost(self):
-        """Update the total cost based on rooms and transportation"""
+    def update_financial_totals(self):
+        """Update all financial totals: cost, rooms, and room nights"""
+        # Calculate totals from room entries
         room_total = self.get_room_total()
         transport_total = self.get_transportation_total()
+        total_rooms = sum(room.quantity for room in self.room_entries.all())
+        total_room_nights = sum(room.quantity * (self.nights or 0) for room in self.room_entries.all())
+        
+        # Calculate totals from series entries if it's a series group request
+        if self.request_type == 'Series Group':
+            series_room_total = Decimal('0')
+            series_total_rooms = 0
+            series_total_room_nights = 0
+            
+            for series_entry in self.series_entries.all():
+                for room in series_entry.room_entries.all():
+                    series_room_total += room.get_total_cost()
+                    series_total_rooms += room.quantity
+                    series_total_room_nights += room.quantity * series_entry.nights
+            
+            room_total = series_room_total
+            total_rooms = series_total_rooms
+            total_room_nights = series_total_room_nights
+        
+        # Update fields
         self.total_cost = room_total + transport_total
-        self.save(update_fields=['total_cost'])
+        self.total_rooms = total_rooms
+        self.total_room_nights = total_room_nights
+        
+        self.save(update_fields=['total_cost', 'total_rooms', 'total_room_nights'])
 
 class RoomEntry(models.Model):
     """
@@ -202,6 +236,8 @@ class SeriesGroupEntry(models.Model):
     request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name='series_entries')
     arrival_date = models.DateField()
     departure_date = models.DateField()
+    arrival_time = models.TimeField(null=True, blank=True, help_text="Expected arrival time")
+    departure_time = models.TimeField(null=True, blank=True, help_text="Expected departure time") 
     nights = models.PositiveIntegerField(editable=False)
     group_size = models.PositiveIntegerField()
     special_notes = models.TextField(blank=True)
