@@ -152,13 +152,6 @@ class Request(models.Model):
             total_rooms = series_total_rooms
             total_room_nights = series_total_room_nights
         
-        # Debug logging to help identify calculation issues
-        print(f"DEBUG - Request {self.id}: room_total={room_total}, transport_total={transport_total}, nights={self.nights}")
-        print(f"DEBUG - Room entries count: {self.room_entries.count()}")
-        for i, room in enumerate(self.room_entries.all()):
-            room_cost = room.get_total_cost()
-            print(f"DEBUG - Room {i+1}: {room.quantity}x {room.category} @ {room.rate_per_night}/night * {self.nights} nights = {room_cost}")
-        
         # Update fields
         self.total_cost = room_total + transport_total
         self.total_rooms = total_rooms
