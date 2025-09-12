@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Sales Request Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Header -->
+            <div class="col-12">
+                <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+                    <div class="container-fluid">
+                        <a class="navbar-brand" href="{% url 'dashboard' %}">
+                            <i class="fas fa-hotel me-2"></i>Hotel Sales Management
+                        </a>
+                        <ul class="navbar-nav ms-auto">
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'admin:index' %}">
+                                    <i class="fas fa-cog me-1"></i>Admin Panel
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <h1 class="mb-4">Dashboard Overview</h1>
+            </div>
+        </div>
+
+        <!-- Key Metrics Row -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>{{ total_accounts }}</h4>
+                                <p class="mb-0">Total Accounts</p>
+                            </div>
+                            <i class="fas fa-building fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>{{ confirmed_requests }}</h4>
+                                <p class="mb-0">Confirmed Requests</p>
+                            </div>
+                            <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>${{ total_revenue|floatformat:0 }}</h4>
+                                <p class="mb-0">Total Revenue</p>
+                            </div>
+                            <i class="fas fa-dollar-sign fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>{{ total_requests }}</h4>
+                                <p class="mb-0">Total Requests</p>
+                            </div>
+                            <i class="fas fa-clipboard-list fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts and Recent Activity -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Recent Requests</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if recent_requests %}
+                            <div class="list-group list-group-flush">
+                                {% for request in recent_requests %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ request.account.name }}</strong><br>
+                                        <small class="text-muted">{{ request.request_type }}</small>
+                                    </div>
+                                    <span class="badge bg-secondary">{{ request.status }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-muted">No recent requests found.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Recent Sales Calls</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if recent_sales_calls %}
+                            <div class="list-group list-group-flush">
+                                {% for call in recent_sales_calls %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ call.account.name }}</strong><br>
+                                        <small class="text-muted">{{ call.meeting_subject }} - {{ call.city }}</small>
+                                    </div>
+                                    <small class="text-muted">{{ call.visit_date }}</small>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-muted">No recent sales calls found.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts Section -->
+        {% if approaching_deadlines or overdue_followups %}
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card border-warning">
+                    <div class="card-header bg-warning">
+                        <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Alerts & Notifications</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if approaching_deadlines %}
+                            <h6>Approaching Agreement Deadlines</h6>
+                            <ul class="list-unstyled">
+                                {% for agreement in approaching_deadlines %}
+                                <li class="mb-2">
+                                    <i class="fas fa-calendar-exclamation text-warning me-2"></i>
+                                    {{ agreement.account.name }} - {{ agreement.rate_type }} 
+                                    (Due: {{ agreement.return_deadline }})
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+
+                        {% if overdue_followups %}
+                            <h6>Overdue Follow-ups</h6>
+                            <ul class="list-unstyled">
+                                {% for followup in overdue_followups %}
+                                <li class="mb-2">
+                                    <i class="fas fa-phone text-danger me-2"></i>
+                                    {{ followup.account.name }} - {{ followup.meeting_subject }}
+                                    (Due: {{ followup.follow_up_date }})
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Quick Actions -->
+        <div class="row mt-4 mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3 mb-2">
+                                <a href="{% url 'admin:requests_request_add' %}" class="btn btn-primary w-100">
+                                    <i class="fas fa-plus me-2"></i>New Request
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <a href="{% url 'admin:accounts_account_add' %}" class="btn btn-success w-100">
+                                    <i class="fas fa-building me-2"></i>New Account
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <a href="{% url 'admin:sales_calls_salescall_add' %}" class="btn btn-info w-100">
+                                    <i class="fas fa-phone me-2"></i>New Sales Call
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <a href="{% url 'admin:agreements_agreement_add' %}" class="btn btn-warning w-100">
+                                    <i class="fas fa-file-contract me-2"></i>New Agreement
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
