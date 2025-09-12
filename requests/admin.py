@@ -22,6 +22,9 @@ class SeriesRoomEntryInline(admin.TabularInline):
     model = SeriesRoomEntry
     extra = 1
     fields = ['category', 'occupancy', 'quantity', 'rate_per_night']
+    verbose_name = "Room Configuration"
+    verbose_name_plural = "Room Configuration for this Date"
+    can_delete = True
 
 class SeriesGroupEntryInline(admin.TabularInline):
     model = SeriesGroupEntry
@@ -78,8 +81,32 @@ class RequestAdmin(admin.ModelAdmin):
 class SeriesGroupEntryAdmin(admin.ModelAdmin):
     list_display = ['request', 'arrival_date', 'departure_date', 'arrival_time', 'departure_time', 'nights', 'group_size']
     list_filter = ['arrival_date', 'request__request_type']
+    search_fields = ['request__confirmation_number', 'request__account__name']
+    readonly_fields = ['nights']
     ordering = ['arrival_date']
     inlines = [SeriesRoomEntryInline]
+    
+    fieldsets = (
+        ('Date & Time Details', {
+            'fields': ('arrival_date', 'departure_date', 'nights', 'arrival_time', 'departure_time')
+        }),
+        ('Group Information', {
+            'fields': ('group_size', 'special_notes')
+        }),
+    )
+    
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        # Update parent request totals when series entry is saved
+        if obj.request:
+            obj.request.update_financial_totals()
+    
+    def save_formset(self, request, form, formset, change):
+        """Save formset and update totals after room entries are saved"""
+        super().save_formset(request, form, formset, change)
+        # Update financial totals after series room entries are saved
+        if formset.model == SeriesRoomEntry:
+            form.instance.request.update_financial_totals()
 
 class CancelledRequestAdmin(admin.ModelAdmin):
     """Admin view for cancelled requests only"""
