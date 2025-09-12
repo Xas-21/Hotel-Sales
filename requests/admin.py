@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Request, RoomEntry, Transportation, EventAgenda, SeriesGroupEntry, SeriesRoomEntry
+from .models import Request, CancelledRequest, RoomEntry, Transportation, EventAgenda, SeriesGroupEntry, SeriesRoomEntry
 
 class RoomEntryInline(admin.TabularInline):
     model = RoomEntry
@@ -70,6 +70,50 @@ class SeriesGroupEntryAdmin(admin.ModelAdmin):
     list_filter = ['arrival_date', 'request__request_type']
     ordering = ['arrival_date']
     inlines = [SeriesRoomEntryInline]
+
+class CancelledRequestAdmin(admin.ModelAdmin):
+    """Admin view for cancelled requests only"""
+    list_display = ['confirmation_number', 'account', 'request_type', 'check_in_date', 'check_out_date', 'total_cost', 'cancellation_reason', 'created_at']
+    list_filter = ['request_type', 'created_at', 'check_in_date']
+    search_fields = ['confirmation_number', 'account__name', 'account__contact_person', 'cancellation_reason']
+    readonly_fields = ['nights', 'total_cost', 'total_rooms', 'total_room_nights', 'created_at', 'updated_at']
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('request_type', 'account', 'confirmation_number', 'request_received_date')
+        }),
+        ('Accommodation Details', {
+            'fields': ('check_in_date', 'check_out_date', 'nights', 'meal_plan'),
+            'classes': ('collapse',)
+        }),
+        ('Cancellation Details', {
+            'fields': ('status', 'cancellation_reason'),
+            'description': 'Status is locked to Cancelled for this view'
+        }),
+        ('Financial Impact', {
+            'fields': ('total_cost', 'total_rooms', 'total_room_nights', 'deposit_amount', 'paid_amount'),
+            'description': 'Shows the financial impact of this cancellation'
+        }),
+        ('File & Notes', {
+            'fields': ('agreement_file', 'notes'),
+            'classes': ('collapse',)
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+    ordering = ['-created_at']
+    
+    def get_queryset(self, request):
+        """Only show cancelled requests"""
+        return super().get_queryset(request).filter(status='Cancelled')
+    
+    def has_add_permission(self, request):
+        """Prevent adding new records through this view"""
+        return False
+
+# Register the cancelled requests proxy model
+admin.site.register(CancelledRequest, CancelledRequestAdmin)
 
 @admin.register(SeriesRoomEntry)
 class SeriesRoomEntryAdmin(admin.ModelAdmin):

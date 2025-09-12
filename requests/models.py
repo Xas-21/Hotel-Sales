@@ -82,9 +82,8 @@ class Request(models.Model):
     
     class Meta:
         ordering = ['-created_at']
-    
-    def __str__(self):
-        return f"{self.confirmation_number or 'Draft'} - {self.account.name} ({self.request_type})"
+
+
     
     def clean(self):
         """Model validation"""
@@ -156,6 +155,18 @@ class Request(models.Model):
         self.total_room_nights = total_room_nights
         
         self.save(update_fields=['total_cost', 'total_rooms', 'total_room_nights'])
+
+
+class CancelledRequest(Request):
+    """Proxy model to show only cancelled requests in admin"""
+    class Meta:
+        proxy = True
+        verbose_name = "Cancelled Request"
+        verbose_name_plural = "Cancelled Requests"
+    
+    def __str__(self):
+        return f"CANCELLED - {self.confirmation_number or 'Draft'} - {self.account.name} ({self.request_type})"
+
 
 class RoomEntry(models.Model):
     """

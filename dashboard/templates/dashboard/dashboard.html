@@ -92,6 +92,62 @@
             </div>
         </div>
 
+        <!-- Enhanced Financial Metrics Row -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-danger text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>{{ cancelled_requests }}</h4>
+                                <p class="mb-0">Cancelled Requests</p>
+                            </div>
+                            <i class="fas fa-times-circle fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-danger text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>${{ cancelled_lost_amount|floatformat:0 }}</h4>
+                                <p class="mb-0">Lost Amount (Cancelled)</p>
+                            </div>
+                            <i class="fas fa-chart-line-down fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>${{ confirmed_paid_amount|floatformat:0 }}</h4>
+                                <p class="mb-0">Confirmed Paid Amount</p>
+                            </div>
+                            <i class="fas fa-check-double fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>${{ unpaid_total|floatformat:0 }}</h4>
+                                <p class="mb-0">Total Unpaid Amount</p>
+                            </div>
+                            <i class="fas fa-exclamation-triangle fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Charts and Recent Activity -->
         <div class="row">
             <div class="col-md-6">
