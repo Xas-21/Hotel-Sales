@@ -11,14 +11,15 @@ admin.site.site_title = "Hotel Sales Admin"
 admin.site.index_title = "Welcome to Hotel Sales Management"
 
 urlpatterns = [
-    path('', health_check, name='health_check'),
+    path('', RedirectView.as_view(url='/dashboard/', permanent=False), name='home'),
+    path('health/', health_check, name='health_check'),
     path('api', api_health_check, name='api_health_check_no_slash'),
     path('api/', api_health_check, name='api_health_check'),
+    path('api/health/', api_health_check, name='api_health_check_alt'),
     path('dashboard/', dashboard_view, name='dashboard'),
     path('api/request-chart-data/', api_request_chart_data, name='api_request_chart_data'),
     path('api/status-chart-data/', api_status_chart_data, name='api_status_chart_data'),
     path('admin/', admin.site.urls),
-    path('home/', RedirectView.as_view(url='/dashboard/', permanent=False), name='home_redirect'),
 ]
 
 # Serve media files during development
