@@ -12,6 +12,7 @@ admin.site.index_title = "Welcome to Hotel Sales Management"
 
 urlpatterns = [
     path('', health_check, name='health_check'),
+    path('api', api_health_check, name='api_health_check_no_slash'),
     path('api/', api_health_check, name='api_health_check'),
     path('dashboard/', dashboard_view, name='dashboard'),
     path('api/request-chart-data/', api_request_chart_data, name='api_request_chart_data'),

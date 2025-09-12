@@ -43,4 +43,5 @@ localPort = 45189
 externalPort = 3000
 
 [deployment]
-deploymentTarget = "cloudrun"
+deploymentTarget = "autoscale"
+run = ["python", "manage.py", "runserver", "0.0.0.0:5000"]
