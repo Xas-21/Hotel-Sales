@@ -3,7 +3,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import RedirectView
-from dashboard.views import dashboard_view, api_request_chart_data, api_status_chart_data
+from dashboard.views import dashboard_view, api_request_chart_data, api_status_chart_data, health_check, api_health_check
 
 # Configure admin site headers
 admin.site.site_header = "Hotel Sales Request Management System"
@@ -11,11 +11,13 @@ admin.site.site_title = "Hotel Sales Admin"
 admin.site.index_title = "Welcome to Hotel Sales Management"
 
 urlpatterns = [
-    path('', RedirectView.as_view(url='/dashboard/', permanent=False), name='home'),
-    path('admin/', admin.site.urls),
+    path('', health_check, name='health_check'),
+    path('api/', api_health_check, name='api_health_check'),
     path('dashboard/', dashboard_view, name='dashboard'),
     path('api/request-chart-data/', api_request_chart_data, name='api_request_chart_data'),
     path('api/status-chart-data/', api_status_chart_data, name='api_status_chart_data'),
+    path('admin/', admin.site.urls),
+    path('home/', RedirectView.as_view(url='/dashboard/', permanent=False), name='home_redirect'),
 ]
 
 # Serve media files during development

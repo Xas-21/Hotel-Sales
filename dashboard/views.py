@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.db.models import Count, Sum, Q
 from accounts.models import Account
 from requests.models import Request
@@ -111,3 +111,15 @@ def api_status_chart_data(request):
         'labels': labels,
         'data': data
     })
+
+def health_check(request):
+    """
+    Simple health check endpoint for deployment monitoring
+    """
+    return HttpResponse("OK", status=200)
+
+def api_health_check(request):
+    """
+    API health check endpoint for deployment monitoring
+    """
+    return JsonResponse({"status": "healthy", "service": "hotel_sales"}, status=200)
