@@ -365,11 +365,30 @@ def create_section(request):
 @staff_member_required
 @require_POST
 def delete_section(request, section_id):
-    """Delete a dynamic section"""
+    """Delete a dynamic section (handles both DynamicSection and legacy DynamicModel)"""
+    from requests.models import DynamicSection
+    
     try:
-        dynamic_model = get_object_or_404(DynamicModel, id=section_id)
-        dynamic_model.is_active = False
-        dynamic_model.save()
+        is_legacy_dynamic = request.GET.get('dynamic') == 'true'
+        
+        if is_legacy_dynamic:
+            # Handle legacy dynamic model deletion
+            dynamic_model = get_object_or_404(DynamicModel, id=section_id)
+            dynamic_model.is_active = False
+            dynamic_model.save()
+        else:
+            # Handle DynamicSection deletion
+            section = get_object_or_404(DynamicSection, id=section_id)
+            
+            # Core sections cannot be deleted (they represent existing admin models)
+            if section.is_core_section:
+                return JsonResponse({
+                    'success': False, 
+                    'error': 'Core sections cannot be deleted as they represent existing admin models.'
+                })
+            
+            # Actually delete custom sections (DynamicSection doesn't have is_active field)
+            section.delete()
         
         return JsonResponse({'success': True})
         
