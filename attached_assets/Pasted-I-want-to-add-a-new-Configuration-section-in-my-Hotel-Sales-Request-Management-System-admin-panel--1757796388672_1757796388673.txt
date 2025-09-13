@@ -1,0 +1,45 @@
+I want to add a new "Configuration" section in my Hotel Sales Request Management System admin panel.
+
+Requirements:
+1. Add a new "Configuration" button/section at the end of the admin menu (outside of Requests).
+2. Inside Configuration, I should see all system sections/models:
+   - Accounts
+   - Agreements
+   - Requests
+   - Sales Calls
+   - Room Occupancies
+   - (and any future models I add)
+
+3. Features inside Configuration:
+   a) For each section/model, I should be able to:
+      - View all fields currently used in the Add/Edit forms.
+      - Add new fields, with the following options:
+          * Field name (label)
+          * Field type (text, number, date, checkbox, dropdown, textarea, etc.)
+          * Required (yes/no)
+          * Default value (optional)
+          * Order (position in form)
+      - Edit existing fields (rename, change type, hide/show, change required/optional).
+      - Delete fields if not needed.
+      - Reorder fields easily.
+   b) I should also be able to:
+      - Add a completely new section (with its own fields).
+      - Delete an existing section.
+      - Manage form layouts for better organization (group fields together, etc.).
+
+4. All changes in Configuration must be **linked dynamically** to the main system:
+   - If I mark a field in Sales Calls as optional, the Add Sales Call form should update immediately.
+   - If I add a new date field to Agreements in Configuration, it should appear in the Add Agreement form with a date picker.
+   - If I add a checkbox in Requests, it should appear as a checkbox input in the Add Request form.
+   - If I delete a section, it should be removed from the admin menu.
+
+5. Save settings in the database so they persist after restart/reload.
+
+6. The Configuration panel should be clean, user-friendly, and centralized. It should act like a full **form builder + system manager** for my Hotel Sales Request Management System.
+
+Deliverables:
+- A new "Configuration" section fully linked to all system sections.
+- Ability to add/edit/delete sections and fields.
+- Ability to mark fields as required/optional and choose the field type (text, number, date, checkbox, dropdown, textarea).
+- Automatic reflection of changes in the main Add/Edit forms.
+- Database persistence for all configuration changes.

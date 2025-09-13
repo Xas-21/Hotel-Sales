@@ -1,10 +1,12 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
+from hotel_sales.admin.mixins import ConfigEnforcedAdminMixin
 from .models import (
     Request, CancelledRequest, RoomEntry, Transportation, EventAgenda, SeriesGroupEntry, SeriesRoomEntry,
     RoomType, RoomOccupancy, CancellationReason, SystemFieldRequirement, SystemFormLayout,
-    RequestFieldRequirement, RequestFormLayout
+    RequestFieldRequirement, RequestFormLayout, DynamicModel, DynamicField, DynamicModelMigration,
+    DynamicFieldValue
 )
 
 class RoomEntryInline(admin.TabularInline):
@@ -47,7 +49,7 @@ class SeriesGroupEntryInline(admin.TabularInline):
     readonly_fields = ['nights']
 
 @admin.register(Request)
-class RequestAdmin(admin.ModelAdmin):
+class RequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     list_display = ['confirmation_number', 'account', 'request_type', 'meal_plan', 'status', 'check_in_date', 'check_out_date', 'nights', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
     list_filter = ['request_type', 'meal_plan', 'status', 'created_at', 'check_in_date']
     search_fields = ['confirmation_number', 'account__name', 'account__contact_person']
@@ -55,10 +57,17 @@ class RequestAdmin(admin.ModelAdmin):
     inlines = [RoomEntryInline, TransportationInline, EventAgendaInline, SeriesGroupEntryInline]
     ordering = ['-created_at']
     
-    def get_fieldsets(self, request, obj=None):
+    def get_config_form_type(self, obj=None):
+        """Get the form type for configuration lookup based on request type"""
+        if obj and hasattr(obj, 'request_type'):
+            return f"requests.{obj.request_type}"
+        # Default for new objects
+        return "requests.Group Accommodation"
+    
+    def get_original_fieldsets(self, request, obj=None):
         """
-        Dynamically modify fieldsets based on the request status.
-        Only show cancellation_reason when status is 'Cancelled'.
+        Fallback fieldsets when no configuration is available.
+        These are the original hardcoded fieldsets.
         """
         # Base fieldsets
         fieldsets = [
@@ -69,21 +78,9 @@ class RequestAdmin(admin.ModelAdmin):
                 'fields': ('check_in_date', 'check_out_date', 'nights', 'meal_plan'),
                 'description': 'Add room entries below in the "Room entries" section - room costs will be automatically included in total cost calculation.'
             }),
-        ]
-        
-        # Status & Payment section - conditionally include cancellation_reason
-        status_fields = ['status']
-        if obj and obj.status == 'Cancelled':
-            status_fields.extend(['cancellation_reason_fixed', 'cancellation_reason'])
-        
-        status_fields.extend(['offer_acceptance_deadline', 'deposit_deadline', 'full_payment_deadline'])
-        
-        fieldsets.append(('Status & Payment', {
-            'fields': tuple(status_fields)
-        }))
-        
-        # Add remaining fieldsets
-        fieldsets.extend([
+            ('Status & Payment', {
+                'fields': ('status', 'offer_acceptance_deadline', 'deposit_deadline', 'full_payment_deadline')
+            }),
             ('Financial Tracking (Auto-Calculated)', {
                 'fields': ('total_cost', 'total_rooms', 'total_room_nights', 'deposit_amount', 'paid_amount'),
                 'description': 'Financial totals are automatically calculated from room entries and transportation. If total_cost shows zero, ensure room entries have been added with valid rates.'
@@ -96,9 +93,23 @@ class RequestAdmin(admin.ModelAdmin):
                 'fields': ('created_at', 'updated_at'),
                 'classes': ('collapse',)
             })
-        ])
-        
+        ]
         return fieldsets
+    
+    def get_conditional_fieldsets(self, request, obj=None):
+        """
+        Get conditional fieldsets based on object state.
+        For requests, show cancellation fields when status is 'Cancelled'.
+        """
+        conditional_fieldsets = []
+        
+        if obj and obj.status == 'Cancelled':
+            conditional_fieldsets.append(('Cancellation Details', {
+                'fields': ('cancellation_reason_fixed', 'cancellation_reason'),
+                'description': 'Cancellation information for this request'
+            }))
+        
+        return conditional_fieldsets
     
     def save_model(self, request_obj, obj, form, change):
         super().save_model(request_obj, obj, form, change)
@@ -459,3 +470,29 @@ class RequestFormLayoutAdmin(admin.ModelAdmin):
     def changelist_view(self, request, extra_context=None):
         from django.shortcuts import redirect
         return redirect('/admin/requests/systemformlayout/')
+
+
+# Register dynamic model admin interfaces  
+from .admin.configuration_admin import DynamicModelAdmin, DynamicFieldAdmin, DynamicModelMigrationAdmin
+
+# Note: These are registered with @admin.register decorators in configuration_admin.py
+# but we ensure the admin classes are imported here for proper registration
+
+@admin.register(DynamicFieldValue)
+class DynamicFieldValueAdmin(admin.ModelAdmin):
+    list_display = ['field', 'content_type', 'object_id', 'get_value_display', 'created_at']
+    list_filter = ['field__field_type', 'content_type', 'created_at']
+    search_fields = ['field__name', 'field__display_name', 'value_text']
+    readonly_fields = ['created_at', 'updated_at']
+    raw_id_fields = ['field']
+    
+    def get_value_display(self, obj):
+        """Display the field value in a readable format"""
+        value = obj.get_value()
+        if value is None:
+            return "None"
+        elif isinstance(value, str) and len(value) > 50:
+            return f"{value[:47]}..."
+        else:
+            return str(value)
+    get_value_display.short_description = "Value"

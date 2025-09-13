@@ -57,7 +57,22 @@ class ConfigEnforcementService:
             }
             
             key = f"{app_label}.{model_name}"
-            mapped_type = form_type_map.get(key, f"{app_label}.{model_name.title()}")
+            mapped_type = form_type_map.get(key)
+            
+            if mapped_type:
+                logger.debug(f"Mapped {key} to {mapped_type}")
+                return mapped_type
+            
+            # For unknown mappings, use proper capitalization
+            if app_label == 'accounts':
+                mapped_type = f"{app_label}.Account"
+            elif app_label == 'sales_calls':
+                mapped_type = f"{app_label}.SalesCall"
+            elif app_label == 'agreements':
+                mapped_type = f"{app_label}.Agreement"
+            else:
+                mapped_type = f"{app_label}.{model_name.title()}"
+            
             logger.debug(f"Mapped {key} to {mapped_type}")
             return mapped_type
             
@@ -72,9 +87,11 @@ class ConfigEnforcementService:
         configs = cache.get(cache_key)
         
         if configs is None:
-            from requests.models import SystemFieldRequirement
+            from requests.models import SystemFieldRequirement, DynamicField
             
             configs = {}
+            
+            # Get system field requirements (existing field modifications)
             field_requirements = SystemFieldRequirement.objects.filter(
                 form_type=form_type,
                 enabled=True
@@ -88,6 +105,22 @@ class ConfigEnforcementService:
                     'section_name': req.section_name,
                     'sort_order': req.sort_order,
                     'help_text': req.help_text,
+                    'is_dynamic': False,
+                }
+            
+            # Get dynamic fields for existing models
+            dynamic_fields = cls._get_dynamic_fields_for_form_type(form_type)
+            for field in dynamic_fields:
+                configs[field.name] = {
+                    'required': field.required,
+                    'enabled': field.is_active,
+                    'field_label': field.display_name,
+                    'section_name': field.section,
+                    'sort_order': field.order,
+                    'help_text': field.help_text,
+                    'is_dynamic': True,
+                    'field_type': field.field_type,
+                    'dynamic_field': field,  # Store the field object for later use
                 }
             
             cache.set(cache_key, configs, cls.CACHE_TIMEOUT)
@@ -137,6 +170,13 @@ class ConfigEnforcementService:
         
         field_configs = cls.get_field_configs(form_type)
         layout = cls.get_layout(form_type)
+        
+        # Add dynamic fields to the form
+        cls._add_dynamic_fields_to_form(form, field_configs)
+        
+        # Populate form with existing dynamic field values if editing an instance
+        if instance and instance.pk:
+            cls._populate_dynamic_field_values(form, instance, field_configs)
         
         # Remove disabled fields
         disabled_fields = [name for name, config in field_configs.items() if not config['enabled']]
@@ -211,6 +251,89 @@ class ConfigEnforcementService:
         return sections
     
     @classmethod
+    def _get_dynamic_fields_for_form_type(cls, form_type: str):
+        """Get dynamic fields that are configured for existing models"""
+        from .existing_model_bridge import ExistingModelBridge
+        
+        try:
+            return ExistingModelBridge.get_dynamic_fields_for_model(form_type)
+        except Exception as e:
+            logger.warning(f"Error getting dynamic fields for {form_type}: {e}")
+            return []
+    
+    @classmethod
+    def _add_dynamic_fields_to_form(cls, form, field_configs):
+        """Add dynamic fields to the form based on configuration"""
+        from django import forms
+        
+        for field_name, config in field_configs.items():
+            if config.get('is_dynamic') and config.get('enabled'):
+                dynamic_field = config.get('dynamic_field')
+                if dynamic_field:
+                    # Create Django form field based on dynamic field type
+                    django_field = cls._create_django_form_field(dynamic_field)
+                    if django_field:
+                        form.fields[field_name] = django_field
+                        logger.debug(f"Added dynamic field {field_name} to form")
+    
+    @classmethod
+    def _create_django_form_field(cls, dynamic_field):
+        """Create a Django form field from a DynamicField configuration"""
+        from django import forms
+        
+        field_type = dynamic_field.field_type
+        kwargs = {
+            'label': dynamic_field.display_name,
+            'required': dynamic_field.required,
+            'help_text': dynamic_field.help_text,
+        }
+        
+        try:
+            if field_type == 'char':
+                kwargs['max_length'] = dynamic_field.max_length or 255
+                return forms.CharField(**kwargs)
+            elif field_type == 'text':
+                return forms.CharField(widget=forms.Textarea, **kwargs)
+            elif field_type == 'email':
+                kwargs['max_length'] = dynamic_field.max_length or 255
+                return forms.EmailField(**kwargs)
+            elif field_type == 'url':
+                kwargs['max_length'] = dynamic_field.max_length or 255
+                return forms.URLField(**kwargs)
+            elif field_type == 'integer':
+                return forms.IntegerField(**kwargs)
+            elif field_type == 'decimal':
+                kwargs['max_digits'] = dynamic_field.max_digits or 10
+                kwargs['decimal_places'] = dynamic_field.decimal_places or 2
+                return forms.DecimalField(**kwargs)
+            elif field_type == 'float':
+                return forms.FloatField(**kwargs)
+            elif field_type == 'date':
+                return forms.DateField(**kwargs)
+            elif field_type == 'datetime':
+                return forms.DateTimeField(**kwargs)
+            elif field_type == 'time':
+                return forms.TimeField(**kwargs)
+            elif field_type == 'boolean':
+                return forms.BooleanField(**kwargs)
+            elif field_type == 'choice':
+                choices = list(dynamic_field.choices.items()) if dynamic_field.choices else []
+                return forms.ChoiceField(choices=choices, **kwargs)
+            elif field_type == 'multiple_choice':
+                choices = list(dynamic_field.choices.items()) if dynamic_field.choices else []
+                return forms.MultipleChoiceField(choices=choices, **kwargs)
+            elif field_type == 'file':
+                return forms.FileField(**kwargs)
+            elif field_type == 'image':
+                return forms.ImageField(**kwargs)
+            else:
+                logger.warning(f"Unsupported dynamic field type: {field_type}")
+                return forms.CharField(**kwargs)  # Fallback to text field
+        except Exception as e:
+            logger.error(f"Error creating form field for {dynamic_field.name}: {e}")
+            return None
+    
+    @classmethod
     def validate_required(cls, instance, form_type: str = None, data: Dict = None) -> List[str]:
         """Server-side validation of required fields"""
         if form_type is None:
@@ -228,6 +351,80 @@ class ConfigEnforcementService:
         return errors
     
     @classmethod
+    def _populate_dynamic_field_values(cls, form, instance, field_configs):
+        """Populate form fields with existing dynamic field values"""
+        from requests.models import DynamicFieldValue
+        
+        try:
+            # Get existing dynamic field values for this instance
+            existing_values = DynamicFieldValue.get_values_for_instance(instance)
+            
+            for value_obj in existing_values:
+                field_name = value_obj.field.name
+                if field_name in form.fields and field_configs.get(field_name, {}).get('is_dynamic', False):
+                    # Set the initial value for the form field
+                    form.initial[field_name] = value_obj.get_value()
+                    logger.debug(f"Populated dynamic field '{field_name}' with value: {value_obj.get_value()}")
+                    
+        except Exception as e:
+            logger.error(f"Error populating dynamic field values: {e}")
+    
+    @classmethod
+    def save_dynamic_field_values(cls, form, instance, form_type: str = None):
+        """Save dynamic field values after form submission"""
+        from requests.models import DynamicFieldValue
+        from django.contrib.contenttypes.models import ContentType
+        
+        if form_type is None:
+            form_type = cls.map_form_type(instance)
+        
+        field_configs = cls.get_field_configs(form_type)
+        content_type = ContentType.objects.get_for_model(instance)
+        
+        try:
+            for field_name, config in field_configs.items():
+                if config.get('is_dynamic', False) and field_name in form.cleaned_data:
+                    dynamic_field = config.get('dynamic_field')
+                    if dynamic_field:
+                        value = form.cleaned_data[field_name]
+                        
+                        # Get or create the value object
+                        value_obj, created = DynamicFieldValue.objects.get_or_create(
+                            content_type=content_type,
+                            object_id=instance.pk,
+                            field=dynamic_field,
+                            defaults={}
+                        )
+                        
+                        # Set the value using the dynamic field value's set_value method
+                        value_obj.set_value(value)
+                        value_obj.save()
+                        
+                        action = "Created" if created else "Updated"
+                        logger.debug(f"{action} dynamic field value '{field_name}': {value}")
+                        
+        except Exception as e:
+            logger.error(f"Error saving dynamic field values: {e}")
+    
+    @classmethod
+    def get_dynamic_field_values_dict(cls, instance, form_type: str = None):
+        """Get dynamic field values as a dictionary for easy access"""
+        from requests.models import DynamicFieldValue
+        
+        if not instance or not instance.pk:
+            return {}
+        
+        try:
+            existing_values = DynamicFieldValue.get_values_for_instance(instance)
+            return {
+                value_obj.field.name: value_obj.get_value()
+                for value_obj in existing_values
+            }
+        except Exception as e:
+            logger.error(f"Error getting dynamic field values: {e}")
+            return {}
+    
+    @classmethod
     def invalidate_cache(cls, form_type: str):
         """Invalidate cache for a specific form type"""
         clean_form_type = form_type.replace(' ', '_').replace('.', '_')
@@ -240,9 +437,23 @@ class ConfigEnforcementService:
 @receiver([post_save, post_delete])
 def invalidate_config_cache(sender, instance, **kwargs):
     """Invalidate cache when configuration changes"""
-    from requests.models import SystemFieldRequirement, SystemFormLayout
+    from requests.models import SystemFieldRequirement, SystemFormLayout, DynamicField, DynamicModel
     
     if isinstance(instance, SystemFieldRequirement):
         ConfigEnforcementService.invalidate_cache(instance.form_type)
     elif isinstance(instance, SystemFormLayout):
         ConfigEnforcementService.invalidate_cache(instance.form_type)
+    elif isinstance(instance, (DynamicField, DynamicModel)):
+        # Invalidate cache for all relevant form types when dynamic fields change
+        form_types = [
+            'requests.Group Accommodation',
+            'requests.Individual Accommodation', 
+            'requests.Event with Rooms',
+            'requests.Event without Rooms',
+            'requests.Series Group',
+            'sales_calls.SalesCall',
+            'agreements.Agreement',
+            'accounts.Account',
+        ]
+        for form_type in form_types:
+            ConfigEnforcementService.invalidate_cache(form_type)

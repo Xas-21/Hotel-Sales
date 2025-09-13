@@ -9,6 +9,11 @@ class SalesCallAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     list_filter = ['meeting_subject', 'business_potential', 'visit_date', 'follow_up_required', 'follow_up_completed']
     search_fields = ['account__name', 'account__contact_person', 'city', 'next_steps']
     readonly_fields = ['created_at', 'updated_at']
+    
+    def get_config_form_type(self, obj=None):
+        """Get the form type for configuration lookup"""
+        return "sales_calls.SalesCall"
+    
     def get_original_fieldsets(self, request, obj=None):
         """Original fieldsets for fallback"""
         return (
@@ -26,6 +31,11 @@ class SalesCallAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
                 'classes': ('collapse',)
             })
         )
+    
+    def get_conditional_fieldsets(self, request, obj=None):
+        """Get conditional fieldsets based on object state"""
+        return []
+    
     ordering = ['-visit_date']
     
     def follow_up_status(self, obj):

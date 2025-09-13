@@ -38,9 +38,17 @@ class ConfigEnforcedAdminMixin:
                     section_name = section.get('name', 'Section')
                     section_fields = []
                     
-                    # Add enabled fields to section
+                    # Add enabled fields to section (including dynamic fields)
                     for field_name in section.get('fields', []):
                         if field_name in field_configs and field_configs[field_name]['enabled']:
+                            section_fields.append(field_name)
+                    
+                    # Add dynamic fields that belong to this section but aren't explicitly listed
+                    for field_name, config in field_configs.items():
+                        if (config.get('is_dynamic', False) and 
+                            config.get('enabled', True) and 
+                            config.get('section_name', 'General') == section_name and 
+                            field_name not in section_fields):
                             section_fields.append(field_name)
                     
                     # Only add section if it has fields
@@ -54,19 +62,31 @@ class ConfigEnforcedAdminMixin:
                             **options
                         }))
                 
-                # Add any remaining fields that aren't in sections
+                # Add any remaining fields that aren't in sections (including dynamic fields)
                 model_fields = [f.name for f in self.model._meta.get_fields() 
                               if not f.is_relation or f.one_to_one or (f.many_to_one and f.related_model)]
+                
+                # Get all configured field names including dynamic ones
+                all_configured_fields = [f for f in field_configs.keys() if field_configs[f]['enabled']]
+                
                 configured_fields = set()
                 for section in layout['sections']:
                     configured_fields.update(section.get('fields', []))
+                    # Also add dynamic fields that were added to sections
+                    for field_name, config in field_configs.items():
+                        if (config.get('is_dynamic', False) and 
+                            config.get('enabled', True) and 
+                            config.get('section_name', 'General') == section.get('name', 'Section')):
+                            configured_fields.add(field_name)
                 
-                remaining_fields = [f for f in model_fields 
-                                  if f not in configured_fields and f in field_configs 
-                                  and field_configs[f]['enabled']]
+                # Find remaining fields (both model fields and dynamic fields)
+                remaining_fields = []
+                for field_name in all_configured_fields:
+                    if field_name not in configured_fields:
+                        remaining_fields.append(field_name)
                 
                 if remaining_fields:
-                    fieldsets.append(('Other Fields', {
+                    fieldsets.append(('Dynamic Fields', {
                         'fields': remaining_fields,
                         'classes': ('collapse',)
                     }))
@@ -128,3 +148,15 @@ class ConfigEnforcedAdminMixin:
                 ConfigEnforcementService.apply_to_form(self, form_type, kwargs.get('instance'))
         
         return ConfigEnforcedForm
+    
+    def save_model(self, request, obj, form, change):
+        """Save the model and handle dynamic field values"""
+        # First save the main model
+        super().save_model(request, obj, form, change)
+        
+        # Then save dynamic field values
+        try:
+            ConfigEnforcementService.save_dynamic_field_values(form, obj)
+            logger.debug(f"Saved dynamic field values for {obj}")
+        except Exception as e:
+            logger.error(f"Error saving dynamic field values for {obj}: {e}")

@@ -12,6 +12,8 @@ if TYPE_CHECKING:
     from django.db.models.manager import RelatedManager
 
 
+
+
 # Configuration Models for Admin Panel Management
 class RoomType(models.Model):
     """Admin-configurable room types"""
@@ -554,3 +556,293 @@ class SeriesRoomEntry(models.Model):
     def get_total_cost(self):
         """Calculate total cost for this series room entry"""
         return Decimal(str(self.quantity)) * self.rate_per_night * Decimal(self.series_entry.nights or 0)
+
+
+# Dynamic Model Management System for Form Builder
+class DynamicModel(models.Model):
+    """
+    Represents a dynamically created model (table) in the system.
+    """
+    name = models.CharField(max_length=100, unique=True, help_text="Model name (e.g., 'Invoice')")
+    app_label = models.CharField(max_length=100, default='requests', help_text="Django app where model belongs")
+    table_name = models.CharField(max_length=100, unique=True, help_text="Database table name")
+    display_name = models.CharField(max_length=100, help_text="Human-readable name for admin")
+    description = models.TextField(blank=True, help_text="Description of this model's purpose")
+    
+    # Model configuration
+    ordering_fields = models.JSONField(default=list, help_text="Fields to use for default ordering")
+    is_active = models.BooleanField(default=True, help_text="Whether this model is active in the system")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Dynamic Model"
+        verbose_name_plural = "Dynamic Models"
+        ordering = ['name']
+    
+    def __str__(self):
+        return f"{self.display_name} ({self.name})"
+    
+    def get_full_model_name(self):
+        """Get the full model name for Django references"""
+        return f"{self.app_label}.{self.name}"
+    
+    def clean(self):
+        """Validate model data"""
+        if self.table_name and not str(self.table_name).isidentifier():
+            raise ValidationError("Table name must be a valid Python identifier")
+        
+        if self.name and not str(self.name)[0].isupper():
+            raise ValidationError("Model name must start with a capital letter")
+
+
+class DynamicField(models.Model):
+    """
+    Represents a dynamically created field within a model.
+    """
+    FIELD_TYPES = [
+        # Text fields
+        ('char', 'Text (Short)'),
+        ('text', 'Text (Long)'),
+        ('email', 'Email'),
+        ('url', 'URL'),
+        ('slug', 'Slug'),
+        
+        # Number fields
+        ('integer', 'Integer'),
+        ('decimal', 'Decimal'),
+        ('float', 'Float'),
+        
+        # Date/Time fields
+        ('date', 'Date'),
+        ('datetime', 'Date & Time'),
+        ('time', 'Time'),
+        
+        # Boolean fields
+        ('boolean', 'Checkbox (Yes/No)'),
+        
+        # Choice fields
+        ('choice', 'Dropdown (Single Choice)'),
+        ('multiple_choice', 'Multiple Choice'),
+        
+        # File fields
+        ('file', 'File Upload'),
+        ('image', 'Image Upload'),
+        
+        # Relationship fields
+        ('foreign_key', 'Link to Another Model'),
+        ('many_to_many', 'Multiple Links'),
+        
+        # Special fields
+        ('json', 'JSON Data'),
+    ]
+    
+    model = models.ForeignKey(DynamicModel, on_delete=models.CASCADE, related_name='fields')
+    name = models.CharField(max_length=100, help_text="Field name in database (lowercase, underscores)")
+    display_name = models.CharField(max_length=100, help_text="Label shown in forms")
+    field_type = models.CharField(max_length=20, choices=FIELD_TYPES)
+    
+    # Field options
+    required = models.BooleanField(default=False)
+    default_value = models.TextField(blank=True, help_text="Default value (JSON format for complex types)")
+    help_text = models.CharField(max_length=200, blank=True)
+    
+    # Field constraints
+    max_length = models.PositiveIntegerField(null=True, blank=True, help_text="For text fields")
+    max_digits = models.PositiveIntegerField(null=True, blank=True, help_text="For decimal fields")
+    decimal_places = models.PositiveIntegerField(null=True, blank=True, help_text="For decimal fields")
+    
+    # Choice field options
+    choices = models.JSONField(default=dict, help_text="For choice fields: {'value': 'display_name'}")
+    
+    # Foreign key options
+    related_model = models.CharField(max_length=100, blank=True, help_text="Model to link to (app.Model)")
+    
+    # Display options
+    section = models.CharField(max_length=100, default='General', help_text="Form section this field belongs to")
+    order = models.PositiveIntegerField(default=0, help_text="Order within section")
+    is_active = models.BooleanField(default=True, help_text="Whether field is shown in forms")
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Dynamic Field"
+        verbose_name_plural = "Dynamic Fields"
+        unique_together = [['model', 'name']]
+        ordering = ['model', 'section', 'order']
+    
+    def __str__(self):
+        return f"{self.model.name}.{self.display_name} ({self.field_type})"
+    
+    def clean(self):
+        """Validate field data"""
+        if self.name and (not str(self.name).isidentifier() or not str(self.name).islower()):
+            raise ValidationError("Field name must be lowercase and a valid Python identifier")
+        
+        if self.field_type in ['char', 'email', 'url', 'slug'] and not self.max_length:
+            raise ValidationError(f"{self.field_type} fields require max_length")
+        
+        if self.field_type == 'decimal' and (not self.max_digits or self.decimal_places is None):
+            raise ValidationError("Decimal fields require max_digits and decimal_places")
+        
+        if self.field_type in ['choice', 'multiple_choice'] and not self.choices:
+            raise ValidationError("Choice fields require choices to be defined")
+        
+        if self.field_type == 'foreign_key' and not self.related_model:
+            raise ValidationError("Foreign key fields require related_model")
+
+
+class DynamicModelMigration(models.Model):
+    """
+    Track migrations applied to dynamic models for rollback capability.
+    """
+    OPERATION_TYPES = [
+        ('create_model', 'Create Model'),
+        ('add_field', 'Add Field'),
+        ('remove_field', 'Remove Field'),
+        ('alter_field', 'Alter Field'),
+        ('delete_model', 'Delete Model'),
+    ]
+    
+    model_name = models.CharField(max_length=100)
+    operation_type = models.CharField(max_length=20, choices=OPERATION_TYPES)
+    operation_data = models.JSONField(help_text="Serialized operation data for rollback")
+    applied_at = models.DateTimeField(auto_now_add=True)
+    success = models.BooleanField(default=True)
+    error_message = models.TextField(blank=True)
+    
+    class Meta:
+        verbose_name = "Dynamic Migration"
+        verbose_name_plural = "Dynamic Migrations"
+        ordering = ['-applied_at']
+    
+    def __str__(self):
+        status = "✓" if self.success else "✗"
+        return f"{status} {self.operation_type} on {self.model_name} ({self.applied_at})"
+
+
+class DynamicFieldValue(models.Model):
+    """
+    Stores dynamic field values for existing model instances.
+    This provides persistence for dynamic fields without modifying existing tables.
+    """
+    # Reference to the existing model instance
+    content_type = models.ForeignKey(
+        'contenttypes.ContentType',
+        on_delete=models.CASCADE,
+        help_text="The model this value belongs to"
+    )
+    object_id = models.PositiveIntegerField(help_text="The ID of the model instance")
+    
+    # Reference to the dynamic field definition
+    field = models.ForeignKey(
+        DynamicField,
+        on_delete=models.CASCADE,
+        help_text="The dynamic field definition"
+    )
+    
+    # Flexible value storage for different field types
+    value_text = models.TextField(blank=True, null=True, help_text="For text, email, url, choice fields")
+    value_integer = models.IntegerField(blank=True, null=True, help_text="For integer fields")
+    value_decimal = models.DecimalField(max_digits=20, decimal_places=10, blank=True, null=True, help_text="For decimal fields")
+    value_float = models.FloatField(blank=True, null=True, help_text="For float fields")
+    value_boolean = models.BooleanField(blank=True, null=True, help_text="For boolean fields")
+    value_date = models.DateField(blank=True, null=True, help_text="For date fields")
+    value_datetime = models.DateTimeField(blank=True, null=True, help_text="For datetime fields")
+    value_time = models.TimeField(blank=True, null=True, help_text="For time fields")
+    value_file = models.FileField(upload_to='dynamic_fields/', blank=True, null=True, help_text="For file fields")
+    value_json = models.JSONField(blank=True, null=True, help_text="For JSON and multiple choice fields")
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Dynamic Field Value"
+        verbose_name_plural = "Dynamic Field Values"
+        unique_together = [['content_type', 'object_id', 'field']]
+        indexes = [
+            models.Index(fields=['content_type', 'object_id']),
+            models.Index(fields=['field']),
+        ]
+    
+    def __str__(self):
+        return f"{self.field.display_name}: {self.get_value()}"
+    
+    def get_value(self):
+        """Get the actual value based on field type"""
+        field_type = self.field.field_type
+        
+        if field_type in ['char', 'text', 'email', 'url', 'slug', 'choice']:
+            return self.value_text
+        elif field_type == 'integer':
+            return self.value_integer
+        elif field_type == 'decimal':
+            return self.value_decimal
+        elif field_type == 'float':
+            return self.value_float
+        elif field_type == 'boolean':
+            return self.value_boolean
+        elif field_type == 'date':
+            return self.value_date
+        elif field_type == 'datetime':
+            return self.value_datetime
+        elif field_type == 'time':
+            return self.value_time
+        elif field_type in ['file', 'image']:
+            return self.value_file
+        elif field_type in ['multiple_choice', 'json']:
+            return self.value_json
+        
+        return None
+    
+    def set_value(self, value):
+        """Set the value based on field type"""
+        field_type = self.field.field_type
+        
+        # Clear all value fields first
+        self.value_text = None
+        self.value_integer = None
+        self.value_decimal = None
+        self.value_float = None
+        self.value_boolean = None
+        self.value_date = None
+        self.value_datetime = None
+        self.value_time = None
+        self.value_file = None
+        self.value_json = None
+        
+        # Set the appropriate field based on type
+        if field_type in ['char', 'text', 'email', 'url', 'slug', 'choice']:
+            self.value_text = str(value) if value is not None else None
+        elif field_type == 'integer':
+            self.value_integer = int(value) if value is not None else None
+        elif field_type == 'decimal':
+            self.value_decimal = Decimal(str(value)) if value is not None else None
+        elif field_type == 'float':
+            self.value_float = float(value) if value is not None else None
+        elif field_type == 'boolean':
+            self.value_boolean = bool(value) if value is not None else None
+        elif field_type == 'date':
+            self.value_date = value
+        elif field_type == 'datetime':
+            self.value_datetime = value
+        elif field_type == 'time':
+            self.value_time = value
+        elif field_type in ['file', 'image']:
+            self.value_file = value
+        elif field_type in ['multiple_choice', 'json']:
+            self.value_json = value
+    
+    @classmethod
+    def get_values_for_instance(cls, instance):
+        """Get all dynamic field values for a model instance"""
+        from django.contrib.contenttypes.models import ContentType
+        
+        content_type = ContentType.objects.get_for_model(instance)
+        return cls.objects.filter(
+            content_type=content_type,
+            object_id=instance.pk
+        ).select_related('field')
