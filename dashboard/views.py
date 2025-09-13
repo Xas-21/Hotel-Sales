@@ -1,11 +1,14 @@
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
-from django.db.models import Count, Sum, Q
+from django.db.models import Count, Sum, Q, Min
+from django.contrib.admin.views.decorators import staff_member_required
+from django.urls import reverse
 from accounts.models import Account
-from requests.models import Request
+from requests.models import Request, SeriesGroupEntry, EventAgenda
 from agreements.models import Agreement
 from sales_calls.models import SalesCall
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
+import json
 
 def dashboard_view(request):
     """
@@ -125,3 +128,110 @@ def api_health_check(request):
     API health check endpoint for deployment monitoring
     """
     return JsonResponse({"status": "healthy", "service": "hotel_sales"}, status=200)
+
+@staff_member_required
+def calendar_view(request):
+    """
+    Calendar view displaying groups, events, and sales calls
+    """
+    return render(request, 'dashboard/calendar.html')
+
+@staff_member_required
+def api_calendar_events(request):
+    """
+    API endpoint for calendar events data with date range filtering
+    """
+    # Get date range from query parameters (expected from FullCalendar)
+    start_str = request.GET.get('start')
+    end_str = request.GET.get('end')
+    
+    if not start_str or not end_str:
+        return JsonResponse({'error': 'Missing start or end date parameters'}, status=400)
+    
+    try:
+        # Parse date strings in YYYY-MM-DD format from FullCalendar
+        # Handle both with and without time components
+        start_date = datetime.fromisoformat(start_str.split('T')[0]).date()
+        end_date = datetime.fromisoformat(end_str.split('T')[0]).date()
+    except (ValueError, AttributeError):
+        try:
+            # Fallback for simple YYYY-MM-DD format
+            from datetime import datetime as dt
+            start_date = dt.strptime(start_str, '%Y-%m-%d').date()
+            end_date = dt.strptime(end_str, '%Y-%m-%d').date()
+        except ValueError:
+            return JsonResponse({'error': 'Invalid date format'}, status=400)
+    
+    events = []
+    
+    # 1. Group Accommodation requests (based on arrival/check-in dates)
+    # Use gte/lt for proper exclusive end range semantics
+    group_requests = Request.objects.filter(
+        request_type='Group Accommodation',
+        check_in_date__gte=start_date,
+        check_in_date__lt=end_date
+    ).exclude(status='Cancelled').select_related('account')
+    
+    for req in group_requests:
+        events.append({
+            'id': f'group_{req.id}',
+            'type': 'group',
+            'title': f'Group: {req.account.name}',
+            'start': req.check_in_date.isoformat(),
+            'allDay': True,
+            'color': '#0d6efd',
+            'url': f'/admin/requests/request/{req.id}/change/'
+        })
+    
+    # 2. Series Group entries (based on arrival dates) - exclude cancelled requests
+    series_entries = SeriesGroupEntry.objects.filter(
+        arrival_date__gte=start_date,
+        arrival_date__lt=end_date
+    ).exclude(request__status='Cancelled').select_related('request__account')
+    
+    for entry in series_entries:
+        events.append({
+            'id': f'series_{entry.id}',
+            'type': 'series',
+            'title': f'Series: {entry.request.account.name}',
+            'start': entry.arrival_date.isoformat(),
+            'allDay': True,
+            'color': '#6f42c1',
+            'url': f'/admin/requests/seriesgroupentry/{entry.id}/change/'
+        })
+    
+    # 3. Event agendas (query directly for efficiency) - one calendar item per agenda date
+    event_agendas = EventAgenda.objects.filter(
+        event_date__gte=start_date,
+        event_date__lt=end_date
+    ).exclude(request__status='Cancelled').select_related('request__account')
+    
+    for agenda in event_agendas:
+        events.append({
+            'id': f'agenda_{agenda.id}',
+            'type': 'event',
+            'title': f'Event: {agenda.request.account.name}',
+            'start': agenda.event_date.isoformat(),
+            'allDay': True,
+            'color': '#fd7e14',
+            'url': f'/admin/requests/eventagenda/{agenda.id}/change/'
+        })
+    
+    # 4. Sales Calls (based on visit dates)
+    sales_calls = SalesCall.objects.filter(
+        visit_date__gte=start_date,
+        visit_date__lt=end_date
+    ).select_related('account')
+    
+    for call in sales_calls:
+        events.append({
+            'id': f'salescall_{call.id}',
+            'type': 'salescall',
+            'title': f'Sales Call: {call.account.name}',
+            'start': call.visit_date.isoformat(),
+            'allDay': True,
+            'color': '#198754',
+            'url': f'/admin/sales_calls/salescall/{call.id}/change/'
+        })
+    
+    return JsonResponse(events, safe=False)

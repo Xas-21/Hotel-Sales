@@ -45,7 +45,7 @@ class Request(models.Model):
     request_received_date = models.DateField(default=timezone.localdate)
     
     # Accommodation details
-    check_in_date = models.DateField(null=True, blank=True)
+    check_in_date = models.DateField(null=True, blank=True, db_index=True)
     check_out_date = models.DateField(null=True, blank=True)
     nights = models.PositiveIntegerField(null=True, blank=True, editable=False, help_text="Automatically calculated")
     meal_plan = models.CharField(max_length=2, choices=MEAL_PLAN_CHOICES, default='RO')
@@ -230,7 +230,7 @@ class EventAgenda(models.Model):
     Event/Meeting agendas with detailed timing for events.
     """
     request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name='event_agendas')
-    event_date = models.DateField()
+    event_date = models.DateField(db_index=True)
     start_time = models.TimeField()
     end_time = models.TimeField()
     coffee_break_time = models.TimeField(null=True, blank=True)
@@ -248,7 +248,7 @@ class SeriesGroupEntry(models.Model):
     Series Group support for multiple arrival/departure dates with different room configurations.
     """
     request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name='series_entries')
-    arrival_date = models.DateField()
+    arrival_date = models.DateField(db_index=True)
     departure_date = models.DateField()
     arrival_time = models.TimeField(null=True, blank=True, help_text="Expected arrival time")
     departure_time = models.TimeField(null=True, blank=True, help_text="Expected departure time") 

@@ -25,7 +25,7 @@ class SalesCall(models.Model):
     
     # Basic information
     account = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='sales_calls')
-    visit_date = models.DateField()
+    visit_date = models.DateField(db_index=True)
     city = models.CharField(max_length=100)
     address = models.TextField(blank=True)
     
