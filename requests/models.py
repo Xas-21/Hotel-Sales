@@ -6,9 +6,134 @@ from accounts.models import Account
 from typing import TYPE_CHECKING, cast
 from datetime import date
 from decimal import Decimal
+import json
 
 if TYPE_CHECKING:
     from django.db.models.manager import RelatedManager
+
+
+# Configuration Models for Admin Panel Management
+class RoomType(models.Model):
+    """Admin-configurable room types"""
+    code = models.CharField(max_length=50, unique=True, help_text="Unique identifier (e.g., SUP, DLX)")
+    name = models.CharField(max_length=100, help_text="Display name (e.g., Superior, Deluxe)")
+    description = models.TextField(blank=True, help_text="Optional description")
+    active = models.BooleanField(default=True, help_text="Available for selection")
+    sort_order = models.PositiveIntegerField(default=0, help_text="Display order")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = "Room Type"
+        verbose_name_plural = "Room Types"
+
+    def __str__(self):
+        return self.name
+
+
+class RoomOccupancy(models.Model):
+    """Admin-configurable room occupancy types"""
+    code = models.CharField(max_length=50, unique=True, help_text="Unique identifier (e.g., SGL, DBL)")
+    label = models.CharField(max_length=100, help_text="Display label (e.g., Single, Double)")
+    pax_count = models.PositiveIntegerField(help_text="Number of guests")
+    description = models.TextField(blank=True, help_text="Optional description")
+    active = models.BooleanField(default=True, help_text="Available for selection")
+    sort_order = models.PositiveIntegerField(default=0, help_text="Display order")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['sort_order', 'label']
+        verbose_name = "Room Occupancy"
+        verbose_name_plural = "Room Occupancies"
+
+    def __str__(self):
+        return f"{self.label} ({self.pax_count} pax)"
+
+
+class CancellationReason(models.Model):
+    """Admin-configurable cancellation reasons"""
+    code = models.CharField(max_length=50, unique=True, help_text="Unique identifier")
+    label = models.CharField(max_length=200, help_text="Reason description")
+    is_refundable = models.BooleanField(default=False, help_text="Allows refund")
+    active = models.BooleanField(default=True, help_text="Available for selection")
+    sort_order = models.PositiveIntegerField(default=0, help_text="Display order")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['sort_order', 'label']
+        verbose_name = "Cancellation Reason"
+        verbose_name_plural = "Cancellation Reasons"
+
+    def __str__(self):
+        return self.label
+
+
+class RequestFieldRequirement(models.Model):
+    """Admin-configurable field requirements per request type"""
+    REQUEST_TYPE_CHOICES = [
+        ('Group Accommodation', 'Group Accommodation (10+ rooms)'),
+        ('Individual Accommodation', 'Individual Accommodation (1-9 rooms)'),
+        ('Event with Rooms', 'Event with Rooms'),
+        ('Event without Rooms', 'Event without Rooms'),
+        ('Series Group', 'Series Group (multiple dates)'),
+    ]
+    
+    request_type = models.CharField(max_length=30, choices=REQUEST_TYPE_CHOICES)
+    field_name = models.CharField(max_length=100, help_text="Django field name")
+    field_label = models.CharField(max_length=200, help_text="Display label")
+    required = models.BooleanField(default=False, help_text="Field is required")
+    enabled = models.BooleanField(default=True, help_text="Field is visible")
+    sort_order = models.PositiveIntegerField(default=0, help_text="Display order within section")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['request_type', 'sort_order', 'field_name']
+        unique_together = ['request_type', 'field_name']
+        verbose_name = "Field Requirement"
+        verbose_name_plural = "Field Requirements"
+
+    def __str__(self):
+        return f"{self.request_type}: {self.field_label} ({'Required' if self.required else 'Optional'})"
+
+
+class RequestFormLayout(models.Model):
+    """Admin-configurable form section layouts per request type"""
+    REQUEST_TYPE_CHOICES = [
+        ('Group Accommodation', 'Group Accommodation (10+ rooms)'),
+        ('Individual Accommodation', 'Individual Accommodation (1-9 rooms)'),
+        ('Event with Rooms', 'Event with Rooms'),
+        ('Event without Rooms', 'Event without Rooms'),
+        ('Series Group', 'Series Group (multiple dates)'),
+    ]
+    
+    request_type = models.CharField(max_length=30, choices=REQUEST_TYPE_CHOICES, unique=True)
+    sections = models.JSONField(
+        default=list,
+        help_text="JSON array of sections: [{'name': 'Basic Info', 'fields': ['field1', 'field2'], 'order': 1}]"
+    )
+    active = models.BooleanField(default=True, help_text="Layout is active")
+    updated_by = models.CharField(max_length=100, blank=True, help_text="Last updated by")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['request_type']
+        verbose_name = "Form Layout"
+        verbose_name_plural = "Form Layouts"
+
+    def __str__(self):
+        return f"{self.request_type} Layout"
+    
+    def get_sections(self):
+        """Get sections as parsed JSON"""
+        try:
+            return json.loads(self.sections) if isinstance(self.sections, str) else self.sections
+        except (json.JSONDecodeError, TypeError):
+            return []
 
 class Request(models.Model):
     """
@@ -52,7 +177,14 @@ class Request(models.Model):
     
     # Status and payment
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Draft')
-    cancellation_reason = models.TextField(blank=True, help_text="Only required when status is Cancelled")
+    cancellation_reason = models.TextField(blank=True, help_text="Custom cancellation reason (when fixed reason not sufficient)")
+    cancellation_reason_fixed = models.ForeignKey(
+        'CancellationReason', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        help_text="Select from predefined cancellation reasons"
+    )
     
     # Payment deadlines
     offer_acceptance_deadline = models.DateField(null=True, blank=True)
@@ -192,6 +324,23 @@ class RoomEntry(models.Model):
     request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name='room_entries')
     category = models.CharField(max_length=20, choices=ROOM_CATEGORIES)
     occupancy = models.CharField(max_length=10, choices=OCCUPANCY_TYPES)
+    
+    # New configurable fields (nullable for backward compatibility)
+    room_type = models.ForeignKey(
+        'RoomType', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        help_text="Select from admin-configured room types"
+    )
+    occupancy_type = models.ForeignKey(
+        'RoomOccupancy', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        help_text="Select from admin-configured occupancy types"
+    )
+    
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     rate_per_night = models.DecimalField(max_digits=8, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
     
