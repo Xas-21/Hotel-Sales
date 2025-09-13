@@ -73,23 +73,27 @@
                             </li>
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-user-circle me-1"></i>{{ user.get_full_name|default:user.username }}
+                                    <i class="fas fa-user-circle me-1"></i>{% if user.profile %}{{ user.profile.full_name }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}
                                 </a>
                                 <div class="dropdown-menu dropdown-menu-end profile-dropdown" aria-labelledby="profileDropdown">
                                     <div class="dropdown-header text-center">
                                         <i class="fas fa-user-circle fa-3x mb-2"></i><br>
-                                        <strong>{{ user.get_full_name|default:user.username }}</strong><br>
+                                        <strong>{% if user.profile %}{{ user.profile.full_name }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}</strong><br>
                                         <small class="text-muted">{{ user.email }}</small>
                                     </div>
                                     <div class="dropdown-divider"></div>
                                     <div class="dropdown-item-text">
-                                        <small><strong>Role:</strong> {% if user.is_superuser %}Administrator{% elif user.is_staff %}Staff Member{% else %}User{% endif %}</small>
+                                        <small><strong>Role:</strong> {% if user.profile %}{{ user.profile.role_label }}{% elif user.is_superuser %}Administrator{% elif user.is_staff %}Staff Member{% else %}User{% endif %}</small>
                                     </div>
                                     <div class="dropdown-item-text">
                                         <small><strong>Permissions:</strong></small>
                                         <ul class="small mb-0 ps-3">
-                                            {% if user.is_superuser %}
-                                                <li>Full System Access</li>
+                                            {% if user.profile %}
+                                                {% for permission in user.profile.permissions_summary %}
+                                                    <li>{{ permission }}</li>
+                                                {% endfor %}
+                                            {% elif user.is_superuser %}
+                                                <li>All Permissions</li>
                                             {% else %}
                                                 {% if user.is_staff %}
                                                     <li>Admin Panel Access</li>
