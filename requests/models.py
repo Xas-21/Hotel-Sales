@@ -344,8 +344,18 @@ class RoomEntry(models.Model):
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     rate_per_night = models.DecimalField(max_digits=8, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
     
+    @property
+    def effective_room_type(self):
+        """Return room type from new config or fallback to legacy category"""
+        return self.room_type.name if self.room_type else self.category
+    
+    @property
+    def effective_occupancy(self):
+        """Return occupancy from new config or fallback to legacy occupancy"""
+        return self.occupancy_type.label if self.occupancy_type else self.occupancy
+    
     def __str__(self):
-        return f"{self.quantity}x {self.category} ({self.occupancy})"
+        return f"{self.quantity}x {self.effective_room_type} ({self.effective_occupancy})"
     
     def get_total_cost(self):
         """Calculate total cost for this room entry"""
@@ -455,11 +465,38 @@ class SeriesRoomEntry(models.Model):
     series_entry = models.ForeignKey(SeriesGroupEntry, on_delete=models.CASCADE, related_name='room_entries')
     category = models.CharField(max_length=20, choices=ROOM_CATEGORIES)
     occupancy = models.CharField(max_length=10, choices=OCCUPANCY_TYPES)
+    
+    # New configurable fields (nullable for backward compatibility)
+    room_type = models.ForeignKey(
+        'RoomType', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        help_text="Select from admin-configured room types"
+    )
+    occupancy_type = models.ForeignKey(
+        'RoomOccupancy', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        help_text="Select from admin-configured occupancy types"
+    )
+    
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     rate_per_night = models.DecimalField(max_digits=8, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
     
+    @property
+    def effective_room_type(self):
+        """Return room type from new config or fallback to legacy category"""
+        return self.room_type.name if self.room_type else self.category
+    
+    @property
+    def effective_occupancy(self):
+        """Return occupancy from new config or fallback to legacy occupancy"""
+        return self.occupancy_type.label if self.occupancy_type else self.occupancy
+    
     def __str__(self):
-        return f"{self.quantity}x {self.category} ({self.occupancy})"
+        return f"{self.quantity}x {self.effective_room_type} ({self.effective_occupancy})"
     
     def get_total_cost(self):
         """Calculate total cost for this series room entry"""
