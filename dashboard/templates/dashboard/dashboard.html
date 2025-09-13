@@ -129,7 +129,7 @@
         <div id="full-dashboard-container">
         
         <!-- Section 1: Cards (All Metrics) -->
-        <div class="row mb-4 dashboard-section" data-section="cards-section">
+        <div class="dashboard-section" data-section="cards-section">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header" data-section-header>
@@ -297,7 +297,7 @@
         </div>
 
         <!-- Section 2: Recent Activity -->
-        <div class="row mb-4 dashboard-section" data-section="recent-section">
+        <div class="dashboard-section" data-section="recent-section">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header" data-section-header>
@@ -426,7 +426,7 @@
 
         <!-- Section 3: Alerts -->
         {% if approaching_deadlines or overdue_followups or imminent_arrivals %}
-        <div class="row mb-4 dashboard-section" data-section="alerts-section">
+        <div class="dashboard-section" data-section="alerts-section">
             <div class="col-12">
                 <div class="card border-warning">
                     <div class="card-header bg-warning" data-section-header>
@@ -491,7 +491,7 @@
         {% endif %}
 
         <!-- Section 4: Quick Actions -->
-        <div class="row mb-4 dashboard-section" data-section="quick-actions-section">
+        <div class="dashboard-section" data-section="quick-actions-section">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header" data-section-header>
@@ -530,6 +530,87 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    
+    <!-- Custom CSS for section separation -->
+    <style>
+        .dashboard-section {
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            margin-bottom: 20px !important;
+            padding: 0;
+            background: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .dashboard-section:not(:last-child) {
+            border-bottom: 3px solid #dee2e6;
+            margin-bottom: 25px !important;
+        }
+        
+        .dashboard-section::after {
+            content: "";
+            display: block;
+            height: 2px;
+            background: linear-gradient(to right, #dee2e6, #adb5bd, #dee2e6);
+            margin: 15px auto;
+            width: 90%;
+        }
+        
+        .dashboard-section:last-child::after {
+            display: none;
+        }
+        
+        .dashboard-section .card {
+            border: none !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+        }
+        
+        .dashboard-section .card-header[data-section-header] {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef) !important;
+            border-bottom: 2px solid #dee2e6 !important;
+            font-weight: 600;
+            cursor: grab;
+            transition: all 0.3s ease;
+        }
+        
+        .dashboard-section .card-header[data-section-header]:hover {
+            background: linear-gradient(135deg, #e9ecef, #dee2e6) !important;
+            transform: translateY(-1px);
+        }
+        
+        .dashboard-section .card-header[data-section-header]:active {
+            cursor: grabbing;
+        }
+        
+        /* Special styling for alerts section */
+        .dashboard-section .card-header.bg-warning[data-section-header] {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7) !important;
+        }
+        
+        .dashboard-section .card-header.bg-warning[data-section-header]:hover {
+            background: linear-gradient(135deg, #ffeaa7, #fdcb6e) !important;
+        }
+        
+        /* Section isolation - prevent content mixing */
+        .dashboard-section .card-body {
+            padding: 20px;
+            min-height: 150px;
+            border-top: 1px solid #f8f9fa;
+        }
+        
+        /* Drag feedback */
+        .sortable-ghost {
+            opacity: 0.4 !important;
+            background: #f8f9fa !important;
+        }
+        
+        .sortable-drag {
+            transform: rotate(2deg) scale(1.02) !important;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+            z-index: 1000 !important;
+        }
+    </style>
     <script>
         // Initialize drag and drop for 4 main dashboard sections
         document.addEventListener('DOMContentLoaded', function() {
