@@ -559,6 +559,36 @@ class SeriesRoomEntry(models.Model):
 
 
 # Dynamic Model Management System for Form Builder
+
+class DynamicSection(models.Model):
+    """
+    Represents a configuration section containing fields.
+    Used by Configuration Dashboard for both Core Sections (existing admin models) 
+    and Custom Sections (user-created forms).
+    """
+    name = models.CharField(max_length=255, unique=True, help_text="Internal section name")
+    display_name = models.CharField(max_length=255, help_text="Display name shown to users")
+    description = models.TextField(blank=True, help_text="Description of this section's purpose")
+    order = models.IntegerField(default=100, help_text="Display order")
+    
+    # Core section integration
+    is_core_section = models.BooleanField(default=False, help_text="True if this represents an existing admin model")
+    source_model = models.CharField(max_length=255, blank=True, help_text="Full model name (e.g. 'accounts.Account') for core sections")
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Dynamic Section"
+        verbose_name_plural = "Dynamic Sections"
+        ordering = ['is_core_section', 'order', 'name']
+    
+    def __str__(self):
+        prefix = "Core: " if self.is_core_section else "Custom: "
+        return f"{prefix}{self.display_name}"
+
+
 class DynamicModel(models.Model):
     """
     Represents a dynamically created model (table) in the system.
@@ -637,10 +667,16 @@ class DynamicField(models.Model):
         ('json', 'JSON Data'),
     ]
     
-    model = models.ForeignKey(DynamicModel, on_delete=models.CASCADE, related_name='fields')
+    # Relationships - a field can belong to either a DynamicModel (full DB table) OR DynamicSection (form section)
+    model = models.ForeignKey(DynamicModel, on_delete=models.CASCADE, related_name='fields', null=True, blank=True)
+    section = models.ForeignKey(DynamicSection, on_delete=models.CASCADE, related_name='fields', null=True, blank=True)
+    
     name = models.CharField(max_length=100, help_text="Field name in database (lowercase, underscores)")
     display_name = models.CharField(max_length=100, help_text="Label shown in forms")
     field_type = models.CharField(max_length=20, choices=FIELD_TYPES)
+    
+    # Core field integration
+    is_core_field = models.BooleanField(default=False, help_text="True if this represents an existing model field")
     
     # Field options
     required = models.BooleanField(default=False)
@@ -659,7 +695,7 @@ class DynamicField(models.Model):
     related_model = models.CharField(max_length=100, blank=True, help_text="Model to link to (app.Model)")
     
     # Display options
-    section = models.CharField(max_length=100, default='General', help_text="Form section this field belongs to")
+    section_name = models.CharField(max_length=100, default='General', help_text="Form section name for grouping (legacy field)")
     order = models.PositiveIntegerField(default=0, help_text="Order within section")
     is_active = models.BooleanField(default=True, help_text="Whether field is shown in forms")
     
@@ -670,14 +706,21 @@ class DynamicField(models.Model):
     class Meta:
         verbose_name = "Dynamic Field"
         verbose_name_plural = "Dynamic Fields"
-        unique_together = [['model', 'name']]
-        ordering = ['model', 'section', 'order']
+        ordering = ['model', 'section', 'section_name', 'order']
     
     def __str__(self):
-        return f"{self.model.name}.{self.display_name} ({self.field_type})"
+        parent = self.model.name if self.model else self.section.name if self.section else "Unknown"
+        return f"{parent}.{self.display_name} ({self.field_type})"
     
     def clean(self):
-        """Validate field data"""
+        """Validate field data and relationships"""
+        # Validate that field belongs to either model or section, not both
+        if not self.model and not self.section:
+            raise ValidationError("Field must belong to either a DynamicModel or DynamicSection")
+        if self.model and self.section:
+            raise ValidationError("Field cannot belong to both a DynamicModel and DynamicSection")
+        
+        # Validate field data
         if self.name and (not str(self.name).isidentifier() or not str(self.name).islower()):
             raise ValidationError("Field name must be lowercase and a valid Python identifier")
         
