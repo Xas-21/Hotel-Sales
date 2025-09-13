@@ -157,6 +157,13 @@ def dashboard_view(request):
         'tomorrow': tomorrow,
     }
     
+    # Add debug info without overriding Django's auth context processor
+    context['debug_user_info'] = {
+        'username': getattr(request.user, 'username', 'NoUser'),
+        'is_authenticated': getattr(request.user, 'is_authenticated', False),
+        'user_id': getattr(request.user, 'id', None),
+    }
+    
     return render(request, 'dashboard/dashboard.html', context)
 
 def api_request_chart_data(request):
