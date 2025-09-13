@@ -6,4 +6,11 @@ class RequestsConfig(AppConfig):
     name = 'requests'
     
     def ready(self):
-        import requests.signals
+        # Import signals to register them
+        try:
+            import requests.signals
+        except ImportError:
+            pass
+        
+        # Import configuration enforcement to register signal handlers
+        import requests.services.config_enforcement

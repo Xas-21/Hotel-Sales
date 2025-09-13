@@ -1,0 +1,110 @@
+{% comment %}
+Dynamic Form Sections Template Component
+
+Renders form fields organized by sections based on centralized configuration.
+Falls back to standard Django form rendering if no sections are configured.
+{% endcomment %}
+
+{% load widget_tweaks %}
+
+{% if form.has_sections %}
+    <!-- Render configured sections -->
+    {% for section in form.get_sections %}
+        <div class="form-section mb-4" data-section="{{ section.name }}">
+            <div class="section-header">
+                <h4 class="section-title">
+                    {{ section.name }}
+                    {% if section.collapsed %}
+                        <button type="button" class="btn btn-sm btn-outline-secondary float-end" 
+                                data-bs-toggle="collapse" data-bs-target="#section-{{ forloop.counter }}"
+                                aria-expanded="false" aria-controls="section-{{ forloop.counter }}">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    {% endif %}
+                </h4>
+            </div>
+            
+            <div class="section-content {% if section.collapsed %}collapse{% endif %}" 
+                 id="section-{{ forloop.counter }}">
+                <div class="row">
+                    {% for field in section.fields %}
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ field.id_for_label }}" class="form-label">
+                                {{ field.label }}
+                                {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+                            </label>
+                            
+                            {% if field.field.widget.input_type == 'checkbox' %}
+                                <div class="form-check">
+                                    {{ field|add_class:"form-check-input" }}
+                                    <label class="form-check-label" for="{{ field.id_for_label }}">
+                                        {{ field.label }}
+                                    </label>
+                                </div>
+                            {% elif field.field.widget.input_type == 'select' %}
+                                {{ field|add_class:"form-select" }}
+                            {% elif field.field.widget.input_type == 'textarea' %}
+                                {{ field|add_class:"form-control" }}
+                            {% else %}
+                                {{ field|add_class:"form-control" }}
+                            {% endif %}
+                            
+                            {% if field.help_text %}
+                                <div class="form-text">{{ field.help_text }}</div>
+                            {% endif %}
+                            
+                            {% if field.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in field.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+{% else %}
+    <!-- Fallback: Standard Django form rendering -->
+    <div class="form-section">
+        <div class="row">
+            {% for field in form %}
+                <div class="col-md-6 mb-3">
+                    <label for="{{ field.id_for_label }}" class="form-label">
+                        {{ field.label }}
+                        {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+                    </label>
+                    
+                    {% if field.field.widget.input_type == 'checkbox' %}
+                        <div class="form-check">
+                            {{ field|add_class:"form-check-input" }}
+                            <label class="form-check-label" for="{{ field.id_for_label }}">
+                                {{ field.label }}
+                            </label>
+                        </div>
+                    {% elif field.field.widget.input_type == 'select' %}
+                        {{ field|add_class:"form-select" }}
+                    {% elif field.field.widget.input_type == 'textarea' %}
+                        {{ field|add_class:"form-control" }}
+                    {% else %}
+                        {{ field|add_class:"form-control" }}
+                    {% endif %}
+                    
+                    {% if field.help_text %}
+                        <div class="form-text">{{ field.help_text }}</div>
+                    {% endif %}
+                    
+                    {% if field.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in field.errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endif %}

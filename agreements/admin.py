@@ -2,25 +2,28 @@ from django.contrib import admin
 from .models import Agreement
 from django.utils.html import format_html
 from datetime import date, timedelta
+from hotel_sales.admin.mixins import ConfigEnforcedAdminMixin
 
 @admin.register(Agreement)
-class AgreementAdmin(admin.ModelAdmin):
+class AgreementAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     list_display = ['account', 'rate_type', 'start_date', 'end_date', 'return_deadline', 'status', 'deadline_status', 'created_at']
     list_filter = ['rate_type', 'status', 'start_date', 'end_date', 'return_deadline']
     search_fields = ['account__name', 'account__contact_person']
     readonly_fields = ['created_at', 'updated_at']
-    fieldsets = (
-        ('Agreement Details', {
-            'fields': ('account', 'rate_type', 'start_date', 'end_date', 'return_deadline')
-        }),
-        ('Status & File', {
-            'fields': ('status', 'agreement_file')
-        }),
-        ('Notes & Metadata', {
-            'fields': ('notes', 'created_at', 'updated_at'),
-            'classes': ('collapse',)
-        })
-    )
+    def get_original_fieldsets(self, request, obj=None):
+        """Original fieldsets for fallback"""
+        return (
+            ('Agreement Details', {
+                'fields': ('account', 'rate_type', 'start_date', 'end_date', 'return_deadline')
+            }),
+            ('Status & File', {
+                'fields': ('status', 'agreement_file')
+            }),
+            ('Notes & Metadata', {
+                'fields': ('notes', 'created_at', 'updated_at'),
+                'classes': ('collapse',)
+            })
+        )
     ordering = ['-created_at']
     
     def deadline_status(self, obj):
