@@ -138,12 +138,11 @@
                                     <br><small class="text-info">Custom fields: {{ section.custom_field_count }}</small>
                                     {% endif %}
                                 </div>
-                                </div>
                                 <p class="text-muted small mb-3">
                                     Core: {{ section.core_field_count }} • Custom: {{ section.custom_field_count }}
                                 </p>
                                 <div class="d-flex gap-2">
-                                    <a href="{% url 'configuration:section_fields' section.id %}?core=true" 
+                                    <a href="{% url 'configuration:section_fields' section.id %}" 
                                        class="btn btn-success btn-sm flex-fill">
                                         <i class="fas fa-cogs me-1"></i>Configure Fields
                                     </a>
@@ -185,7 +184,7 @@
                                 </div>
                                 <p class="card-text text-muted mb-3">{{ section.description|default:"Custom section created by user" }}</p>
                                 <div class="d-flex gap-2">
-                                    <a href="{% url 'configuration:section_fields' section.id %}?custom=true" 
+                                    <a href="{% url 'configuration:section_fields' section.id %}" 
                                        class="btn btn-info btn-sm">
                                         <i class="fas fa-edit me-1"></i>Edit Fields
                                     </a>

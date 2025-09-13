@@ -117,86 +117,90 @@ def configuration_dashboard(request):
     return render(request, 'configuration/dashboard.html', context)
 
 
-@staff_member_required
-def section_fields(request, section_name):
-    """Show and manage fields for a specific section"""
-    is_dynamic = request.GET.get('dynamic') == 'true'
+@staff_member_required  
+def section_fields(request, section_id):
+    """Show and manage fields for a specific section (DynamicSection or legacy DynamicModel)"""
+    from requests.models import DynamicSection
     
-    if is_dynamic:
-        # Handle dynamic model
-        dynamic_model = get_object_or_404(DynamicModel, id=section_name)
+    is_legacy_dynamic = request.GET.get('dynamic') == 'true'
+    
+    if is_legacy_dynamic:
+        # Handle legacy dynamic model for backward compatibility
+        dynamic_model = get_object_or_404(DynamicModel, id=section_id)
         model_name = f"{dynamic_model.app_label}.{dynamic_model.name}"
         display_name = dynamic_model.display_name
         
-        # Get dynamic fields
+        # Get legacy dynamic fields
         fields = DynamicField.objects.filter(
             model=dynamic_model,
             is_active=True
-        ).order_by('section', 'order')
+        ).order_by('section_name', 'order')
         
-        # Get model fields (always empty for dynamic models)
-        model_fields = []
+        section_type = 'legacy'
+        model_fields = []  # Legacy models don't have core model fields
         
     else:
-        # Handle existing Django model
-        try:
-            model = apps.get_model(section_name)
-            model_name = section_name
-            display_name = {
-                'accounts.Company': 'Companies & Accounts',
-                'requests.Request': 'Booking Requests', 
-                'agreements.Agreement': 'Agreements & Contracts',
-                'sales_calls.SalesCall': 'Sales Calls & Meetings',
-                'requests.RoomEntry': 'Room Occupancies'
-            }.get(section_name, section_name)
-            
-            # Get model fields
+        # Handle DynamicSection (Core or Custom)
+        section = get_object_or_404(DynamicSection, id=section_id)
+        model_name = section.name
+        display_name = section.display_name
+        section_type = 'core' if section.is_core_section else 'custom'
+        
+        # Get all fields for this section
+        fields = section.fields.filter(is_active=True).order_by('order')
+        
+        # For Core sections, separate core fields from custom fields
+        if section.is_core_section:
             model_fields = []
-            for field in model._meta.fields:
-                if field.name not in ['id', 'created_at', 'updated_at']:
-                    model_fields.append({
-                        'name': field.name,
-                        'display_name': field.verbose_name or field.name.replace('_', ' ').title(),
-                        'field_type': field.get_internal_type(),
-                        'required': not field.null and not field.blank,
-                        'is_model_field': True
-                    })
+            core_fields = fields.filter(is_core_field=True)
             
-            # Get dynamic fields through extension models
-            from requests.services.existing_model_bridge import ExistingModelBridge
-            fields = ExistingModelBridge.get_dynamic_fields_for_model(section_name)
-            
-        except Exception as e:
-            messages.error(request, f"Error loading section: {e}")
-            return redirect('configuration:dashboard')
+            for field in core_fields:
+                model_fields.append({
+                    'id': field.id,
+                    'name': field.name,
+                    'display_name': field.display_name,
+                    'field_type': field.field_type,
+                    'required': field.required,
+                    'is_model_field': True,
+                    'is_core_field': True
+                })
+        else:
+            model_fields = []
     
-    # Convert dynamic fields to dict format
+    # Convert fields to dict format for template
     dynamic_fields = []
     for field in fields:
+        # Skip core fields for core sections (already handled above)
+        if section_type == 'core' and field.is_core_field:
+            continue
+            
         dynamic_fields.append({
             'id': field.id,
             'name': field.name,
             'display_name': field.display_name,
             'field_type': field.field_type,
             'required': field.required,
-            'section': field.section or 'Custom Fields',
+            'section_name': field.section_name if hasattr(field, 'section_name') else 'Custom Fields',
             'order': field.order,
             'max_length': field.max_length,
             'choices': field.choices,
             'default_value': field.default_value,
-            'is_model_field': False
+            'is_model_field': False,
+            'is_core_field': getattr(field, 'is_core_field', False)
         })
     
-    # For dynamic models, use ID for URL building; for existing models, use the model name
-    section_url_param = section_name if is_dynamic else model_name
-    
     context = {
-        'section_name': section_url_param,
+        'section_id': section_id,
+        'section_name': model_name,
         'display_name': display_name,
+        'section_type': section_type,
+        'source_model': getattr(section, 'source_model', '') if not is_legacy_dynamic else '',
         'model_fields': model_fields,
         'dynamic_fields': dynamic_fields,
         'all_fields': model_fields + dynamic_fields,
-        'is_dynamic': is_dynamic
+        'is_legacy_dynamic': is_legacy_dynamic,
+        'is_core_section': section_type == 'core',
+        'is_custom_section': section_type == 'custom'
     }
     
     return render(request, 'configuration/section_fields.html', context)
@@ -204,15 +208,18 @@ def section_fields(request, section_name):
 
 @staff_member_required
 @require_POST
-def add_field(request, section_name):
+def add_field(request, section_id):
     """Add a new field to a section"""
+    from requests.models import DynamicSection
+    
     try:
         data = json.loads(request.body)
-        is_dynamic = request.GET.get('dynamic') == 'true'
+        is_legacy_dynamic = request.GET.get('dynamic') == 'true'
         
         # Create new dynamic field
-        if is_dynamic:
-            dynamic_model = get_object_or_404(DynamicModel, id=section_name)
+        if is_legacy_dynamic:
+            # Handle legacy dynamic model
+            dynamic_model = get_object_or_404(DynamicModel, id=section_id)
             field = DynamicField.objects.create(
                 model=dynamic_model,
                 name=data['name'],
@@ -226,32 +233,30 @@ def add_field(request, section_name):
                 order=data.get('order', 100)
             )
         else:
-            # For existing models, get or create an extension model
-            extension_model = _get_or_create_extension_model(section_name)
+            # Handle DynamicSection (Core or Custom)
+            section = get_object_or_404(DynamicSection, id=section_id)
+            
+            # For Core sections, new fields are marked as custom additions
+            is_core_field = False  # New fields added to core sections are custom additions
+            
             field = DynamicField.objects.create(
-                model=extension_model,
+                section=section,  # Link to DynamicSection instead of DynamicModel
                 name=data['name'],
                 display_name=data['display_name'],
                 field_type=data['field_type'],
                 required=data.get('required', False),
-                section=data.get('section', 'Custom Fields'),
+                section_name=data.get('section_name', 'Custom Fields'),  # Section grouping name
                 max_length=data.get('max_length') or 255,
                 choices=data.get('choices') or '{}',
                 default_value=data.get('default_value') or '',
-                order=data.get('order', 100)
+                order=data.get('order', 100),
+                is_core_field=is_core_field
             )
         
-        # Apply schema changes if needed
-        if is_dynamic:
-            schema_manager = SchemaManager()
-            field_config = {
-                'name': field.name,
-                'field_type': field.field_type,
-                'max_length': field.max_length,
-                'required': field.required,
-                'default_value': field.default_value
-            }
-            # Note: Schema changes for dynamic fields are handled by the model creation process
+        # Apply schema changes if needed (for legacy dynamic models only)
+        if is_legacy_dynamic:
+            # Note: Schema changes for legacy dynamic fields are handled by the model creation process
+            pass
         
         return JsonResponse({
             'success': True,
@@ -261,7 +266,8 @@ def add_field(request, section_name):
                 'display_name': field.display_name,
                 'field_type': field.field_type,
                 'required': field.required,
-                'section': field.section
+                'section_name': getattr(field, 'section_name', 'Custom Fields'),
+                'is_core_field': getattr(field, 'is_core_field', False)
             }
         })
         

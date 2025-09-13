@@ -14,10 +14,10 @@ urlpatterns = [
     path('', configuration_views.configuration_dashboard, name='dashboard'),
     
     # Section field management
-    path('section/<str:section_name>/', configuration_views.section_fields, name='section_fields'),
+    path('section/<int:section_id>/', configuration_views.section_fields, name='section_fields'),
     
     # Field operations
-    path('section/<str:section_name>/add-field/', configuration_views.add_field, name='add_field'),
+    path('section/<int:section_id>/add-field/', configuration_views.add_field, name='add_field'),
     path('field/<int:field_id>/update/', configuration_views.update_field, name='update_field'),
     path('field/<int:field_id>/delete/', configuration_views.delete_field, name='delete_field'),
     
