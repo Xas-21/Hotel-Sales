@@ -141,7 +141,7 @@ class ConfigEnforcedAdminMixin:
         
         # Get field configurations to handle dynamic fields  
         field_configs = ConfigEnforcementService.get_field_configs(form_type)
-        dynamic_field_names = [config['field_name'] for config in field_configs if config.get('is_dynamic')]
+        dynamic_field_names = [name for name, cfg in field_configs.items() if cfg.get('is_dynamic')]
         
         # Temporarily modify fieldsets to exclude dynamic fields during form creation
         original_fieldsets = getattr(self, 'fieldsets', None)
