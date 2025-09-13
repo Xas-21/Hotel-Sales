@@ -119,11 +119,11 @@
                     <i class="fas fa-database me-2 text-primary"></i>Core Fields
                 </h3>
                 {% for field in model_fields %}
-                <div class="card field-card model-field mb-3">
+                <div class="card field-card model-field mb-3" data-field-id="{{ field.id }}">
                     <div class="card-body">
                         <div class="row align-items-center">
                             <div class="col-md-3">
-                                <h6 class="mb-1">{{ field.display_name }}</h6>
+                                <h6 class="mb-1 field-title">{{ field.display_name }}</h6>
                                 <small class="text-muted">{{ field.name }}</small>
                             </div>
                             <div class="col-md-2">
@@ -140,7 +140,14 @@
                                 <small class="text-muted">Built-in field</small>
                             </div>
                             <div class="col-md-2 text-end">
-                                <span class="badge bg-light text-dark">Read Only</span>
+                                <button class="btn btn-outline-primary btn-sm me-1" 
+                                        onclick="editField({{ field.id }}, 'model')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm" 
+                                        onclick="deleteField({{ field.id }}, '{{ field.display_name }}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -162,7 +169,7 @@
                     <div class="card-body">
                         <div class="row align-items-center">
                             <div class="col-md-3">
-                                <h6 class="mb-1">
+                                <h6 class="mb-1 field-title">
                                     <span class="editable-field" data-field="display_name" data-value="{{ field.display_name }}">
                                         {{ field.display_name }}
                                     </span>
@@ -345,9 +352,102 @@
             });
         }
 
-        function editField(fieldId) {
-            // Future: Implement inline editing
-            alert('Inline editing coming soon! Use the admin panel for now.');
+        function editField(fieldId, fieldType = 'custom') {
+            // Get field data from the DOM
+            const fieldCard = document.querySelector(`[data-field-id="${fieldId}"]`);
+            if (!fieldCard) {
+                alert('Field not found');
+                return;
+            }
+
+            // Extract current field values
+            const displayName = fieldCard.querySelector('.field-title').textContent.trim();
+            const currentType = fieldCard.querySelector('.field-type-badge').textContent.trim();
+            const isRequired = fieldCard.querySelector('.text-danger') !== null;
+            
+            // Create inline edit form
+            const editForm = `
+                <div class="row align-items-center" id="edit-form-${fieldId}">
+                    <div class="col-md-3">
+                        <input type="text" class="form-control form-control-sm" value="${displayName}" id="edit-display-name-${fieldId}">
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" id="edit-type-${fieldId}">
+                            <option value="char" ${currentType === 'CharField' ? 'selected' : ''}>Text</option>
+                            <option value="email" ${currentType === 'EmailField' ? 'selected' : ''}>Email</option>
+                            <option value="integer" ${currentType === 'IntegerField' ? 'selected' : ''}>Number</option>
+                            <option value="boolean" ${currentType === 'BooleanField' ? 'selected' : ''}>Boolean</option>
+                            <option value="date" ${currentType === 'DateField' ? 'selected' : ''}>Date</option>
+                            <option value="choice" ${currentType === 'ChoiceField' ? 'selected' : ''}>Choice</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" ${isRequired ? 'checked' : ''} id="edit-required-${fieldId}">
+                            <label class="form-check-label" for="edit-required-${fieldId}">Required</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <small class="text-muted">Editing...</small>
+                    </div>
+                    <div class="col-md-2 text-end">
+                        <button class="btn btn-success btn-sm me-1" onclick="saveFieldEdit(${fieldId})">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="cancelFieldEdit(${fieldId})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Store original content and replace with edit form
+            const originalContent = fieldCard.innerHTML;
+            fieldCard.setAttribute('data-original-content', originalContent);
+            fieldCard.innerHTML = editForm;
+        }
+
+        function saveFieldEdit(fieldId) {
+            const displayName = document.getElementById(`edit-display-name-${fieldId}`).value;
+            const fieldType = document.getElementById(`edit-type-${fieldId}`).value;
+            const required = document.getElementById(`edit-required-${fieldId}`).checked;
+
+            const updateData = {
+                display_name: displayName,
+                field_type: fieldType,
+                required: required
+            };
+
+            fetch(`{% url "configuration:update_field" 0 %}`.replace('0', fieldId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(updateData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error updating field: ' + data.error);
+                    cancelFieldEdit(fieldId);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error);
+                cancelFieldEdit(fieldId);
+            });
+        }
+
+        function cancelFieldEdit(fieldId) {
+            const fieldCard = document.querySelector(`[data-field-id="${fieldId}"]`);
+            const originalContent = fieldCard.getAttribute('data-original-content');
+            if (originalContent) {
+                fieldCard.innerHTML = originalContent;
+                fieldCard.removeAttribute('data-original-content');
+            }
         }
 
         function deleteField(fieldId, fieldName) {

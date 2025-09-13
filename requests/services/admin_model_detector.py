@@ -30,7 +30,7 @@ class AdminModelDetector:
         
         for model, admin_class in admin.site._registry.items():
             app_label = model._meta.app_label
-            model_name = model._meta.model_name.title()  # Capitalize for exact match
+            model_name = model._meta.object_name  # Use object_name for proper capitalization
             full_name = f"{app_label}.{model_name}"
             
             # Only process our exact core models
