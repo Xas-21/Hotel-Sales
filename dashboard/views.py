@@ -17,6 +17,10 @@ def dashboard_view(request):
     # Key metrics
     total_accounts = Account.objects.count()
     total_requests = Request.objects.count()
+    
+    # Split agreements into signed vs pending
+    signed_agreements = Agreement.objects.filter(status='Signed').count()
+    pending_agreements = Agreement.objects.filter(status__in=['Draft', 'Sent']).count()
     total_agreements = Agreement.objects.count()
     
     # Request statistics
@@ -70,6 +74,8 @@ def dashboard_view(request):
         'total_accounts': total_accounts,
         'total_requests': total_requests,
         'total_agreements': total_agreements,
+        'signed_agreements': signed_agreements,
+        'pending_agreements': pending_agreements,
         'confirmed_requests': confirmed_requests,
         'cancelled_requests': cancelled_requests,
         'paid_requests': paid_requests,
