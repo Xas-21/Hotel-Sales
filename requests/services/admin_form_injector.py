@@ -6,7 +6,12 @@ into Django admin forms for Core Sections (existing admin models).
 """
 
 from django.contrib import admin
-from django.forms import CharField, IntegerField, BooleanField, DateField, ChoiceField
+from django.forms import (
+    CharField, IntegerField, BooleanField, DateField, DateTimeField, 
+    ChoiceField, DecimalField, FloatField, FileField, ImageField, TimeField, 
+    MultipleChoiceField, EmailField, URLField
+)
+from django.core.validators import FileExtensionValidator
 from django.core.exceptions import ValidationError
 from django.http import HttpRequest
 from typing import Dict, List, Any, Optional
@@ -24,13 +29,40 @@ class AdminFormInjector:
     """
     
     # Field type mapping from DynamicField to Django form fields
+    # Uses lowercase field type names to match DynamicField.FIELD_TYPES
     FIELD_TYPE_MAPPING = {
-        'CharField': CharField,
-        'TextField': CharField,
-        'IntegerField': IntegerField,
-        'BooleanField': BooleanField,
-        'DateField': DateField,
-        'ChoiceField': ChoiceField,
+        # Text fields
+        'char': CharField,
+        'text': CharField,  # Will use widget=Textarea
+        'email': EmailField,
+        'url': URLField,
+        'slug': CharField,
+        
+        # Number fields
+        'integer': IntegerField,
+        'decimal': DecimalField,
+        'float': FloatField,
+        
+        # Date/Time fields
+        'date': DateField,
+        'datetime': DateTimeField,
+        'time': TimeField,
+        
+        # Boolean fields
+        'boolean': BooleanField,
+        
+        # Choice fields
+        'choice': ChoiceField,
+        'multiple_choice': MultipleChoiceField,
+        
+        # File fields
+        'file': FileField,
+        'image': ImageField,  # Now uses proper ImageField with Pillow validation
+        
+        # Advanced fields
+        'json': CharField,  # JSON data as text field for now
+        'foreign_key': CharField,  # Link to another model (simplified as text)
+        'many_to_many': MultipleChoiceField,  # Multiple links (simplified as multiple choice)
     }
     
     @classmethod
@@ -122,20 +154,61 @@ class AdminFormInjector:
             'initial': field_config.get('default_value', '')
         }
         
-        # Add field-specific parameters
-        if field_type in ['CharField', 'TextField']:
+        # Add field-specific parameters based on field type
+        if field_type in ['char', 'text', 'slug']:
             kwargs['max_length'] = field_config.get('max_length', 255)
+            
+        # Use textarea widget for text fields
+        if field_type == 'text':
+            from django import forms
+            kwargs['widget'] = forms.Textarea(attrs={'rows': 3})
         
-        if field_type == 'ChoiceField' and field_config.get('choices'):
+        # Add decimal-specific parameters
+        if field_type == 'decimal':
+            kwargs['max_digits'] = field_config.get('max_digits', 10)
+            kwargs['decimal_places'] = field_config.get('decimal_places', 2)
+        
+        # Add file validation for security
+        if field_type == 'file':
+            kwargs['validators'] = [
+                FileExtensionValidator(allowed_extensions=[
+                    'pdf', 'doc', 'docx', 'txt', 'csv', 'xls', 'xlsx'
+                ])
+            ]
+        elif field_type == 'image':
+            kwargs['validators'] = [
+                FileExtensionValidator(allowed_extensions=[
+                    'jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'
+                ])
+            ]
+        
+        # Add choice field options
+        if field_type in ['choice', 'multiple_choice'] and field_config.get('choices'):
             try:
                 # Parse choices (assuming JSON format)
                 choices_data = json.loads(field_config['choices'])
                 if isinstance(choices_data, dict):
+                    # Convert dict to tuples: {'key': 'label'} -> [('key', 'label'), ...]
                     kwargs['choices'] = list(choices_data.items())
-                elif isinstance(choices_data, list):
-                    kwargs['choices'] = [(choice, choice) for choice in choices_data]
+                elif isinstance(choices_data, list) and choices_data:
+                    # Handle list format properly
+                    formatted_choices = []
+                    for choice in choices_data:
+                        if isinstance(choice, (list, tuple)) and len(choice) >= 2:
+                            # Convert ['value', 'label'] to ('value', 'label')
+                            formatted_choices.append((choice[0], choice[1]))
+                        elif isinstance(choice, str):
+                            # Convert 'value' to ('value', 'value')
+                            formatted_choices.append((choice, choice))
+                        else:
+                            # Convert anything else to string tuple
+                            formatted_choices.append((str(choice), str(choice)))
+                    kwargs['choices'] = formatted_choices
+                else:
+                    kwargs['choices'] = []
             except (json.JSONDecodeError, ValueError):
                 # Fallback to CharField if choices parsing fails
+                logger.warning(f"Failed to parse choices for {field_config.get('name', 'unknown')}: {field_config.get('choices', '')}")
                 field_class = CharField
                 kwargs['max_length'] = field_config.get('max_length', 255)
         
@@ -192,6 +265,11 @@ class AdminFormInjector:
                                     self.instance, field_config['name']
                                 )
                                 if existing_value is not None:
+                                    # Handle different field types for initial values
+                                    if field_config['field_type'] == 'multiple_choice':
+                                        # Ensure multiple choice initial is a list
+                                        if not isinstance(existing_value, list):
+                                            existing_value = [existing_value] if existing_value else []
                                     self.initial[field_name] = existing_value
                 
                 return EnhancedForm
@@ -242,7 +320,7 @@ class AdminFormInjector:
         original_save_model = getattr(admin_class, 'save_model', None)
         
         def enhanced_save_model(self, request, obj, form, change):
-            """Enhanced save_model that persists custom field values"""
+            """Enhanced save_model that persists custom field values with file/multiple choice support"""
             
             # Call original save_model first
             if original_save_model:
@@ -253,14 +331,23 @@ class AdminFormInjector:
             # Save custom field values using existing DynamicFieldValue model
             from requests.models import DynamicFieldValue, DynamicField
             from django.contrib.contenttypes.models import ContentType
+            import json
             
             custom_field_configs = cls.get_custom_fields_for_model(self.model)
             content_type = ContentType.objects.get_for_model(self.model)
             
             for field_config in custom_field_configs:
                 field_name = field_config['name']
+                field_type = field_config['field_type']
+                
+                # Check both cleaned_data and FILES for file fields
+                field_value_data = None
                 if field_name in form.cleaned_data:
-                    # Get the DynamicField instance
+                    field_value_data = form.cleaned_data[field_name]
+                elif field_type in ['file', 'image'] and field_name in request.FILES:
+                    field_value_data = request.FILES[field_name]
+                
+                if field_value_data is not None:
                     try:
                         dynamic_field = DynamicField.objects.get(name=field_name, is_active=True)
                         
@@ -272,12 +359,30 @@ class AdminFormInjector:
                             defaults={}
                         )
                         
-                        # Set the value using the model's set_value method
-                        field_value.set_value(form.cleaned_data[field_name])
+                        # Handle different field types properly
+                        if field_type == 'multiple_choice':
+                            # Serialize list data as JSON
+                            if isinstance(field_value_data, list):
+                                field_value.set_value(field_value_data)
+                            else:
+                                field_value.set_value([field_value_data] if field_value_data else [])
+                        elif field_type in ['file', 'image']:
+                            # Handle file uploads
+                            field_value.set_value(field_value_data)
+                        else:
+                            # Standard field types
+                            field_value.set_value(field_value_data)
+                        
                         field_value.save()
                         
                         action = "Created" if created else "Updated" 
-                        logger.info(f"{action} custom field value: {field_name} = {field_value.get_value()}")
+                        display_value = field_value.get_value()
+                        if field_type in ['file', 'image'] and hasattr(display_value, 'name'):
+                            display_value = display_value.name  # Show filename for files
+                        elif field_type == 'multiple_choice':
+                            display_value = f"{len(display_value) if display_value else 0} items"
+                        
+                        logger.info(f"{action} custom field value: {field_name} ({field_type}) = {display_value}")
                         
                     except DynamicField.DoesNotExist:
                         logger.warning(f"DynamicField not found for {field_name}")
