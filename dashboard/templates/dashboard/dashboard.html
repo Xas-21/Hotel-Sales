@@ -83,7 +83,7 @@
                                     </div>
                                     <div class="dropdown-divider"></div>
                                     <div class="dropdown-item-text">
-                                        <small><strong>Role:</strong> {% if user.profile %}{{ user.profile.role_label }}{% elif user.is_superuser %}Administrator{% elif user.is_staff %}Staff Member{% else %}User{% endif %}</small>
+                                        <small><strong>Role:</strong> {% if user.profile %}{{ user.profile.role_label }}{% elif user.is_superuser %}Admin{% elif user.is_staff %}Staff Member{% else %}User{% endif %}</small>
                                     </div>
                                     <div class="dropdown-item-text">
                                         <small><strong>Permissions:</strong></small>
