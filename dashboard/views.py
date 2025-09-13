@@ -14,15 +14,16 @@ def dashboard_view(request):
     # Key metrics
     total_accounts = Account.objects.count()
     total_requests = Request.objects.count()
+    total_agreements = Agreement.objects.count()
     
     # Request statistics
     confirmed_requests = Request.objects.filter(status='Confirmed').count()
     cancelled_requests = Request.objects.filter(status='Cancelled').count()
     paid_requests = Request.objects.filter(status='Paid').count()
     
-    # Financial metrics
-    total_revenue = Request.objects.filter(status='Paid').aggregate(
-        total=Sum('paid_amount'))['total'] or 0
+    # Financial metrics - Total revenue includes both paid and unpaid amounts
+    total_revenue = Request.objects.exclude(status='Cancelled').aggregate(
+        total=Sum('total_cost'))['total'] or 0
     pending_revenue = Request.objects.filter(
         Q(status='Confirmed') | Q(status='Partially Paid')).aggregate(
         total=Sum('total_cost'))['total'] or 0
@@ -65,6 +66,7 @@ def dashboard_view(request):
     context = {
         'total_accounts': total_accounts,
         'total_requests': total_requests,
+        'total_agreements': total_agreements,
         'confirmed_requests': confirmed_requests,
         'cancelled_requests': cancelled_requests,
         'paid_requests': paid_requests,
