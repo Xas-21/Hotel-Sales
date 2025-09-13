@@ -45,6 +45,7 @@ class DynamicModelAdmin(admin.ModelAdmin):
     list_filter = ['app_label', 'is_active', 'created_at']
     search_fields = ['name', 'display_name', 'description']
     readonly_fields = ['created_at', 'updated_at']
+    exclude = ['created_at', 'updated_at']  # Exclude non-editable fields from form
     inlines = [DynamicFieldInline]
     
     fieldsets = [
@@ -199,6 +200,7 @@ class DynamicFieldAdmin(admin.ModelAdmin):
     list_filter = ['field_type', 'required', 'is_active', 'model__name']
     search_fields = ['name', 'display_name', 'model__name']
     list_editable = ['required', 'is_active', 'order']
+    exclude = ['created_at', 'updated_at']  # Exclude non-editable fields from form
     
     fieldsets = [
         ('Field Configuration', {
@@ -223,10 +225,6 @@ class DynamicFieldAdmin(admin.ModelAdmin):
         }),
         ('Display Options', {
             'fields': ['section', 'order']
-        }),
-        ('Metadata', {
-            'fields': ['created_at', 'updated_at'],
-            'classes': ['collapse']
         })
     ]
     

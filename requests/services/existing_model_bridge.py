@@ -19,14 +19,18 @@ class ExistingModelBridge:
     
     # Map form types to their actual Django models
     FORM_TYPE_TO_MODEL_MAP = {
+        # Generic model mappings (from ConfigEnforcementService.map_form_type)
+        'requests.Request': ('requests', 'Request'),
+        'sales_calls.SalesCall': ('sales_calls', 'SalesCall'), 
+        'agreements.Agreement': ('agreements', 'Agreement'),
+        'accounts.Account': ('accounts', 'Account'),
+        
+        # Specific form type mappings (legacy support)
         'requests.Group Accommodation': ('requests', 'Request'),
         'requests.Individual Accommodation': ('requests', 'Request'),
         'requests.Event with Rooms': ('requests', 'Request'),
         'requests.Event without Rooms': ('requests', 'Request'),
         'requests.Series Group': ('requests', 'Request'),
-        'sales_calls.SalesCall': ('sales_calls', 'SalesCall'),
-        'agreements.Agreement': ('agreements', 'Agreement'),
-        'accounts.Account': ('accounts', 'Account'),
     }
     
     @classmethod
