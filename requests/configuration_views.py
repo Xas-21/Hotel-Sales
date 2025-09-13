@@ -181,8 +181,11 @@ def section_fields(request, section_name):
             'is_model_field': False
         })
     
+    # For dynamic models, use ID for URL building; for existing models, use the model name
+    section_url_param = section_name if is_dynamic else model_name
+    
     context = {
-        'section_name': model_name,
+        'section_name': section_url_param,
         'display_name': display_name,
         'model_fields': model_fields,
         'dynamic_fields': dynamic_fields,
@@ -211,9 +214,9 @@ def add_field(request, section_name):
                 field_type=data['field_type'],
                 required=data.get('required', False),
                 section=data.get('section', 'Custom Fields'),
-                max_length=data.get('max_length'),
-                choices=data.get('choices'),
-                default_value=data.get('default_value'),
+                max_length=data.get('max_length') or 255,
+                choices=data.get('choices') or '{}',
+                default_value=data.get('default_value') or '',
                 order=data.get('order', 100)
             )
         else:
@@ -226,16 +229,23 @@ def add_field(request, section_name):
                 field_type=data['field_type'],
                 required=data.get('required', False),
                 section=data.get('section', 'Custom Fields'),
-                max_length=data.get('max_length'),
-                choices=data.get('choices'),
-                default_value=data.get('default_value'),
+                max_length=data.get('max_length') or 255,
+                choices=data.get('choices') or '{}',
+                default_value=data.get('default_value') or '',
                 order=data.get('order', 100)
             )
         
         # Apply schema changes if needed
-        schema_manager = SchemaManager()
         if is_dynamic:
-            schema_manager.add_dynamic_field(field)
+            schema_manager = SchemaManager()
+            field_config = {
+                'name': field.name,
+                'field_type': field.field_type,
+                'max_length': field.max_length,
+                'required': field.required,
+                'default_value': field.default_value
+            }
+            # Note: Schema changes for dynamic fields are handled by the model creation process
         
         return JsonResponse({
             'success': True,
