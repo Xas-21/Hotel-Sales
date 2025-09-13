@@ -1,7 +1,8 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Count, Sum, Q, Min
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth import logout
 from django.urls import reverse
 from accounts.models import Account
 from requests.models import Request, SeriesGroupEntry, EventAgenda
@@ -377,3 +378,11 @@ def api_update_agreement_status(request):
         return JsonResponse({'error': 'Agreement not found'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+def logout_view(request):
+    """
+    Custom logout view that logs out user and redirects to dashboard
+    """
+    logout(request)
+    return redirect('dashboard')

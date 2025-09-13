@@ -6,7 +6,7 @@ from django.views.generic import RedirectView
 from dashboard.views import (
     dashboard_view, api_request_chart_data, api_status_chart_data, 
     health_check, api_health_check, calendar_view, api_calendar_events,
-    api_update_request_status, api_update_agreement_status
+    api_update_request_status, api_update_agreement_status, logout_view
 )
 
 # Configure admin site headers
@@ -27,6 +27,7 @@ urlpatterns = [
     path('api/calendar/events/', api_calendar_events, name='api_calendar_events'),
     path('api/update-request-status/', api_update_request_status, name='api_update_request_status'),
     path('api/update-agreement-status/', api_update_agreement_status, name='api_update_agreement_status'),
+    path('logout/', logout_view, name='logout'),
     path('admin/', admin.site.urls),
 ]
 
