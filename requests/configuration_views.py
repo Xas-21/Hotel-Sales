@@ -51,43 +51,48 @@ def _get_or_create_extension_model(section_name):
 
 @staff_member_required
 def configuration_dashboard(request):
-    """Main configuration dashboard showing all system sections"""
-    # Get all existing Django models and dynamic models
-    existing_models = []
+    """Main configuration dashboard showing Core Sections and Custom Sections"""
+    from requests.services.admin_model_detector import AdminModelDetector
+    from requests.models import DynamicSection
     
-    # Define core models and their display names
-    core_models = {
-        'accounts.Company': 'Companies & Accounts',
-        'requests.Request': 'Booking Requests', 
-        'agreements.Agreement': 'Agreements & Contracts',
-        'sales_calls.SalesCall': 'Sales Calls & Meetings',
-        'requests.RoomEntry': 'Room Occupancies'
-    }
+    # Ensure core sections are created from existing admin models
+    detector = AdminModelDetector()
+    detector.sync_core_sections()
     
-    for model_path, display_name in core_models.items():
-        try:
-            model = apps.get_model(model_path)
-            field_count = len(model._meta.fields)
-            
-            # Get dynamic fields count for this model
-            dynamic_fields_count = DynamicField.objects.filter(
-                existing_model_name=model_path,
-                is_active=True
-            ).count()
-            
-            existing_models.append({
-                'name': model_path,
-                'display_name': display_name,
-                'model': model,
-                'field_count': field_count,
-                'dynamic_fields_count': dynamic_fields_count,
-                'total_fields': field_count + dynamic_fields_count,
-                'is_core': True
-            })
-        except Exception as e:
-            print(f"Error loading model {model_path}: {e}")
+    # Get Core Sections (existing admin models)
+    core_sections = []
+    for section in DynamicSection.objects.filter(is_core_section=True).order_by('order', 'name'):
+        core_fields = section.fields.filter(is_core_field=True)
+        custom_fields = section.fields.filter(is_core_field=False)
+        
+        core_sections.append({
+            'id': section.id,
+            'name': section.name,
+            'display_name': section.display_name,
+            'description': section.description,
+            'source_model': section.source_model,
+            'core_field_count': core_fields.count(),
+            'custom_field_count': custom_fields.count(),
+            'total_fields': section.fields.count(),
+            'is_core': True,
+            'admin_url': f'/admin/{section.source_model.lower().replace(".", "/")}/' if section.source_model else None
+        })
     
-    # Get dynamic models
+    # Get Custom Sections (user-created sections) 
+    custom_sections = []
+    for section in DynamicSection.objects.filter(is_core_section=False).order_by('order', 'name'):
+        custom_sections.append({
+            'id': section.id,
+            'name': section.name,
+            'display_name': section.display_name,
+            'description': section.description,
+            'field_count': section.fields.count(),
+            'total_fields': section.fields.count(),
+            'is_core': False,
+            'admin_url': None  # Custom sections don't have admin URLs yet
+        })
+    
+    # Legacy dynamic models support (for backward compatibility)
     dynamic_models = []
     for dm in DynamicModel.objects.filter(is_active=True):
         field_count = dm.fields.filter(is_active=True).count()
@@ -96,16 +101,17 @@ def configuration_dashboard(request):
             'name': f"{dm.app_label}.{dm.name}",
             'display_name': dm.display_name,
             'field_count': field_count,
-            'dynamic_fields_count': 0,
-            'total_fields': field_count,
             'is_core': False,
             'model': dm
         })
     
     context = {
-        'existing_models': existing_models,
-        'dynamic_models': dynamic_models,
-        'total_sections': len(existing_models) + len(dynamic_models)
+        'core_sections': core_sections,
+        'custom_sections': custom_sections,
+        'dynamic_models': dynamic_models,  # Legacy support
+        'total_core_sections': len(core_sections),
+        'total_custom_sections': len(custom_sections),
+        'total_sections': len(core_sections) + len(custom_sections) + len(dynamic_models)
     }
     
     return render(request, 'configuration/dashboard.html', context)
