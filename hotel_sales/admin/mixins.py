@@ -136,16 +136,42 @@ class ConfigEnforcedAdminMixin:
     
     def get_form(self, request, obj=None, **kwargs):
         """Apply configuration enforcement to forms"""
-        form_class = super().get_form(request, obj, **kwargs)
+        # Get the form type for this request
+        form_type = ConfigEnforcementService.map_form_type(self.model)
+        
+        # Get field configurations to handle dynamic fields  
+        field_configs = ConfigEnforcementService.get_field_configs(form_type)
+        dynamic_field_names = [config['field_name'] for config in field_configs if config.get('is_dynamic')]
+        
+        # Temporarily modify fieldsets to exclude dynamic fields during form creation
+        original_fieldsets = getattr(self, 'fieldsets', None)
+        if original_fieldsets and dynamic_field_names:
+            # Create safe fieldsets without dynamic fields
+            safe_fieldsets = []
+            for name, options in original_fieldsets:
+                if 'fields' in options:
+                    safe_fields = [f for f in options['fields'] if f not in dynamic_field_names]
+                    if safe_fields:  # Only include section if it has fields
+                        safe_fieldsets.append((name, {**options, 'fields': safe_fields}))
+                else:
+                    safe_fieldsets.append((name, options))
+            self.fieldsets = safe_fieldsets
+        
+        # Get the base form class (this won't include dynamic fields)
+        try:
+            form_class = super().get_form(request, obj, **kwargs)
+        finally:
+            # Always restore original fieldsets
+            if original_fieldsets:
+                self.fieldsets = original_fieldsets
         
         # Create a new form class that includes configuration enforcement
         class ConfigEnforcedForm(form_class):
-            def __init__(self, *args, **kwargs):
+            def __init__(form_self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 
-                # Apply configuration enforcement
-                form_type = ConfigEnforcementService.map_form_type(self._meta.model)
-                ConfigEnforcementService.apply_to_form(self, form_type, kwargs.get('instance'))
+                # Apply configuration enforcement (including adding dynamic fields)
+                ConfigEnforcementService.apply_to_form(form_self, form_type, kwargs.get('instance'))
         
         return ConfigEnforcedForm
     
