@@ -23,14 +23,17 @@ class AdminModelDetector:
     
     def get_registered_admin_models(self) -> Dict[str, Any]:
         """Get all registered admin models and their configurations"""
+        # Ensure admin autodiscovery has run
+        admin.autodiscover()
+        
         admin_models = {}
         
         for model, admin_class in admin.site._registry.items():
             app_label = model._meta.app_label
-            model_name = model._meta.model_name
+            model_name = model._meta.model_name.title()  # Capitalize for exact match
             full_name = f"{app_label}.{model_name}"
             
-            # Only process our core models
+            # Only process our exact core models
             if self._is_core_model(full_name):
                 admin_models[full_name] = {
                     'model': model,
@@ -46,27 +49,38 @@ class AdminModelDetector:
         return admin_models
     
     def _is_core_model(self, full_name: str) -> bool:
-        """Check if this is one of our core models"""
-        return any(core_model.lower() in full_name.lower() for core_model in self.core_models)
+        """Check if this is exactly one of our core models"""
+        return full_name in self.core_models
     
     def _extract_model_fields(self, model) -> List[Dict[str, Any]]:
-        """Extract field information from Django model"""
+        """Extract field information from Django model, filtering out non-editable fields"""
         fields = []
         
         for field in model._meta.get_fields():
-            if not field.is_relation or field.many_to_one:  # Include ForeignKey but skip reverse relations
-                field_info = {
-                    'name': field.name,
-                    'verbose_name': getattr(field, 'verbose_name', field.name.replace('_', ' ').title()),
-                    'field_type': self._map_django_field_to_config_type(field),
-                    'required': not getattr(field, 'blank', True),
-                    'max_length': getattr(field, 'max_length', None),
-                    'help_text': getattr(field, 'help_text', ''),
-                    'choices': self._extract_choices(field),
-                    'is_foreign_key': field.many_to_one if hasattr(field, 'many_to_one') else False,
-                    'related_model': str(field.related_model) if hasattr(field, 'related_model') and field.related_model else None
-                }
-                fields.append(field_info)
+            # Skip non-editable fields and reverse relations
+            if (hasattr(field, 'editable') and not field.editable) or \
+               (hasattr(field, 'auto_created') and field.auto_created) or \
+               (hasattr(field, 'primary_key') and field.primary_key) or \
+               (field.is_relation and not field.many_to_one):
+                continue
+            
+            # Skip computed/auto fields by name
+            if field.name in ['id', 'created_at', 'updated_at', 'nights', 'total_cost', 
+                             'total_rooms', 'total_room_nights']:
+                continue
+                
+            field_info = {
+                'name': field.name,
+                'verbose_name': getattr(field, 'verbose_name', field.name.replace('_', ' ').title()),
+                'field_type': self._map_django_field_to_config_type(field),
+                'required': not getattr(field, 'blank', True),
+                'max_length': getattr(field, 'max_length', None),
+                'help_text': getattr(field, 'help_text', ''),
+                'choices': self._extract_choices(field),
+                'is_foreign_key': field.many_to_one if hasattr(field, 'many_to_one') else False,
+                'related_model': str(field.related_model) if hasattr(field, 'related_model') and field.related_model else None
+            }
+            fields.append(field_info)
         
         return fields
     
