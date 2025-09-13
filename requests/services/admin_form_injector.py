@@ -185,6 +185,14 @@ class AdminFormInjector:
                             field_name = field_config['name']
                             form_field = cls.create_form_field(field_config)
                             self.fields[field_name] = form_field
+                            
+                            # Load existing value if this is an edit form
+                            if self.instance and self.instance.pk:
+                                existing_value = cls.get_existing_field_value(
+                                    self.instance, field_config['name']
+                                )
+                                if existing_value is not None:
+                                    self.initial[field_name] = existing_value
                 
                 return EnhancedForm
             
@@ -242,13 +250,39 @@ class AdminFormInjector:
             else:
                 obj.save()
             
-            # Save custom field values
+            # Save custom field values using existing DynamicFieldValue model
+            from requests.models import DynamicFieldValue, DynamicField
+            from django.contrib.contenttypes.models import ContentType
+            
             custom_field_configs = cls.get_custom_fields_for_model(self.model)
+            content_type = ContentType.objects.get_for_model(self.model)
+            
             for field_config in custom_field_configs:
                 field_name = field_config['name']
                 if field_name in form.cleaned_data:
-                    # TODO: Implement DynamicFieldValue storage
-                    logger.debug(f"Would save custom field {field_name}: {form.cleaned_data[field_name]}")
+                    # Get the DynamicField instance
+                    try:
+                        dynamic_field = DynamicField.objects.get(name=field_name, is_active=True)
+                        
+                        # Update or create the field value
+                        field_value, created = DynamicFieldValue.objects.update_or_create(
+                            content_type=content_type,
+                            object_id=obj.pk,
+                            field=dynamic_field,
+                            defaults={}
+                        )
+                        
+                        # Set the value using the model's set_value method
+                        field_value.set_value(form.cleaned_data[field_name])
+                        field_value.save()
+                        
+                        action = "Created" if created else "Updated" 
+                        logger.info(f"{action} custom field value: {field_name} = {field_value.get_value()}")
+                        
+                    except DynamicField.DoesNotExist:
+                        logger.warning(f"DynamicField not found for {field_name}")
+                    except Exception as e:
+                        logger.error(f"Error saving custom field {field_name}: {e}")
         
         # Replace the methods
         admin_class.get_form = enhanced_get_form
@@ -256,6 +290,30 @@ class AdminFormInjector:
         admin_class.save_model = enhanced_save_model
         
         logger.info(f"Injected custom field support into {admin_class.__name__}")
+    
+    @classmethod
+    def get_existing_field_value(cls, instance, field_name: str):
+        """Get existing value for a custom field from DynamicFieldValue"""
+        try:
+            from requests.models import DynamicFieldValue, DynamicField
+            from django.contrib.contenttypes.models import ContentType
+            
+            content_type = ContentType.objects.get_for_model(instance.__class__)
+            dynamic_field = DynamicField.objects.get(name=field_name, is_active=True)
+            
+            field_value = DynamicFieldValue.objects.get(
+                content_type=content_type,
+                object_id=instance.pk,
+                field=dynamic_field
+            )
+            
+            return field_value.get_value()
+            
+        except (DynamicField.DoesNotExist, DynamicFieldValue.DoesNotExist):
+            return None
+        except Exception as e:
+            logger.error(f"Error loading field value for {field_name}: {e}")
+            return None
     
     @classmethod
     def monkey_patch_admin_register(cls):
