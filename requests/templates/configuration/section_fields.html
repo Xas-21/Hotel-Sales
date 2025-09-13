@@ -322,7 +322,7 @@
                 return;
             }
 
-            const url = `{% url "configuration:add_field" section_name %}{% if is_dynamic %}?dynamic=true{% endif %}`;
+            const url = `{% url "configuration:add_field" section_id %}{% if is_legacy_dynamic %}?dynamic=true{% endif %}`;
             
             fetch(url, {
                 method: 'POST',
