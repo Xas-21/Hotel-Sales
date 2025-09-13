@@ -125,174 +125,176 @@
             </div>
         </div>
 
-        <!-- All dashboard sections are now draggable -->
-        <div id="full-dashboard-container">
+        <!-- All dashboard boxes are now individually draggable -->
+        <div id="full-dashboard-container" class="row">
         
-        <!-- Key Metrics Row -->
-        <div class="row mb-4 dashboard-section" data-section="key-metrics">
-            <div class="col-md-3">
-                <a href="/admin/accounts/account/" class="text-decoration-none">
-                    <div class="card bg-primary text-white card-hover">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h4>{{ total_accounts }}</h4>
-                                    <p class="mb-0">Total Accounts</p>
-                                </div>
-                                <i class="fas fa-building fa-2x opacity-50"></i>
+        <!-- Individual Metric Cards -->
+        <div class="col-md-3 mb-4 dashboard-section" data-section="total-accounts">
+            <a href="/admin/accounts/account/" class="text-decoration-none">
+                <div class="card bg-primary text-white card-hover">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>{{ total_accounts }}</h4>
+                                <p class="mb-0">Total Accounts</p>
                             </div>
+                            <i class="fas fa-building fa-2x opacity-50"></i>
                         </div>
                     </div>
-                </a>
-            </div>
-            <div class="col-md-3">
-                <a href="/admin/requests/request/?status__exact=Confirmed" class="text-decoration-none">
-                    <div class="card bg-success text-white card-hover">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h4>{{ confirmed_requests }}</h4>
-                                    <p class="mb-0">Confirmed Requests</p>
-                                </div>
-                                <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                </div>
+            </a>
+        </div>
+        
+        <div class="col-md-3 mb-4 dashboard-section" data-section="confirmed-requests">
+            <a href="/admin/requests/request/?status__exact=Confirmed" class="text-decoration-none">
+                <div class="card bg-success text-white card-hover">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>{{ confirmed_requests }}</h4>
+                                <p class="mb-0">Confirmed Requests</p>
                             </div>
+                            <i class="fas fa-check-circle fa-2x opacity-50"></i>
                         </div>
                     </div>
-                </a>
-            </div>
-            <div class="col-md-3">
-                <a href="/admin/requests/request/?status__exact=Paid" class="text-decoration-none">
-                    <div class="card bg-info text-white card-hover">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h4>${{ total_revenue|floatformat:0 }}</h4>
-                                    <p class="mb-0">Total Revenue</p>
-                                </div>
-                                <i class="fas fa-dollar-sign fa-2x opacity-50"></i>
+                </div>
+            </a>
+        </div>
+        
+        <div class="col-md-3 mb-4 dashboard-section" data-section="total-revenue">
+            <a href="/admin/requests/request/?status__exact=Paid" class="text-decoration-none">
+                <div class="card bg-info text-white card-hover">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>${{ total_revenue|floatformat:0 }}</h4>
+                                <p class="mb-0">Total Revenue</p>
                             </div>
+                            <i class="fas fa-dollar-sign fa-2x opacity-50"></i>
                         </div>
                     </div>
-                </a>
-            </div>
-            <div class="col-md-3">
-                <a href="/admin/requests/request/" class="text-decoration-none">
-                    <div class="card bg-warning text-white card-hover">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h4>{{ total_requests }}</h4>
-                                    <p class="mb-0">Total Requests</p>
-                                </div>
-                                <i class="fas fa-clipboard-list fa-2x opacity-50"></i>
+                </div>
+            </a>
+        </div>
+        
+        <div class="col-md-3 mb-4 dashboard-section" data-section="total-requests">
+            <a href="/admin/requests/request/" class="text-decoration-none">
+                <div class="card bg-warning text-white card-hover">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>{{ total_requests }}</h4>
+                                <p class="mb-0">Total Requests</p>
                             </div>
+                            <i class="fas fa-clipboard-list fa-2x opacity-50"></i>
                         </div>
                     </div>
-                </a>
-            </div>
+                </div>
+            </a>
         </div>
 
-        <!-- Agreements Row -->
-        <div class="row mb-4 dashboard-section" data-section="agreements-metrics">
-            <div class="col-md-3">
-                <a href="/admin/agreements/agreement/?status__exact=Signed" class="text-decoration-none">
-                    <div class="card bg-success text-white card-hover">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h4>{{ signed_agreements }}</h4>
-                                    <p class="mb-0">Signed Agreements</p>
-                                </div>
-                                <i class="fas fa-file-contract fa-2x opacity-50"></i>
+        <!-- Individual Agreement Cards -->
+        <div class="col-md-3 mb-4 dashboard-section" data-section="signed-agreements">
+            <a href="/admin/agreements/agreement/?status__exact=Signed" class="text-decoration-none">
+                <div class="card bg-success text-white card-hover">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>{{ signed_agreements }}</h4>
+                                <p class="mb-0">Signed Agreements</p>
                             </div>
+                            <i class="fas fa-file-contract fa-2x opacity-50"></i>
                         </div>
                     </div>
-                </a>
-            </div>
-            <div class="col-md-3">
-                <a href="/admin/agreements/agreement/?status__exact=Draft" class="text-decoration-none">
-                    <div class="card bg-warning text-white card-hover">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h4>{{ pending_agreements }}</h4>
-                                    <p class="mb-0">Pending Agreements</p>
-                                </div>
-                                <i class="fas fa-file-signature fa-2x opacity-50"></i>
+                </div>
+            </a>
+        </div>
+        
+        <div class="col-md-3 mb-4 dashboard-section" data-section="pending-agreements">
+            <a href="/admin/agreements/agreement/?status__exact=Draft" class="text-decoration-none">
+                <div class="card bg-warning text-white card-hover">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>{{ pending_agreements }}</h4>
+                                <p class="mb-0">Pending Agreements</p>
                             </div>
+                            <i class="fas fa-file-signature fa-2x opacity-50"></i>
                         </div>
                     </div>
-                </a>
-            </div>
+                </div>
+            </a>
         </div>
 
-        <!-- Enhanced Financial Metrics Row -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <a href="/admin/requests/cancelledrequest/" class="text-decoration-none">
-                    <div class="card bg-danger text-white card-hover">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h4>{{ cancelled_requests }}</h4>
-                                    <p class="mb-0">Cancelled Requests</p>
-                                </div>
-                                <i class="fas fa-times-circle fa-2x opacity-50"></i>
+        <!-- Individual Financial Metric Cards -->
+        <div class="col-md-3 mb-4 dashboard-section" data-section="cancelled-requests">
+            <a href="/admin/requests/cancelledrequest/" class="text-decoration-none">
+                <div class="card bg-danger text-white card-hover">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>{{ cancelled_requests }}</h4>
+                                <p class="mb-0">Cancelled Requests</p>
                             </div>
+                            <i class="fas fa-times-circle fa-2x opacity-50"></i>
                         </div>
                     </div>
-                </a>
-            </div>
-            <div class="col-md-3">
-                <a href="/admin/requests/cancelledrequest/" class="text-decoration-none">
-                    <div class="card bg-danger text-white card-hover">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h4>${{ cancelled_lost_amount|floatformat:0 }}</h4>
-                                    <p class="mb-0">Lost Amount (Cancelled)</p>
-                                </div>
-                                <i class="fas fa-chart-line-down fa-2x opacity-50"></i>
+                </div>
+            </a>
+        </div>
+        
+        <div class="col-md-3 mb-4 dashboard-section" data-section="cancelled-lost-amount">
+            <a href="/admin/requests/cancelledrequest/" class="text-decoration-none">
+                <div class="card bg-danger text-white card-hover">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>${{ cancelled_lost_amount|floatformat:0 }}</h4>
+                                <p class="mb-0">Lost Amount (Cancelled)</p>
                             </div>
+                            <i class="fas fa-chart-line-down fa-2x opacity-50"></i>
                         </div>
                     </div>
-                </a>
-            </div>
-            <div class="col-md-3">
-                <a href="/admin/requests/request/?status__exact=Paid" class="text-decoration-none">
-                    <div class="card bg-success text-white card-hover">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h4>${{ confirmed_paid_amount|floatformat:0 }}</h4>
-                                    <p class="mb-0">Confirmed Paid Amount</p>
-                                </div>
-                                <i class="fas fa-check-double fa-2x opacity-50"></i>
+                </div>
+            </a>
+        </div>
+        
+        <div class="col-md-3 mb-4 dashboard-section" data-section="confirmed-paid-amount">
+            <a href="/admin/requests/request/?status__exact=Paid" class="text-decoration-none">
+                <div class="card bg-success text-white card-hover">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>${{ confirmed_paid_amount|floatformat:0 }}</h4>
+                                <p class="mb-0">Confirmed Paid Amount</p>
                             </div>
+                            <i class="fas fa-check-double fa-2x opacity-50"></i>
                         </div>
                     </div>
-                </a>
-            </div>
-            <div class="col-md-3">
-                <a href="/admin/requests/request/?status__exact=Confirmed" class="text-decoration-none">
-                    <div class="card bg-warning text-white card-hover">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h4>${{ unpaid_total|floatformat:0 }}</h4>
-                                    <p class="mb-0">Total Unpaid Amount</p>
-                                </div>
-                                <i class="fas fa-exclamation-triangle fa-2x opacity-50"></i>
+                </div>
+            </a>
+        </div>
+        
+        <div class="col-md-3 mb-4 dashboard-section" data-section="unpaid-total">
+            <a href="/admin/requests/request/?status__exact=Confirmed" class="text-decoration-none">
+                <div class="card bg-warning text-white card-hover">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>${{ unpaid_total|floatformat:0 }}</h4>
+                                <p class="mb-0">Total Unpaid Amount</p>
                             </div>
+                            <i class="fas fa-exclamation-triangle fa-2x opacity-50"></i>
                         </div>
                     </div>
-                </a>
-            </div>
+                </div>
+            </a>
         </div>
 
-        <!-- Charts and Recent Activity -->
-        <div class="row dashboard-section" data-section="recent-activity" id="dashboard-sections">
-            <div class="col-md-4 dashboard-section" data-section="recent-requests">
+        <!-- Individual Recent Activity Sections -->
+        
+        <!-- Recent Requests Card -->
+        <div class="col-md-4 mb-4 dashboard-section" data-section="recent-requests">
                 <div class="card">
                     <div class="card-header">
                         <h5>Recent Requests</h5>
@@ -333,11 +335,13 @@
                 </div>
             </div>
 
-            <div class="col-md-4 dashboard-section" data-section="recent-sales-calls">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Recent Sales Calls</h5>
-                    </div>
+        
+        <!-- Recent Sales Calls Card -->
+        <div class="col-md-4 mb-4 dashboard-section" data-section="recent-sales-calls">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Recent Sales Calls</h5>
+                </div>
                     <div class="card-body">
                         {% if recent_sales_calls %}
                             <div class="list-group list-group-flush">
@@ -363,12 +367,14 @@
                     </div>
                 </div>
             </div>
-
-            <div class="col-md-4 dashboard-section" data-section="recent-agreements">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Recent Agreements</h5>
-                    </div>
+        </div>
+        
+        <!-- Recent Agreements Card -->
+        <div class="col-md-4 mb-4 dashboard-section" data-section="recent-agreements">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Recent Agreements</h5>
+                </div>
                     <div class="card-body">
                         {% if recent_agreements %}
                             <div class="list-group list-group-flush">
@@ -404,11 +410,10 @@
             </div>
         </div>
 
-        <!-- Alerts Section -->
+        <!-- Alerts Card -->
         {% if approaching_deadlines or overdue_followups or imminent_arrivals %}
-        <div class="row mt-4 dashboard-section" data-section="alerts">
-            <div class="col-12">
-                <div class="card border-warning">
+        <div class="col-12 mb-4 dashboard-section" data-section="alerts">
+            <div class="card border-warning">
                     <div class="card-header bg-warning">
                         <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Alerts & Notifications</h5>
                     </div>
@@ -470,10 +475,9 @@
         </div>
         {% endif %}
 
-        <!-- Quick Actions -->
-        <div class="row mt-4 mb-4 dashboard-section" data-section="quick-actions">
-            <div class="col-12">
-                <div class="card">
+        <!-- Quick Actions Card -->
+        <div class="col-12 mb-4 dashboard-section" data-section="quick-actions">
+            <div class="card">
                     <div class="card-header">
                         <h5>Quick Actions</h5>
                     </div>
@@ -504,39 +508,40 @@
                 </div>
             </div>
         </div>
+        
         </div> <!-- End full-dashboard-container -->
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script>
-        // Initialize drag and drop for dashboard sections
+        // Initialize drag and drop for individual dashboard cards
         document.addEventListener('DOMContentLoaded', function() {
             const fullDashboardContainer = document.getElementById('full-dashboard-container');
-            const dashboardSections = document.getElementById('dashboard-sections');
             
-            // Initialize full dashboard drag and drop (top-level sections only)
+            // Initialize individual card drag and drop
             if (fullDashboardContainer) {
                 new Sortable(fullDashboardContainer, {
                     animation: 150,
                     ghostClass: 'sortable-ghost',
                     dragClass: 'sortable-drag',
-                    filter: '#dashboard-sections .dashboard-section', // Exclude nested sections from top-level drag
-                    preventOnFilter: false,
+                    handle: '.card, .card-header', // Allow dragging by card or card header
                     onStart: function(evt) {
-                        // Add visual feedback for top-level drag
-                        evt.item.style.transform = 'rotate(2deg)';
+                        // Add visual feedback when dragging
+                        evt.item.style.transform = 'rotate(2deg) scale(1.02)';
+                        evt.item.style.zIndex = '1000';
                     },
                     onEnd: function(evt) {
                         // Remove visual feedback
                         evt.item.style.transform = '';
+                        evt.item.style.zIndex = '';
                         
                         // Save the new order to localStorage for persistence
                         const order = Array.from(fullDashboardContainer.children).map(el => 
                             el.getAttribute('data-section')
                         ).filter(section => section); // Filter out nulls
                         
-                        localStorage.setItem('fullDashboardOrder', JSON.stringify(order));
+                        localStorage.setItem('dashboardOrder', JSON.stringify(order));
                         
                         // Show notification
                         showNotification('Dashboard layout saved!', 'success');
@@ -544,7 +549,7 @@
                 });
                 
                 // Restore saved order from localStorage
-                const savedOrder = localStorage.getItem('fullDashboardOrder');
+                const savedOrder = localStorage.getItem('dashboardOrder');
                 if (savedOrder) {
                     try {
                         const order = JSON.parse(savedOrder);
@@ -555,51 +560,7 @@
                             }
                         });
                     } catch (e) {
-                        console.log('Could not restore full dashboard order:', e);
-                    }
-                }
-            }
-            
-            // Initialize recent sections drag and drop (within the recent-activity section only)
-            if (dashboardSections) {
-                new Sortable(dashboardSections, {
-                    animation: 150,
-                    ghostClass: 'sortable-ghost',
-                    dragClass: 'sortable-drag',
-                    handle: '.card-header', // Use card header as handle to avoid conflicts
-                    onStart: function(evt) {
-                        // Add visual feedback for nested drag
-                        evt.item.style.transform = 'rotate(-2deg) scale(1.02)';
-                    },
-                    onEnd: function(evt) {
-                        // Remove visual feedback
-                        evt.item.style.transform = '';
-                        
-                        // Save the new order to localStorage for persistence
-                        const order = Array.from(dashboardSections.children).map(el => 
-                            el.getAttribute('data-section')
-                        ).filter(section => section); // Filter out nulls
-                        
-                        localStorage.setItem('recentSectionsOrder', JSON.stringify(order));
-                        
-                        // Show notification
-                        showNotification('Recent sections layout saved!', 'success');
-                    }
-                });
-                
-                // Restore saved order from localStorage
-                const savedRecentOrder = localStorage.getItem('recentSectionsOrder');
-                if (savedRecentOrder) {
-                    try {
-                        const order = JSON.parse(savedRecentOrder);
-                        order.forEach((sectionId) => {
-                            const section = dashboardSections.querySelector(`[data-section="${sectionId}"]`);
-                            if (section && section.parentElement === dashboardSections) {
-                                dashboardSections.appendChild(section);
-                            }
-                        });
-                    } catch (e) {
-                        console.log('Could not restore recent sections order:', e);
+                        console.log('Could not restore dashboard order:', e);
                     }
                 }
             }
