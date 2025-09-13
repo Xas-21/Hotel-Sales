@@ -35,7 +35,7 @@ class DynamicFieldInline(admin.TabularInline):
         }
 
 
-@admin.register(DynamicModel)
+# @admin.register(DynamicModel)  # Removed from admin panel - use Configuration dashboard instead
 class DynamicModelAdmin(admin.ModelAdmin):
     """Admin interface for dynamic model management"""
     list_display = [
@@ -190,7 +190,7 @@ class DynamicModelAdmin(admin.ModelAdmin):
         return render(request, 'admin/requests/dynamicmodel/form_builder.html', context)
 
 
-@admin.register(DynamicField)
+# @admin.register(DynamicField)  # Removed from admin panel - use Configuration dashboard instead
 class DynamicFieldAdmin(admin.ModelAdmin):
     """Admin interface for individual field management"""
     list_display = [
@@ -238,7 +238,7 @@ class DynamicFieldAdmin(admin.ModelAdmin):
         return form
 
 
-@admin.register(DynamicModelMigration)
+# @admin.register(DynamicModelMigration)  # Removed from admin panel - use Configuration dashboard instead
 class DynamicModelMigrationAdmin(admin.ModelAdmin):
     """Admin interface for viewing migration history"""
     list_display = [

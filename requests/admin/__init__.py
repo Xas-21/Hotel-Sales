@@ -129,7 +129,7 @@ class RequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
 # Import configuration admin classes
 from .configuration_admin import DynamicModelAdmin, DynamicFieldAdmin, DynamicModelMigrationAdmin
 
-@admin.register(DynamicFieldValue)
+# @admin.register(DynamicFieldValue)  # Removed from admin panel - use Configuration dashboard instead
 class DynamicFieldValueAdmin(admin.ModelAdmin):
     list_display = ['field', 'content_type', 'object_id', 'get_value_display', 'created_at']
     list_filter = ['field__field_type', 'content_type', 'created_at']
