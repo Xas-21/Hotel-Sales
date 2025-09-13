@@ -27,6 +27,22 @@
             color: #0d6efd;
             text-decoration: underline;
         }
+        .dashboard-section {
+            cursor: move;
+            transition: all 0.3s ease;
+        }
+        .dashboard-section:hover {
+            transform: translateY(-2px);
+        }
+        .dashboard-section.sortable-ghost {
+            opacity: 0.5;
+        }
+        .dashboard-section.sortable-drag {
+            transform: rotate(5deg);
+        }
+        .status-dropdown {
+            min-width: 120px;
+        }
     </style>
 </head>
 <body>
@@ -272,8 +288,8 @@
         </div>
 
         <!-- Charts and Recent Activity -->
-        <div class="row">
-            <div class="col-md-6">
+        <div class="row" id="dashboard-sections">
+            <div class="col-md-4 dashboard-section" data-section="recent-requests">
                 <div class="card">
                     <div class="card-header">
                         <h5>Recent Requests</h5>
@@ -291,7 +307,17 @@
                                         <br><small class="text-info">{{ request.check_in_date|default:"No check-in date" }}</small>
                                     </div>
                                     <div class="text-end">
-                                        <span class="badge bg-secondary d-block mb-1">{{ request.status }}</span>
+                                        <select class="form-select form-select-sm mb-1 status-dropdown" 
+                                                data-type="request" 
+                                                data-id="{{ request.id }}"
+                                                data-current-status="{{ request.status }}">
+                                            <option value="Draft" {% if request.status == 'Draft' %}selected{% endif %}>Draft</option>
+                                            <option value="Confirmed" {% if request.status == 'Confirmed' %}selected{% endif %}>Confirmed</option>
+                                            <option value="Cancelled" {% if request.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                                            <option value="Pending" {% if request.status == 'Pending' %}selected{% endif %}>Pending</option>
+                                            <option value="Paid" {% if request.status == 'Paid' %}selected{% endif %}>Paid</option>
+                                            <option value="Partially Paid" {% if request.status == 'Partially Paid' %}selected{% endif %}>Partially Paid</option>
+                                        </select>
                                         <a href="/admin/requests/request/{{ request.id }}/change/" class="btn btn-sm btn-outline-primary">View</a>
                                     </div>
                                 </div>
@@ -304,7 +330,7 @@
                 </div>
             </div>
 
-            <div class="col-md-6">
+            <div class="col-md-4 dashboard-section" data-section="recent-sales-calls">
                 <div class="card">
                     <div class="card-header">
                         <h5>Recent Sales Calls</h5>
@@ -330,6 +356,45 @@
                             </div>
                         {% else %}
                             <p class="text-muted">No recent sales calls found.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4 dashboard-section" data-section="recent-agreements">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Recent Agreements</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if recent_agreements %}
+                            <div class="list-group list-group-flush">
+                                {% for agreement in recent_agreements %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <a href="/admin/accounts/account/{{ agreement.account.id }}/change/" class="company-link">
+                                            <strong>{{ agreement.account.name }}</strong>
+                                        </a><br>
+                                        <small class="text-muted">{{ agreement.rate_type }}</small>
+                                        <br><small class="text-info">{{ agreement.start_date }} - {{ agreement.end_date }}</small>
+                                    </div>
+                                    <div class="text-end">
+                                        <select class="form-select form-select-sm mb-1 status-dropdown" 
+                                                data-type="agreement" 
+                                                data-id="{{ agreement.id }}"
+                                                data-current-status="{{ agreement.status }}">
+                                            <option value="Draft" {% if agreement.status == 'Draft' %}selected{% endif %}>Draft</option>
+                                            <option value="Sent" {% if agreement.status == 'Sent' %}selected{% endif %}>Sent</option>
+                                            <option value="Signed" {% if agreement.status == 'Signed' %}selected{% endif %}>Signed</option>
+                                            <option value="Expired" {% if agreement.status == 'Expired' %}selected{% endif %}>Expired</option>
+                                        </select>
+                                        <a href="/admin/agreements/agreement/{{ agreement.id }}/change/" class="btn btn-sm btn-outline-primary">View</a>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-muted">No recent agreements found.</p>
                         {% endif %}
                     </div>
                 </div>
@@ -413,5 +478,136 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script>
+        // Initialize drag and drop for dashboard sections
+        document.addEventListener('DOMContentLoaded', function() {
+            const dashboardSections = document.getElementById('dashboard-sections');
+            
+            if (dashboardSections) {
+                new Sortable(dashboardSections, {
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    dragClass: 'sortable-drag',
+                    onEnd: function(evt) {
+                        // Save the new order to localStorage for persistence
+                        const order = Array.from(dashboardSections.children).map(el => 
+                            el.getAttribute('data-section')
+                        );
+                        localStorage.setItem('dashboardOrder', JSON.stringify(order));
+                        
+                        // Show notification
+                        showNotification('Dashboard layout saved!', 'success');
+                    }
+                });
+                
+                // Restore saved order from localStorage
+                const savedOrder = localStorage.getItem('dashboardOrder');
+                if (savedOrder) {
+                    try {
+                        const order = JSON.parse(savedOrder);
+                        order.forEach((sectionId, index) => {
+                            const section = document.querySelector(`[data-section="${sectionId}"]`);
+                            if (section) {
+                                dashboardSections.appendChild(section);
+                            }
+                        });
+                    } catch (e) {
+                        console.log('Could not restore dashboard order');
+                    }
+                }
+            }
+            
+            // Initialize status dropdowns
+            document.querySelectorAll('.status-dropdown').forEach(dropdown => {
+                dropdown.addEventListener('change', function() {
+                    const type = this.getAttribute('data-type');
+                    const id = this.getAttribute('data-id');
+                    const currentStatus = this.getAttribute('data-current-status');
+                    const newStatus = this.value;
+                    
+                    if (newStatus === currentStatus) return;
+                    
+                    // Show loading state
+                    this.disabled = true;
+                    
+                    // Make AJAX request
+                    const url = type === 'request' ? '/api/update-request-status/' : '/api/update-agreement-status/';
+                    const data = {};
+                    data[type + '_id'] = id;
+                    data.status = newStatus;
+                    
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify(data)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.setAttribute('data-current-status', newStatus);
+                            showNotification(data.message, 'success');
+                        } else {
+                            // Revert to previous status
+                            this.value = currentStatus;
+                            showNotification(data.error || 'Failed to update status', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        // Revert to previous status
+                        this.value = currentStatus;
+                        showNotification('Network error: Could not update status', 'error');
+                        console.error('Error:', error);
+                    })
+                    .finally(() => {
+                        this.disabled = false;
+                    });
+                });
+            });
+        });
+        
+        // Helper function to get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        // Notification function
+        function showNotification(message, type) {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed`;
+            notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            notification.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+                    <span>${message}</span>
+                    <button type="button" class="btn-close ms-auto" onclick="this.parentElement.parentElement.remove()"></button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+    </script>
 </body>
 </html>

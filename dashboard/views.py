@@ -10,6 +10,7 @@ from sales_calls.models import SalesCall
 from datetime import date, timedelta, datetime
 import json
 
+@staff_member_required
 def dashboard_view(request):
     """
     Main dashboard with key metrics and analytics
@@ -56,6 +57,7 @@ def dashboard_view(request):
     # Recent activity
     recent_requests = Request.objects.order_by('-created_at')[:5]
     recent_sales_calls = SalesCall.objects.order_by('-visit_date')[:5]
+    recent_agreements = Agreement.objects.order_by('-created_at')[:5]
     
     # Alerts
     approaching_deadlines = Agreement.objects.filter(
@@ -87,6 +89,7 @@ def dashboard_view(request):
         'request_types': request_types,
         'recent_requests': recent_requests,
         'recent_sales_calls': recent_sales_calls,
+        'recent_agreements': recent_agreements,
         'approaching_deadlines': approaching_deadlines,
         'overdue_followups': overdue_followups,
     }
@@ -241,3 +244,83 @@ def api_calendar_events(request):
         })
     
     return JsonResponse(events, safe=False)
+
+@staff_member_required
+def api_update_request_status(request):
+    """
+    API endpoint to update request status from dashboard
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+    
+    try:
+        import json
+        data = json.loads(request.body)
+        request_id = data.get('request_id')
+        new_status = data.get('status')
+        
+        if not request_id or not new_status:
+            return JsonResponse({'error': 'Missing request_id or status'}, status=400)
+        
+        # Get the request object
+        req = Request.objects.get(id=request_id)
+        
+        # Validate status
+        valid_statuses = dict(Request.STATUS_CHOICES).keys()
+        if new_status not in valid_statuses:
+            return JsonResponse({'error': 'Invalid status'}, status=400)
+        
+        # Update status
+        req.status = new_status
+        req.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Request status updated to {new_status}',
+            'new_status': new_status
+        })
+        
+    except Request.DoesNotExist:
+        return JsonResponse({'error': 'Request not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@staff_member_required
+def api_update_agreement_status(request):
+    """
+    API endpoint to update agreement status from dashboard
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+    
+    try:
+        import json
+        data = json.loads(request.body)
+        agreement_id = data.get('agreement_id')
+        new_status = data.get('status')
+        
+        if not agreement_id or not new_status:
+            return JsonResponse({'error': 'Missing agreement_id or status'}, status=400)
+        
+        # Get the agreement object
+        agreement = Agreement.objects.get(id=agreement_id)
+        
+        # Validate status
+        valid_statuses = dict(Agreement.STATUS_CHOICES).keys()
+        if new_status not in valid_statuses:
+            return JsonResponse({'error': 'Invalid status'}, status=400)
+        
+        # Update status
+        agreement.status = new_status
+        agreement.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Agreement status updated to {new_status}',
+            'new_status': new_status
+        })
+        
+    except Agreement.DoesNotExist:
+        return JsonResponse({'error': 'Agreement not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
