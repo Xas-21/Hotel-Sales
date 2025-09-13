@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Count, Sum, Q, Min
-from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.urls import reverse
 from accounts.models import Account
@@ -11,20 +11,18 @@ from sales_calls.models import SalesCall
 from datetime import date, timedelta, datetime
 import json
 
-@staff_member_required
+@login_required
 def dashboard_view(request):
     """
     Main dashboard with key metrics and analytics
     """
-    # Ensure user is authenticated and has profile
-    if not request.user.is_authenticated:
-        from django.shortcuts import redirect
-        return redirect('/admin/login/?next=/dashboard/')
+    # Check if user is staff (required for dashboard access)
+    if not request.user.is_staff:
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden("You need staff permissions to access this dashboard.")
     
     # Create profile if it doesn't exist
-    if hasattr(request.user, 'profile'):
-        pass  # Profile exists
-    else:
+    if not hasattr(request.user, 'profile'):
         from accounts.models import UserProfile
         UserProfile.objects.get_or_create(user=request.user)
     # Key metrics
@@ -203,14 +201,14 @@ def api_health_check(request):
     """
     return JsonResponse({"status": "healthy", "service": "hotel_sales"}, status=200)
 
-@staff_member_required
+@login_required
 def calendar_view(request):
     """
     Calendar view displaying groups, events, and sales calls
     """
     return render(request, 'dashboard/calendar.html')
 
-@staff_member_required
+@login_required
 def api_calendar_events(request):
     """
     API endpoint for calendar events data with date range filtering
@@ -310,7 +308,7 @@ def api_calendar_events(request):
     
     return JsonResponse(events, safe=False)
 
-@staff_member_required
+@login_required
 def api_update_request_status(request):
     """
     API endpoint to update request status from dashboard
@@ -350,7 +348,7 @@ def api_update_request_status(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
-@staff_member_required
+@login_required
 def api_update_agreement_status(request):
     """
     API endpoint to update agreement status from dashboard
