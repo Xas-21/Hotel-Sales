@@ -227,8 +227,14 @@ class Request(models.Model):
                 raise ValidationError({'check_out_date': 'Check-out date must be after check-in date.'})
         
         # Validate cancellation reason is required when status is Cancelled
-        if self.status == 'Cancelled' and not (self.cancellation_reason and self.cancellation_reason.strip()):
-            raise ValidationError({'cancellation_reason': 'Cancellation reason is required when status is Cancelled.'})
+        if self.status == 'Cancelled':
+            has_fixed_reason = self.cancellation_reason_fixed is not None
+            has_custom_reason = self.cancellation_reason and self.cancellation_reason.strip()
+            if not (has_fixed_reason or has_custom_reason):
+                raise ValidationError({
+                    'cancellation_reason': 'Either select a fixed cancellation reason or provide a custom reason when status is Cancelled.',
+                    'cancellation_reason_fixed': 'Either select a fixed cancellation reason or provide a custom reason when status is Cancelled.'
+                })
         
         # Validate financial values are non-negative (additional layer beyond field validators)
         if self.total_cost < 0:

@@ -1,12 +1,21 @@
 from django.contrib import admin
-from .models import Request, CancelledRequest, RoomEntry, Transportation, EventAgenda, SeriesGroupEntry, SeriesRoomEntry
+from django.utils.html import format_html
+from django.urls import reverse
+from .models import (
+    Request, CancelledRequest, RoomEntry, Transportation, EventAgenda, SeriesGroupEntry, SeriesRoomEntry,
+    RoomType, RoomOccupancy, CancellationReason, RequestFieldRequirement, RequestFormLayout
+)
 
 class RoomEntryInline(admin.TabularInline):
     model = RoomEntry
     extra = 1
-    fields = ['category', 'occupancy', 'quantity', 'rate_per_night']
+    fields = ['room_type', 'occupancy_type', 'category', 'occupancy', 'quantity', 'rate_per_night']
     verbose_name = "Room Entry (part of Accommodation Details)"
     verbose_name_plural = "Room Entries (part of Accommodation Details)"
+    
+    def get_queryset(self, request):
+        """Optimize foreign key queries"""
+        return super().get_queryset(request).select_related('room_type', 'occupancy_type')
 
 class TransportationInline(admin.TabularInline):
     model = Transportation
@@ -21,10 +30,14 @@ class EventAgendaInline(admin.TabularInline):
 class SeriesRoomEntryInline(admin.TabularInline):
     model = SeriesRoomEntry
     extra = 1
-    fields = ['category', 'occupancy', 'quantity', 'rate_per_night']
+    fields = ['room_type', 'occupancy_type', 'category', 'occupancy', 'quantity', 'rate_per_night']
     verbose_name = "Room Configuration"
     verbose_name_plural = "Room Configuration for this Date"
     can_delete = True
+    
+    def get_queryset(self, request):
+        """Optimize foreign key queries"""
+        return super().get_queryset(request).select_related('room_type', 'occupancy_type')
 
 class SeriesGroupEntryInline(admin.TabularInline):
     model = SeriesGroupEntry
@@ -60,7 +73,7 @@ class RequestAdmin(admin.ModelAdmin):
         # Status & Payment section - conditionally include cancellation_reason
         status_fields = ['status']
         if obj and obj.status == 'Cancelled':
-            status_fields.append('cancellation_reason')
+            status_fields.extend(['cancellation_reason_fixed', 'cancellation_reason'])
         
         status_fields.extend(['offer_acceptance_deadline', 'deposit_deadline', 'full_payment_deadline'])
         
@@ -144,7 +157,7 @@ class CancelledRequestAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
         ('Cancellation Details', {
-            'fields': ('status', 'cancellation_reason'),
+            'fields': ('status', 'cancellation_reason_fixed', 'cancellation_reason'),
             'description': 'Status is locked to Cancelled for this view'
         }),
         ('Financial Impact', {
@@ -175,6 +188,231 @@ admin.site.register(CancelledRequest, CancelledRequestAdmin)
 
 @admin.register(SeriesRoomEntry)
 class SeriesRoomEntryAdmin(admin.ModelAdmin):
-    list_display = ['series_entry', 'category', 'occupancy', 'quantity', 'rate_per_night']
-    list_filter = ['category', 'occupancy']
+    list_display = ['series_entry', 'effective_room_type', 'effective_occupancy', 'quantity', 'rate_per_night']
+    list_filter = ['room_type', 'occupancy_type', 'category', 'occupancy']
     ordering = ['series_entry__arrival_date']
+    
+    def effective_room_type(self, obj):
+        return obj.effective_room_type
+    effective_room_type.short_description = 'Room Type'
+    
+    def effective_occupancy(self, obj):
+        return obj.effective_occupancy  
+    effective_occupancy.short_description = 'Occupancy'
+
+
+# ============================================================
+# CONFIGURATION MODELS ADMIN
+# ============================================================
+
+@admin.register(RoomType)
+class RoomTypeAdmin(admin.ModelAdmin):
+    """Admin interface for configurable room types"""
+    list_display = ['code', 'name', 'description', 'active', 'sort_order', 'created_at']
+    list_filter = ['active', 'created_at']
+    search_fields = ['code', 'name', 'description']
+    list_editable = ['active', 'sort_order']
+    ordering = ['sort_order', 'name']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = [
+        ('Basic Information', {
+            'fields': ('code', 'name', 'description')
+        }),
+        ('Display Settings', {
+            'fields': ('active', 'sort_order')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    ]
+    
+    actions = ['activate_selected', 'deactivate_selected']
+    
+    def activate_selected(self, request, queryset):
+        queryset.update(active=True)
+        self.message_user(request, f"Activated {queryset.count()} room types.")
+    activate_selected.short_description = "Activate selected room types"
+    
+    def deactivate_selected(self, request, queryset):
+        queryset.update(active=False)
+        self.message_user(request, f"Deactivated {queryset.count()} room types.")
+    deactivate_selected.short_description = "Deactivate selected room types"
+
+
+@admin.register(RoomOccupancy)
+class RoomOccupancyAdmin(admin.ModelAdmin):
+    """Admin interface for configurable room occupancy types"""
+    list_display = ['code', 'label', 'pax_count', 'description', 'active', 'sort_order', 'created_at']
+    list_filter = ['active', 'pax_count', 'created_at']
+    search_fields = ['code', 'label', 'description']
+    list_editable = ['active', 'sort_order']
+    ordering = ['sort_order', 'label']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = [
+        ('Basic Information', {
+            'fields': ('code', 'label', 'pax_count', 'description')
+        }),
+        ('Display Settings', {
+            'fields': ('active', 'sort_order')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    ]
+    
+    actions = ['activate_selected', 'deactivate_selected']
+    
+    def activate_selected(self, request, queryset):
+        queryset.update(active=True)
+        self.message_user(request, f"Activated {queryset.count()} occupancy types.")
+    activate_selected.short_description = "Activate selected occupancy types"
+    
+    def deactivate_selected(self, request, queryset):
+        queryset.update(active=False)
+        self.message_user(request, f"Deactivated {queryset.count()} occupancy types.")
+    deactivate_selected.short_description = "Deactivate selected occupancy types"
+
+
+@admin.register(CancellationReason)
+class CancellationReasonAdmin(admin.ModelAdmin):
+    """Admin interface for configurable cancellation reasons"""
+    list_display = ['code', 'label', 'is_refundable', 'active', 'sort_order', 'created_at']
+    list_filter = ['active', 'is_refundable', 'created_at']
+    search_fields = ['code', 'label']
+    list_editable = ['active', 'sort_order', 'is_refundable']
+    ordering = ['sort_order', 'label']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = [
+        ('Basic Information', {
+            'fields': ('code', 'label')
+        }),
+        ('Policy Settings', {
+            'fields': ('is_refundable',),
+            'description': 'Configure refund policy for this cancellation reason'
+        }),
+        ('Display Settings', {
+            'fields': ('active', 'sort_order')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    ]
+    
+    actions = ['activate_selected', 'deactivate_selected', 'make_refundable', 'make_non_refundable']
+    
+    def activate_selected(self, request, queryset):
+        queryset.update(active=True)
+        self.message_user(request, f"Activated {queryset.count()} cancellation reasons.")
+    activate_selected.short_description = "Activate selected cancellation reasons"
+    
+    def deactivate_selected(self, request, queryset):
+        queryset.update(active=False)
+        self.message_user(request, f"Deactivated {queryset.count()} cancellation reasons.")
+    deactivate_selected.short_description = "Deactivate selected cancellation reasons"
+    
+    def make_refundable(self, request, queryset):
+        queryset.update(is_refundable=True)
+        self.message_user(request, f"Made {queryset.count()} cancellation reasons refundable.")
+    make_refundable.short_description = "Mark as refundable"
+    
+    def make_non_refundable(self, request, queryset):
+        queryset.update(is_refundable=False)
+        self.message_user(request, f"Made {queryset.count()} cancellation reasons non-refundable.")
+    make_non_refundable.short_description = "Mark as non-refundable"
+
+
+@admin.register(RequestFieldRequirement)
+class RequestFieldRequirementAdmin(admin.ModelAdmin):
+    """Admin interface for configurable field requirements per request type"""
+    list_display = ['request_type', 'field_name', 'field_label', 'required', 'enabled', 'sort_order']
+    list_filter = ['request_type', 'required', 'enabled']
+    search_fields = ['field_name', 'field_label']
+    list_editable = ['required', 'enabled', 'sort_order']
+    ordering = ['request_type', 'sort_order', 'field_name']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = [
+        ('Field Information', {
+            'fields': ('request_type', 'field_name', 'field_label')
+        }),
+        ('Field Settings', {
+            'fields': ('required', 'enabled', 'sort_order'),
+            'description': 'Configure field behavior and display order'
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    ]
+    
+    actions = ['make_required', 'make_optional', 'enable_selected', 'disable_selected']
+    
+    def make_required(self, request, queryset):
+        queryset.update(required=True)
+        self.message_user(request, f"Made {queryset.count()} fields required.")
+    make_required.short_description = "Make selected fields required"
+    
+    def make_optional(self, request, queryset):
+        queryset.update(required=False)
+        self.message_user(request, f"Made {queryset.count()} fields optional.")
+    make_optional.short_description = "Make selected fields optional"
+    
+    def enable_selected(self, request, queryset):
+        queryset.update(enabled=True)
+        self.message_user(request, f"Enabled {queryset.count()} fields.")
+    enable_selected.short_description = "Enable selected fields"
+    
+    def disable_selected(self, request, queryset):
+        queryset.update(enabled=False)
+        self.message_user(request, f"Disabled {queryset.count()} fields.")
+    disable_selected.short_description = "Disable selected fields"
+
+
+@admin.register(RequestFormLayout)
+class RequestFormLayoutAdmin(admin.ModelAdmin):
+    """Admin interface for configurable form layouts per request type"""
+    list_display = ['request_type', 'active', 'updated_by', 'updated_at']
+    list_filter = ['request_type', 'active', 'updated_at']
+    search_fields = ['request_type', 'updated_by']
+    list_editable = ['active']
+    ordering = ['request_type']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = [
+        ('Layout Configuration', {
+            'fields': ('request_type', 'sections', 'active'),
+            'description': 'Configure form sections and field arrangement for this request type'
+        }),
+        ('Management', {
+            'fields': ('updated_by',),
+            'description': 'Track who last updated this layout'
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    ]
+    
+    actions = ['activate_selected', 'deactivate_selected']
+    
+    def activate_selected(self, request, queryset):
+        queryset.update(active=True)
+        self.message_user(request, f"Activated {queryset.count()} form layouts.")
+    activate_selected.short_description = "Activate selected form layouts"
+    
+    def deactivate_selected(self, request, queryset):
+        queryset.update(active=False)
+        self.message_user(request, f"Deactivated {queryset.count()} form layouts.")
+    deactivate_selected.short_description = "Deactivate selected form layouts"
+    
+    def save_model(self, request, obj, form, change):
+        """Auto-populate updated_by field"""
+        if hasattr(request, 'user') and request.user.is_authenticated:
+            obj.updated_by = request.user.username
+        super().save_model(request, obj, form, change)
