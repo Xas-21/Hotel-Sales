@@ -28,6 +28,7 @@ urlpatterns = [
     path('api/update-request-status/', api_update_request_status, name='api_update_request_status'),
     path('api/update-agreement-status/', api_update_agreement_status, name='api_update_agreement_status'),
     path('logout/', logout_view, name='logout'),
+    path('configuration/', include('requests.configuration_urls')),
     path('admin/', admin.site.urls),
 ]
 
