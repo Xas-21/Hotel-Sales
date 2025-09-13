@@ -20,6 +20,35 @@ from .services.existing_model_bridge import ExistingModelBridge
 from .services.schema_manager import SchemaManager
 
 
+def _get_or_create_extension_model(section_name):
+    """Get or create an extension model for existing Django models"""
+    model_extensions = {
+        'requests.Request': ('RequestExtension', 'Request Extension Fields'),
+        'agreements.Agreement': ('AgreementExtension', 'Agreement Extension Fields'),
+        'sales_calls.SalesCall': ('SalesCallExtension', 'SalesCall Extension Fields'),
+        'accounts.Company': ('CompanyExtension', 'Company Extension Fields'),
+        'requests.RoomEntry': ('RoomEntryExtension', 'RoomEntry Extension Fields')
+    }
+    
+    if section_name not in model_extensions:
+        raise ValueError(f"Unknown section: {section_name}")
+    
+    extension_name, display_name = model_extensions[section_name]
+    app_label = section_name.split('.')[0]
+    
+    # Get or create the extension model
+    extension_model, created = DynamicModel.objects.get_or_create(
+        name=extension_name,
+        app_label=app_label,
+        defaults={
+            'display_name': display_name,
+            'description': f'Dynamic fields for {section_name}',
+            'is_active': True
+        }
+    )
+    return extension_model
+
+
 @staff_member_required
 def configuration_dashboard(request):
     """Main configuration dashboard showing all system sections"""
@@ -127,11 +156,9 @@ def section_fields(request, section_name):
                         'is_model_field': True
                     })
             
-            # Get dynamic fields
-            fields = DynamicField.objects.filter(
-                existing_model_name=section_name,
-                is_active=True
-            ).order_by('section', 'order')
+            # Get dynamic fields through extension models
+            from requests.services.existing_model_bridge import ExistingModelBridge
+            fields = ExistingModelBridge.get_dynamic_fields_for_model(section_name)
             
         except Exception as e:
             messages.error(request, f"Error loading section: {e}")
@@ -146,7 +173,7 @@ def section_fields(request, section_name):
             'display_name': field.display_name,
             'field_type': field.field_type,
             'required': field.required,
-            'section': field.section,
+            'section': field.section or 'Custom Fields',
             'order': field.order,
             'max_length': field.max_length,
             'choices': field.choices,
@@ -190,8 +217,10 @@ def add_field(request, section_name):
                 order=data.get('order', 100)
             )
         else:
+            # For existing models, get or create an extension model
+            extension_model = _get_or_create_extension_model(section_name)
             field = DynamicField.objects.create(
-                existing_model_name=section_name,
+                model=extension_model,
                 name=data['name'],
                 display_name=data['display_name'],
                 field_type=data['field_type'],
@@ -206,7 +235,7 @@ def add_field(request, section_name):
         # Apply schema changes if needed
         schema_manager = SchemaManager()
         if is_dynamic:
-            schema_manager.create_field(field)
+            schema_manager.add_dynamic_field(field)
         
         return JsonResponse({
             'success': True,
@@ -270,17 +299,33 @@ def create_section(request):
     try:
         data = json.loads(request.body)
         
-        # Create new dynamic model
+        # Create new dynamic model with unique table name
+        import uuid
+        base_table_name = f"dynamic_{data['name']}"
+        table_name = base_table_name
+        counter = 1
+        
+        # Ensure unique table name
+        while DynamicModel.objects.filter(table_name=table_name).exists():
+            table_name = f"{base_table_name}_{counter}"
+            counter += 1
+        
         dynamic_model = DynamicModel.objects.create(
             name=data['name'],
             display_name=data['display_name'],
             app_label='dynamic',
+            table_name=table_name,
             description=data.get('description', '')
         )
         
         # Create schema
         schema_manager = SchemaManager()
-        schema_manager.create_model(dynamic_model)
+        model_config = {
+            'table_name': f"dynamic_{dynamic_model.name}",
+            'name': dynamic_model.name,
+            'display_name': dynamic_model.display_name
+        }
+        schema_manager.create_dynamic_model_table(model_config)
         
         return JsonResponse({
             'success': True,
