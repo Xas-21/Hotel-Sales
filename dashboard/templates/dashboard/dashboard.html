@@ -73,13 +73,20 @@
                             </li>
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-user-circle me-1"></i>{% if user.profile %}{{ user.profile.full_name }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}
+                                    <i class="fas fa-user-circle me-1"></i>
+                                    {% if user.is_authenticated %}
+                                        {% if user.profile %}{{ user.profile.full_name }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}
+                                    {% else %}Guest{% endif %}
                                 </a>
                                 <div class="dropdown-menu dropdown-menu-end profile-dropdown" aria-labelledby="profileDropdown">
                                     <div class="dropdown-header text-center">
                                         <i class="fas fa-user-circle fa-3x mb-2"></i><br>
-                                        <strong>{% if user.profile %}{{ user.profile.full_name }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}</strong><br>
-                                        <small class="text-muted">{{ user.email }}</small>
+                                        <strong>
+                                            {% if user.is_authenticated %}
+                                                {% if user.profile %}{{ user.profile.full_name }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}
+                                            {% else %}Guest{% endif %}
+                                        </strong><br>
+                                        <small class="text-muted">{{ user.email|default:"No email" }}</small>
                                     </div>
                                     <div class="dropdown-divider"></div>
                                     <div class="dropdown-item-text">
@@ -104,12 +111,18 @@
                                         </ul>
                                     </div>
                                     <div class="dropdown-divider"></div>
-                                    <a class="dropdown-item" href="/admin/auth/user/{{ user.id }}/change/">
-                                        <i class="fas fa-edit me-2"></i>Edit Profile
-                                    </a>
-                                    <a class="dropdown-item" href="/admin/auth/user/{{ user.id }}/password/">
-                                        <i class="fas fa-key me-2"></i>Change Password
-                                    </a>
+                                    {% if user.is_authenticated and user.id %}
+                                        <a class="dropdown-item" href="/admin/auth/user/{{ user.id }}/change/">
+                                            <i class="fas fa-edit me-2"></i>Edit Profile
+                                        </a>
+                                        <a class="dropdown-item" href="/admin/auth/user/{{ user.id }}/password/">
+                                            <i class="fas fa-key me-2"></i>Change Password
+                                        </a>
+                                    {% else %}
+                                        <span class="dropdown-item-text text-muted">
+                                            <i class="fas fa-exclamation-triangle me-2"></i>Please log in again
+                                        </span>
+                                    {% endif %}
                                     <div class="dropdown-divider"></div>
                                     <a class="dropdown-item text-danger" href="{% url 'logout' %}">
                                         <i class="fas fa-sign-out-alt me-2"></i>Logout
