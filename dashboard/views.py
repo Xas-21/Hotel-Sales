@@ -72,6 +72,56 @@ def dashboard_view(request):
         follow_up_date__lt=date.today()
     )
     
+    # Imminent arrivals (within 1-2 days and today)
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+    day_after = today + timedelta(days=2)
+    
+    # Check for arriving requests (check_in_date)
+    arriving_requests = Request.objects.filter(
+        check_in_date__in=[today, tomorrow, day_after],
+        status__in=['Confirmed', 'Paid']
+    ).select_related('account')
+    
+    # Check for starting events (event_date from EventAgenda)
+    starting_event_agendas = EventAgenda.objects.filter(
+        event_date__in=[today, tomorrow, day_after],
+        request__status__in=['Confirmed', 'Paid']
+    ).select_related('request__account')
+    
+    # Create normalized arrival data with consistent date access
+    normalized_arrivals = []
+    seen_ids = set()
+    
+    # Add regular request arrivals
+    for request in arriving_requests:
+        if request.id not in seen_ids:
+            normalized_arrivals.append({
+                'request': request,
+                'date': request.check_in_date,
+                'type': 'arrival',
+                'account': request.account,
+                'request_type': request.request_type,
+                'id': request.id
+            })
+            seen_ids.add(request.id)
+    
+    # Add event starts
+    for agenda in starting_event_agendas:
+        if agenda.request.id not in seen_ids:
+            normalized_arrivals.append({
+                'request': agenda.request,
+                'date': agenda.event_date,
+                'type': 'event',
+                'account': agenda.request.account,
+                'request_type': agenda.request.request_type,
+                'id': agenda.request.id
+            })
+            seen_ids.add(agenda.request.id)
+    
+    # Sort by date
+    normalized_arrivals.sort(key=lambda x: x['date'])
+    
     context = {
         'total_accounts': total_accounts,
         'total_requests': total_requests,
@@ -92,6 +142,9 @@ def dashboard_view(request):
         'recent_agreements': recent_agreements,
         'approaching_deadlines': approaching_deadlines,
         'overdue_followups': overdue_followups,
+        'imminent_arrivals': normalized_arrivals,
+        'today': today,
+        'tomorrow': tomorrow,
     }
     
     return render(request, 'dashboard/dashboard.html', context)

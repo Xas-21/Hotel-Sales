@@ -125,8 +125,11 @@
             </div>
         </div>
 
+        <!-- All dashboard sections are now draggable -->
+        <div id="full-dashboard-container">
+        
         <!-- Key Metrics Row -->
-        <div class="row mb-4">
+        <div class="row mb-4 dashboard-section" data-section="key-metrics">
             <div class="col-md-3">
                 <a href="/admin/accounts/account/" class="text-decoration-none">
                     <div class="card bg-primary text-white card-hover">
@@ -190,7 +193,7 @@
         </div>
 
         <!-- Agreements Row -->
-        <div class="row mb-4">
+        <div class="row mb-4 dashboard-section" data-section="agreements-metrics">
             <div class="col-md-3">
                 <a href="/admin/agreements/agreement/?status__exact=Signed" class="text-decoration-none">
                     <div class="card bg-success text-white card-hover">
@@ -288,7 +291,7 @@
         </div>
 
         <!-- Charts and Recent Activity -->
-        <div class="row" id="dashboard-sections">
+        <div class="row dashboard-section" data-section="recent-activity" id="dashboard-sections">
             <div class="col-md-4 dashboard-section" data-section="recent-requests">
                 <div class="card">
                     <div class="card-header">
@@ -402,8 +405,8 @@
         </div>
 
         <!-- Alerts Section -->
-        {% if approaching_deadlines or overdue_followups %}
-        <div class="row mt-4">
+        {% if approaching_deadlines or overdue_followups or imminent_arrivals %}
+        <div class="row mt-4 dashboard-section" data-section="alerts">
             <div class="col-12">
                 <div class="card border-warning">
                     <div class="card-header bg-warning">
@@ -435,6 +438,32 @@
                                 {% endfor %}
                             </ul>
                         {% endif %}
+
+                        {% if imminent_arrivals %}
+                            <h6>Imminent Arrivals & Events</h6>
+                            <ul class="list-unstyled">
+                                {% for arrival in imminent_arrivals %}
+                                <li class="mb-2">
+                                    {% if arrival.date == today %}
+                                        <i class="fas fa-calendar-day text-danger me-2"></i>
+                                        <strong>TODAY:</strong>
+                                    {% elif arrival.date == tomorrow %}
+                                        <i class="fas fa-calendar-plus text-warning me-2"></i>
+                                        <strong>TOMORROW:</strong>
+                                    {% else %}
+                                        <i class="fas fa-calendar-check text-info me-2"></i>
+                                        <strong>IN 2 DAYS:</strong>
+                                    {% endif %}
+                                    {{ arrival.account.name }} - {{ arrival.request_type }}
+                                    {% if arrival.type == 'arrival' %}
+                                        (Check-in: {{ arrival.date }})
+                                    {% else %}
+                                        (Event Start: {{ arrival.date }})
+                                    {% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -442,7 +471,7 @@
         {% endif %}
 
         <!-- Quick Actions -->
-        <div class="row mt-4 mb-4">
+        <div class="row mt-4 mb-4 dashboard-section" data-section="quick-actions">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
@@ -475,6 +504,7 @@
                 </div>
             </div>
         </div>
+        </div> <!-- End full-dashboard-container -->
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -482,19 +512,31 @@
     <script>
         // Initialize drag and drop for dashboard sections
         document.addEventListener('DOMContentLoaded', function() {
+            const fullDashboardContainer = document.getElementById('full-dashboard-container');
             const dashboardSections = document.getElementById('dashboard-sections');
             
-            if (dashboardSections) {
-                new Sortable(dashboardSections, {
+            // Initialize full dashboard drag and drop (top-level sections only)
+            if (fullDashboardContainer) {
+                new Sortable(fullDashboardContainer, {
                     animation: 150,
                     ghostClass: 'sortable-ghost',
                     dragClass: 'sortable-drag',
+                    filter: '#dashboard-sections .dashboard-section', // Exclude nested sections from top-level drag
+                    preventOnFilter: false,
+                    onStart: function(evt) {
+                        // Add visual feedback for top-level drag
+                        evt.item.style.transform = 'rotate(2deg)';
+                    },
                     onEnd: function(evt) {
+                        // Remove visual feedback
+                        evt.item.style.transform = '';
+                        
                         // Save the new order to localStorage for persistence
-                        const order = Array.from(dashboardSections.children).map(el => 
+                        const order = Array.from(fullDashboardContainer.children).map(el => 
                             el.getAttribute('data-section')
-                        );
-                        localStorage.setItem('dashboardOrder', JSON.stringify(order));
+                        ).filter(section => section); // Filter out nulls
+                        
+                        localStorage.setItem('fullDashboardOrder', JSON.stringify(order));
                         
                         // Show notification
                         showNotification('Dashboard layout saved!', 'success');
@@ -502,18 +544,62 @@
                 });
                 
                 // Restore saved order from localStorage
-                const savedOrder = localStorage.getItem('dashboardOrder');
+                const savedOrder = localStorage.getItem('fullDashboardOrder');
                 if (savedOrder) {
                     try {
                         const order = JSON.parse(savedOrder);
-                        order.forEach((sectionId, index) => {
-                            const section = document.querySelector(`[data-section="${sectionId}"]`);
-                            if (section) {
+                        order.forEach((sectionId) => {
+                            const section = fullDashboardContainer.querySelector(`[data-section="${sectionId}"]`);
+                            if (section && section.parentElement === fullDashboardContainer) {
+                                fullDashboardContainer.appendChild(section);
+                            }
+                        });
+                    } catch (e) {
+                        console.log('Could not restore full dashboard order:', e);
+                    }
+                }
+            }
+            
+            // Initialize recent sections drag and drop (within the recent-activity section only)
+            if (dashboardSections) {
+                new Sortable(dashboardSections, {
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    dragClass: 'sortable-drag',
+                    handle: '.card-header', // Use card header as handle to avoid conflicts
+                    onStart: function(evt) {
+                        // Add visual feedback for nested drag
+                        evt.item.style.transform = 'rotate(-2deg) scale(1.02)';
+                    },
+                    onEnd: function(evt) {
+                        // Remove visual feedback
+                        evt.item.style.transform = '';
+                        
+                        // Save the new order to localStorage for persistence
+                        const order = Array.from(dashboardSections.children).map(el => 
+                            el.getAttribute('data-section')
+                        ).filter(section => section); // Filter out nulls
+                        
+                        localStorage.setItem('recentSectionsOrder', JSON.stringify(order));
+                        
+                        // Show notification
+                        showNotification('Recent sections layout saved!', 'success');
+                    }
+                });
+                
+                // Restore saved order from localStorage
+                const savedRecentOrder = localStorage.getItem('recentSectionsOrder');
+                if (savedRecentOrder) {
+                    try {
+                        const order = JSON.parse(savedRecentOrder);
+                        order.forEach((sectionId) => {
+                            const section = dashboardSections.querySelector(`[data-section="${sectionId}"]`);
+                            if (section && section.parentElement === dashboardSections) {
                                 dashboardSections.appendChild(section);
                             }
                         });
                     } catch (e) {
-                        console.log('Could not restore dashboard order');
+                        console.log('Could not restore recent sections order:', e);
                     }
                 }
             }
