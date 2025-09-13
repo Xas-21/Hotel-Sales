@@ -16,6 +16,17 @@ def dashboard_view(request):
     """
     Main dashboard with key metrics and analytics
     """
+    # Ensure user is authenticated and has profile
+    if not request.user.is_authenticated:
+        from django.shortcuts import redirect
+        return redirect('/admin/login/?next=/dashboard/')
+    
+    # Create profile if it doesn't exist
+    if hasattr(request.user, 'profile'):
+        pass  # Profile exists
+    else:
+        from accounts.models import UserProfile
+        UserProfile.objects.get_or_create(user=request.user)
     # Key metrics
     total_accounts = Account.objects.count()
     total_requests = Request.objects.count()
