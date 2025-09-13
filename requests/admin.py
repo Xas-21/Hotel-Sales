@@ -3,7 +3,8 @@ from django.utils.html import format_html
 from django.urls import reverse
 from .models import (
     Request, CancelledRequest, RoomEntry, Transportation, EventAgenda, SeriesGroupEntry, SeriesRoomEntry,
-    RoomType, RoomOccupancy, CancellationReason, RequestFieldRequirement, RequestFormLayout
+    RoomType, RoomOccupancy, CancellationReason, SystemFieldRequirement, SystemFormLayout,
+    RequestFieldRequirement, RequestFormLayout
 )
 
 class RoomEntryInline(admin.TabularInline):
@@ -327,23 +328,31 @@ class CancellationReasonAdmin(admin.ModelAdmin):
     make_non_refundable.short_description = "Mark as non-refundable"
 
 
-@admin.register(RequestFieldRequirement)
-class RequestFieldRequirementAdmin(admin.ModelAdmin):
-    """Admin interface for configurable field requirements per request type"""
-    list_display = ['request_type', 'field_name', 'field_label', 'required', 'enabled', 'sort_order']
-    list_filter = ['request_type', 'required', 'enabled']
-    search_fields = ['field_name', 'field_label']
+# ============================================================
+# CENTRALIZED SYSTEM CONFIGURATION ADMIN
+# ============================================================
+
+@admin.register(SystemFieldRequirement)
+class SystemFieldRequirementAdmin(admin.ModelAdmin):
+    """Centralized admin interface for configurable field requirements across all modules"""
+    list_display = ['module', 'form_type_short', 'field_label', 'section_name', 'required', 'enabled', 'sort_order']
+    list_filter = ['module', 'form_type', 'section_name', 'required', 'enabled']
+    search_fields = ['field_name', 'field_label', 'help_text']
     list_editable = ['required', 'enabled', 'sort_order']
-    ordering = ['request_type', 'sort_order', 'field_name']
+    ordering = ['module', 'form_type', 'section_name', 'sort_order', 'field_name']
     readonly_fields = ['created_at', 'updated_at']
     
     fieldsets = [
-        ('Field Information', {
-            'fields': ('request_type', 'field_name', 'field_label')
+        ('Module & Form Configuration', {
+            'fields': ('module', 'form_type'),
+            'description': 'Select the module and form type to configure'
         }),
-        ('Field Settings', {
-            'fields': ('required', 'enabled', 'sort_order'),
-            'description': 'Configure field behavior and display order'
+        ('Field Information', {
+            'fields': ('field_name', 'field_label', 'help_text')
+        }),
+        ('Layout & Behavior', {
+            'fields': ('section_name', 'required', 'enabled', 'sort_order'),
+            'description': 'Configure field behavior, visibility, and section placement'
         }),
         ('Metadata', {
             'fields': ('created_at', 'updated_at'),
@@ -351,7 +360,12 @@ class RequestFieldRequirementAdmin(admin.ModelAdmin):
         }),
     ]
     
-    actions = ['make_required', 'make_optional', 'enable_selected', 'disable_selected']
+    actions = ['make_required', 'make_optional', 'enable_selected', 'disable_selected', 'move_to_section']
+    
+    def form_type_short(self, obj):
+        """Display shortened form type for better readability"""
+        return obj.form_type.split('.')[-1] if '.' in obj.form_type else obj.form_type
+    form_type_short.short_description = 'Form Type'
     
     def make_required(self, request, queryset):
         queryset.update(required=True)
@@ -374,20 +388,24 @@ class RequestFieldRequirementAdmin(admin.ModelAdmin):
     disable_selected.short_description = "Disable selected fields"
 
 
-@admin.register(RequestFormLayout)
-class RequestFormLayoutAdmin(admin.ModelAdmin):
-    """Admin interface for configurable form layouts per request type"""
-    list_display = ['request_type', 'active', 'updated_by', 'updated_at']
-    list_filter = ['request_type', 'active', 'updated_at']
-    search_fields = ['request_type', 'updated_by']
+@admin.register(SystemFormLayout)
+class SystemFormLayoutAdmin(admin.ModelAdmin):
+    """Centralized admin interface for configurable form layouts across all modules"""
+    list_display = ['module', 'form_type_short', 'sections_count', 'active', 'updated_by', 'updated_at']
+    list_filter = ['module', 'form_type', 'active', 'updated_at']
+    search_fields = ['form_type', 'updated_by']
     list_editable = ['active']
-    ordering = ['request_type']
+    ordering = ['module', 'form_type']
     readonly_fields = ['created_at', 'updated_at']
     
     fieldsets = [
+        ('Module & Form Configuration', {
+            'fields': ('module', 'form_type'),
+            'description': 'Select the module and form type to configure'
+        }),
         ('Layout Configuration', {
-            'fields': ('request_type', 'sections', 'active'),
-            'description': 'Configure form sections and field arrangement for this request type'
+            'fields': ('sections', 'active'),
+            'description': 'Configure form sections and field arrangement using JSON format'
         }),
         ('Management', {
             'fields': ('updated_by',),
@@ -400,6 +418,17 @@ class RequestFormLayoutAdmin(admin.ModelAdmin):
     ]
     
     actions = ['activate_selected', 'deactivate_selected']
+    
+    def form_type_short(self, obj):
+        """Display shortened form type for better readability"""
+        return obj.form_type.split('.')[-1] if '.' in obj.form_type else obj.form_type
+    form_type_short.short_description = 'Form Type'
+    
+    def sections_count(self, obj):
+        """Display number of sections in layout"""
+        sections = obj.get_sections()
+        return len(sections) if sections else 0
+    sections_count.short_description = 'Sections'
     
     def activate_selected(self, request, queryset):
         queryset.update(active=True)
@@ -416,3 +445,17 @@ class RequestFormLayoutAdmin(admin.ModelAdmin):
         if hasattr(request, 'user') and request.user.is_authenticated:
             obj.updated_by = request.user.username
         super().save_model(request, obj, form, change)
+
+
+# Keep the old admin classes for backward compatibility (deprecated)
+class RequestFieldRequirementAdmin(admin.ModelAdmin):
+    """Deprecated admin - redirects to SystemFieldRequirement"""
+    def changelist_view(self, request, extra_context=None):
+        from django.shortcuts import redirect
+        return redirect('/admin/requests/systemfieldrequirement/')
+
+class RequestFormLayoutAdmin(admin.ModelAdmin):
+    """Deprecated admin - redirects to SystemFormLayout"""
+    def changelist_view(self, request, extra_context=None):
+        from django.shortcuts import redirect
+        return redirect('/admin/requests/systemformlayout/')

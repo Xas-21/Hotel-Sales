@@ -71,49 +71,81 @@ class CancellationReason(models.Model):
         return self.label
 
 
-class RequestFieldRequirement(models.Model):
-    """Admin-configurable field requirements per request type"""
-    REQUEST_TYPE_CHOICES = [
-        ('Group Accommodation', 'Group Accommodation (10+ rooms)'),
-        ('Individual Accommodation', 'Individual Accommodation (1-9 rooms)'),
-        ('Event with Rooms', 'Event with Rooms'),
-        ('Event without Rooms', 'Event without Rooms'),
-        ('Series Group', 'Series Group (multiple dates)'),
+class SystemFieldRequirement(models.Model):
+    """System-wide configurable field requirements for all modules"""
+    MODULE_CHOICES = [
+        ('requests', 'Requests'),
+        ('sales_calls', 'Sales Calls'),
+        ('agreements', 'Agreements'),
+        ('accounts', 'Accounts'),
     ]
     
-    request_type = models.CharField(max_length=30, choices=REQUEST_TYPE_CHOICES)
+    FORM_TYPE_CHOICES = [
+        # Requests module
+        ('requests.Group Accommodation', 'Requests - Group Accommodation'),
+        ('requests.Individual Accommodation', 'Requests - Individual Accommodation'),
+        ('requests.Event with Rooms', 'Requests - Event with Rooms'),
+        ('requests.Event without Rooms', 'Requests - Event without Rooms'),
+        ('requests.Series Group', 'Requests - Series Group'),
+        # Sales Calls module
+        ('sales_calls.SalesCall', 'Sales Calls - Visit Form'),
+        # Agreements module
+        ('agreements.Agreement', 'Agreements - Agreement Form'),
+        # Accounts module
+        ('accounts.Account', 'Accounts - Account Form'),
+    ]
+    
+    module = models.CharField(max_length=20, choices=MODULE_CHOICES)
+    form_type = models.CharField(max_length=50, choices=FORM_TYPE_CHOICES)
     field_name = models.CharField(max_length=100, help_text="Django field name")
     field_label = models.CharField(max_length=200, help_text="Display label")
     required = models.BooleanField(default=False, help_text="Field is required")
     enabled = models.BooleanField(default=True, help_text="Field is visible")
+    section_name = models.CharField(max_length=100, default='Basic Information', help_text="Section/fieldset name")
     sort_order = models.PositiveIntegerField(default=0, help_text="Display order within section")
+    help_text = models.TextField(blank=True, help_text="Custom help text for this field")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['request_type', 'sort_order', 'field_name']
-        unique_together = ['request_type', 'field_name']
-        verbose_name = "Field Requirement"
-        verbose_name_plural = "Field Requirements"
+        ordering = ['module', 'form_type', 'section_name', 'sort_order', 'field_name']
+        unique_together = ['form_type', 'field_name']
+        verbose_name = "System Field Requirement"
+        verbose_name_plural = "System Field Requirements"
 
     def __str__(self):
-        return f"{self.request_type}: {self.field_label} ({'Required' if self.required else 'Optional'})"
+        return f"{self.get_form_type_display()}: {self.field_label} ({'Required' if self.required else 'Optional'})"
 
 
-class RequestFormLayout(models.Model):
-    """Admin-configurable form section layouts per request type"""
-    REQUEST_TYPE_CHOICES = [
-        ('Group Accommodation', 'Group Accommodation (10+ rooms)'),
-        ('Individual Accommodation', 'Individual Accommodation (1-9 rooms)'),
-        ('Event with Rooms', 'Event with Rooms'),
-        ('Event without Rooms', 'Event without Rooms'),
-        ('Series Group', 'Series Group (multiple dates)'),
+class SystemFormLayout(models.Model):
+    """System-wide configurable form section layouts"""
+    MODULE_CHOICES = [
+        ('requests', 'Requests'),
+        ('sales_calls', 'Sales Calls'),
+        ('agreements', 'Agreements'),
+        ('accounts', 'Accounts'),
     ]
     
-    request_type = models.CharField(max_length=30, choices=REQUEST_TYPE_CHOICES, unique=True)
+    FORM_TYPE_CHOICES = [
+        # Requests module
+        ('requests.Group Accommodation', 'Requests - Group Accommodation'),
+        ('requests.Individual Accommodation', 'Requests - Individual Accommodation'),
+        ('requests.Event with Rooms', 'Requests - Event with Rooms'),
+        ('requests.Event without Rooms', 'Requests - Event without Rooms'),
+        ('requests.Series Group', 'Requests - Series Group'),
+        # Sales Calls module
+        ('sales_calls.SalesCall', 'Sales Calls - Visit Form'),
+        # Agreements module
+        ('agreements.Agreement', 'Agreements - Agreement Form'),
+        # Accounts module
+        ('accounts.Account', 'Accounts - Account Form'),
+    ]
+    
+    module = models.CharField(max_length=20, choices=MODULE_CHOICES)
+    form_type = models.CharField(max_length=50, choices=FORM_TYPE_CHOICES, unique=True)
     sections = models.JSONField(
         default=list,
-        help_text="JSON array of sections: [{'name': 'Basic Info', 'fields': ['field1', 'field2'], 'order': 1}]"
+        help_text="JSON array of sections: [{'name': 'Basic Info', 'fields': ['field1', 'field2'], 'order': 1, 'collapsed': false}]"
     )
     active = models.BooleanField(default=True, help_text="Layout is active")
     updated_by = models.CharField(max_length=100, blank=True, help_text="Last updated by")
@@ -121,12 +153,12 @@ class RequestFormLayout(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['request_type']
-        verbose_name = "Form Layout"
-        verbose_name_plural = "Form Layouts"
+        ordering = ['module', 'form_type']
+        verbose_name = "System Form Layout"
+        verbose_name_plural = "System Form Layouts"
 
     def __str__(self):
-        return f"{self.request_type} Layout"
+        return f"{self.get_form_type_display()} Layout"
     
     def get_sections(self):
         """Get sections as parsed JSON"""
@@ -134,6 +166,21 @@ class RequestFormLayout(models.Model):
             return json.loads(self.sections) if isinstance(self.sections, str) else self.sections
         except (json.JSONDecodeError, TypeError):
             return []
+
+# Keep the old models for backward compatibility (deprecated)
+class RequestFieldRequirement(SystemFieldRequirement):
+    """Deprecated: Use SystemFieldRequirement instead"""
+    class Meta:
+        proxy = True
+        verbose_name = "Request Field Requirement (Deprecated)"
+        verbose_name_plural = "Request Field Requirements (Deprecated)"
+
+class RequestFormLayout(SystemFormLayout):
+    """Deprecated: Use SystemFormLayout instead"""
+    class Meta:
+        proxy = True
+        verbose_name = "Request Form Layout (Deprecated)"
+        verbose_name_plural = "Request Form Layouts (Deprecated)"
 
 class Request(models.Model):
     """
