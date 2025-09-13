@@ -104,17 +104,17 @@ def dashboard_view(request):
     seen_ids = set()
     
     # Add regular request arrivals
-    for request in arriving_requests:
-        if request.id not in seen_ids:
+    for req in arriving_requests:
+        if req.id not in seen_ids:
             normalized_arrivals.append({
-                'request': request,
-                'date': request.check_in_date,
+                'request': req,
+                'date': req.check_in_date,
                 'type': 'arrival',
-                'account': request.account,
-                'request_type': request.request_type,
-                'id': request.id
+                'account': req.account,
+                'request_type': req.request_type,
+                'id': req.id
             })
-            seen_ids.add(request.id)
+            seen_ids.add(req.id)
     
     # Add event starts
     for agenda in starting_event_agendas:
@@ -157,12 +157,6 @@ def dashboard_view(request):
         'tomorrow': tomorrow,
     }
     
-    # Add debug info without overriding Django's auth context processor
-    context['debug_user_info'] = {
-        'username': getattr(request.user, 'username', 'NoUser'),
-        'is_authenticated': getattr(request.user, 'is_authenticated', False),
-        'user_id': getattr(request.user, 'id', None),
-    }
     
     return render(request, 'dashboard/dashboard.html', context)
 

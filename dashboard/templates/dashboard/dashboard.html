@@ -74,7 +74,6 @@
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="fas fa-user-circle me-1"></i>
-                                    <!-- DEBUG: {{ debug_user_info.username }} ({{ debug_user_info.is_authenticated|yesno:"Auth,Anon" }}) -->
                                     {% if user.is_authenticated %}
                                         {% if user.profile %}{{ user.profile.full_name }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}
                                     {% else %}Guest{% endif %}
