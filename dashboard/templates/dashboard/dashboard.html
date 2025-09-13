@@ -121,7 +121,12 @@
         <!-- Dashboard Content -->
         <div class="row mt-4">
             <div class="col-12">
-                <h1 class="mb-4">Dashboard Overview</h1>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="mb-0">Dashboard Overview</h1>
+                    <button id="edit-sections-btn" class="btn btn-outline-secondary">
+                        <i class="fas fa-edit me-1"></i>Edit Sections Place
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -306,7 +311,12 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-header" data-section-header>
-                        <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Recent Activity</h5>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Recent Activity</h5>
+                            <button id="edit-recent-btn" class="btn btn-sm btn-outline-info">
+                                <i class="fas fa-edit me-1"></i>Edit Recent
+                            </button>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div class="row">
@@ -435,7 +445,12 @@
             <div class="col-12">
                 <div class="card border-warning">
                     <div class="card-header bg-warning" data-section-header>
-                        <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Alerts & Notifications</h5>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Alerts & Notifications</h5>
+                            <button id="edit-alerts-btn" class="btn btn-sm btn-outline-warning">
+                                <i class="fas fa-edit me-1"></i>Edit Alerts
+                            </button>
+                        </div>
                     </div>
                     <div class="card-body">
                         {% if approaching_deadlines %}
@@ -500,7 +515,12 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-header" data-section-header>
-                        <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+                            <button id="edit-actions-btn" class="btn btn-sm btn-outline-success">
+                                <i class="fas fa-edit me-1"></i>Edit Actions
+                            </button>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div class="row">
@@ -616,7 +636,7 @@
             z-index: 1000 !important;
         }
         
-        /* Card edit mode styling */
+        /* Edit mode styling */
         .cards-edit-mode .metric-card {
             border: 2px dashed #007bff !important;
             border-radius: 8px !important;
@@ -639,63 +659,176 @@
             pointer-events: none !important;
         }
         
-        #edit-cards-btn.active {
+        /* Section edit mode styling */
+        .sections-edit-mode .dashboard-section {
+            border: 2px dashed #6c757d !important;
+            cursor: grab !important;
+        }
+        
+        .sections-edit-mode .dashboard-section:hover {
+            border-color: #495057 !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 4px 15px rgba(108,117,125,0.2) !important;
+        }
+        
+        .sections-edit-mode .dashboard-section.sortable-chosen {
+            cursor: grabbing !important;
+        }
+        
+        /* Recent Activity edit mode */
+        .recent-edit-mode .list-group-item {
+            border: 1px dashed #17a2b8 !important;
+            cursor: grab !important;
+            margin: 2px 0 !important;
+        }
+        
+        .recent-edit-mode .list-group-item:hover {
+            border-color: #138496 !important;
+            background-color: #e9f7f9 !important;
+        }
+        
+        /* Alerts edit mode */
+        .alerts-edit-mode ul li {
+            border: 1px dashed #ffc107 !important;
+            padding: 8px !important;
+            margin: 2px 0 !important;
+            border-radius: 4px !important;
+            cursor: grab !important;
+        }
+        
+        .alerts-edit-mode ul li:hover {
+            border-color: #e0a800 !important;
+            background-color: #fff8e1 !important;
+        }
+        
+        /* Quick Actions edit mode */
+        .actions-edit-mode .col-md-3 {
+            border: 1px dashed #28a745 !important;
+            cursor: grab !important;
+            margin: 2px !important;
+            border-radius: 4px !important;
+        }
+        
+        .actions-edit-mode .col-md-3:hover {
+            border-color: #1e7e34 !important;
+            background-color: #e8f5e8 !important;
+        }
+        
+        /* Active edit button styling */
+        .btn.active {
             background-color: #dc3545 !important;
             border-color: #dc3545 !important;
             color: white !important;
         }
+        
+        /* Disable section drag handles by default */
+        .dashboard-section {
+            cursor: default !important;
+        }
+        
+        .dashboard-section:hover {
+            transform: none !important;
+        }
+        
+        .dashboard-section .card-header[data-section-header] {
+            cursor: default !important;
+        }
+        
+        .dashboard-section .card-header[data-section-header]:hover {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef) !important;
+            transform: none !important;
+        }
+        
+        .dashboard-section .card-header[data-section-header]:active {
+            cursor: default !important;
+        }
     </style>
     <script>
-        // Initialize drag and drop for 4 main dashboard sections
+        // Initialize dashboard functionality with comprehensive edit system
         document.addEventListener('DOMContentLoaded', function() {
             const fullDashboardContainer = document.getElementById('full-dashboard-container');
             
-            // Initialize 4-section drag and drop
-            if (fullDashboardContainer) {
-                new Sortable(fullDashboardContainer, {
-                    animation: 150,
-                    ghostClass: 'sortable-ghost',
-                    dragClass: 'sortable-drag',
-                    draggable: '.dashboard-section', // Only sections can be dragged
-                    handle: '[data-section-header]', // Use specific section headers as drag handle
-                    onStart: function(evt) {
-                        // Add visual feedback when dragging
-                        evt.item.style.transform = 'rotate(2deg) scale(1.02)';
-                        evt.item.style.zIndex = '1000';
-                        evt.item.style.opacity = '0.8';
-                    },
-                    onEnd: function(evt) {
-                        // Remove visual feedback
-                        evt.item.style.transform = '';
-                        evt.item.style.zIndex = '';
-                        evt.item.style.opacity = '';
+            // Variables to track edit modes and sortable instances
+            let sectionsSortable = null;
+            let recentSortables = {};
+            let alertsSortables = {};
+            let actionsSortable = null;
+            
+            let isSectionsEditMode = false;
+            let isRecentEditMode = false;
+            let isAlertsEditMode = false;
+            let isActionsEditMode = false;
+            
+            // Initialize master sections edit button
+            const editSectionsBtn = document.getElementById('edit-sections-btn');
+            if (editSectionsBtn && fullDashboardContainer) {
+                editSectionsBtn.addEventListener('click', function() {
+                    isSectionsEditMode = !isSectionsEditMode;
+                    
+                    if (isSectionsEditMode) {
+                        // Enable sections edit mode
+                        document.body.classList.add('sections-edit-mode');
+                        editSectionsBtn.classList.add('active');
+                        editSectionsBtn.innerHTML = '<i class="fas fa-save me-1"></i>Save Sections';
                         
-                        // Save the new order to localStorage for persistence
-                        const order = Array.from(fullDashboardContainer.children).map(el => 
-                            el.getAttribute('data-section')
-                        ).filter(section => section); // Filter out nulls
-                        
-                        localStorage.setItem('dashboardSectionOrder', JSON.stringify(order));
-                        
-                        // Show notification
-                        showNotification('Dashboard layout saved!', 'success');
-                    }
-                });
-                
-                // Restore saved order from localStorage
-                const savedOrder = localStorage.getItem('dashboardSectionOrder');
-                if (savedOrder) {
-                    try {
-                        const order = JSON.parse(savedOrder);
-                        order.forEach((sectionId) => {
-                            const section = fullDashboardContainer.querySelector(`[data-section="${sectionId}"]`);
-                            if (section && section.parentElement === fullDashboardContainer) {
-                                fullDashboardContainer.appendChild(section);
+                        // Initialize section dragging
+                        sectionsSortable = new Sortable(fullDashboardContainer, {
+                            animation: 150,
+                            ghostClass: 'sortable-ghost',
+                            dragClass: 'sortable-drag',
+                            draggable: '.dashboard-section',
+                            handle: '[data-section-header]',
+                            onStart: function(evt) {
+                                evt.item.style.transform = 'rotate(2deg) scale(1.02)';
+                                evt.item.style.zIndex = '1000';
+                                evt.item.style.opacity = '0.8';
+                            },
+                            onEnd: function(evt) {
+                                evt.item.style.transform = '';
+                                evt.item.style.zIndex = '';
+                                evt.item.style.opacity = '';
+                                
+                                // Save the new order to localStorage
+                                const order = Array.from(fullDashboardContainer.children).map(el => 
+                                    el.getAttribute('data-section')
+                                ).filter(section => section);
+                                
+                                localStorage.setItem('dashboardSectionOrder', JSON.stringify(order));
+                                showNotification('Dashboard layout saved!', 'success');
                             }
                         });
-                    } catch (e) {
-                        console.log('Could not restore dashboard order:', e);
+                        
+                        showNotification('Section edit mode enabled! Drag sections to rearrange.', 'info');
+                    } else {
+                        // Disable sections edit mode
+                        document.body.classList.remove('sections-edit-mode');
+                        editSectionsBtn.classList.remove('active');
+                        editSectionsBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit Sections Place';
+                        
+                        // Destroy section dragging
+                        if (sectionsSortable) {
+                            sectionsSortable.destroy();
+                            sectionsSortable = null;
+                        }
+                        
+                        showNotification('Section layout saved!', 'success');
                     }
+                });
+            }
+            
+            // Restore saved section order from localStorage on load
+            const savedOrder = localStorage.getItem('dashboardSectionOrder');
+            if (savedOrder && fullDashboardContainer) {
+                try {
+                    const order = JSON.parse(savedOrder);
+                    order.forEach((sectionId) => {
+                        const section = fullDashboardContainer.querySelector(`[data-section="${sectionId}"]`);
+                        if (section && section.parentElement === fullDashboardContainer) {
+                            fullDashboardContainer.appendChild(section);
+                        }
+                    });
+                } catch (e) {
+                    console.log('Could not restore dashboard order:', e);
                 }
             }
             
@@ -770,6 +903,156 @@
                         console.log('Could not restore cards order:', e);
                     }
                 }
+            }
+            
+            // Initialize Recent Activity edit functionality
+            const editRecentBtn = document.getElementById('edit-recent-btn');
+            if (editRecentBtn) {
+                editRecentBtn.addEventListener('click', function() {
+                    isRecentEditMode = !isRecentEditMode;
+                    
+                    if (isRecentEditMode) {
+                        // Enable recent edit mode
+                        document.querySelector('[data-section="recent-section"]').classList.add('recent-edit-mode');
+                        editRecentBtn.classList.add('active');
+                        editRecentBtn.innerHTML = '<i class="fas fa-save me-1"></i>Save Recent';
+                        
+                        // Initialize dragging for each recent activity list
+                        document.querySelectorAll('[data-section="recent-section"] .list-group').forEach((listGroup, index) => {
+                            const sortableId = 'recent-' + index;
+                            recentSortables[sortableId] = new Sortable(listGroup, {
+                                animation: 150,
+                                ghostClass: 'sortable-ghost',
+                                dragClass: 'sortable-drag',
+                                draggable: '.list-group-item',
+                                onEnd: function(evt) {
+                                    // Save order to localStorage
+                                    const order = Array.from(listGroup.children).map((el, i) => i);
+                                    localStorage.setItem('recentOrder-' + index, JSON.stringify(order));
+                                    showNotification('Recent activity layout saved!', 'success');
+                                }
+                            });
+                        });
+                        
+                        showNotification('Recent activity edit mode enabled!', 'info');
+                    } else {
+                        // Disable recent edit mode
+                        document.querySelector('[data-section="recent-section"]').classList.remove('recent-edit-mode');
+                        editRecentBtn.classList.remove('active');
+                        editRecentBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit Recent';
+                        
+                        // Destroy all recent sortables
+                        Object.values(recentSortables).forEach(sortable => {
+                            if (sortable) sortable.destroy();
+                        });
+                        recentSortables = {};
+                        
+                        showNotification('Recent activity layout saved!', 'success');
+                    }
+                });
+            }
+            
+            // Initialize Alerts edit functionality
+            const editAlertsBtn = document.getElementById('edit-alerts-btn');
+            if (editAlertsBtn) {
+                editAlertsBtn.addEventListener('click', function() {
+                    isAlertsEditMode = !isAlertsEditMode;
+                    
+                    if (isAlertsEditMode) {
+                        // Enable alerts edit mode
+                        document.querySelector('[data-section="alerts-section"]').classList.add('alerts-edit-mode');
+                        editAlertsBtn.classList.add('active');
+                        editAlertsBtn.innerHTML = '<i class="fas fa-save me-1"></i>Save Alerts';
+                        
+                        // Initialize dragging for alert lists
+                        document.querySelectorAll('[data-section="alerts-section"] ul').forEach((ul, index) => {
+                            const sortableId = 'alerts-' + index;
+                            alertsSortables[sortableId] = new Sortable(ul, {
+                                animation: 150,
+                                ghostClass: 'sortable-ghost',
+                                dragClass: 'sortable-drag',
+                                draggable: 'li',
+                                onEnd: function(evt) {
+                                    // Save order to localStorage
+                                    const order = Array.from(ul.children).map((el, i) => i);
+                                    localStorage.setItem('alertsOrder-' + index, JSON.stringify(order));
+                                    showNotification('Alerts layout saved!', 'success');
+                                }
+                            });
+                        });
+                        
+                        showNotification('Alerts edit mode enabled!', 'info');
+                    } else {
+                        // Disable alerts edit mode
+                        document.querySelector('[data-section="alerts-section"]').classList.remove('alerts-edit-mode');
+                        editAlertsBtn.classList.remove('active');
+                        editAlertsBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit Alerts';
+                        
+                        // Destroy all alerts sortables
+                        Object.values(alertsSortables).forEach(sortable => {
+                            if (sortable) sortable.destroy();
+                        });
+                        alertsSortables = {};
+                        
+                        showNotification('Alerts layout saved!', 'success');
+                    }
+                });
+            }
+            
+            // Initialize Quick Actions edit functionality
+            const editActionsBtn = document.getElementById('edit-actions-btn');
+            if (editActionsBtn) {
+                editActionsBtn.addEventListener('click', function() {
+                    isActionsEditMode = !isActionsEditMode;
+                    
+                    if (isActionsEditMode) {
+                        // Enable actions edit mode
+                        const actionsRow = document.querySelector('[data-section="quick-actions-section"] .card-body .row');
+                        actionsRow.classList.add('actions-edit-mode');
+                        editActionsBtn.classList.add('active');
+                        editActionsBtn.innerHTML = '<i class="fas fa-save me-1"></i>Save Actions';
+                        
+                        // Add data attributes for better sorting if not already present
+                        const actionButtons = actionsRow.querySelectorAll('.col-md-3');
+                        actionButtons.forEach((btn, index) => {
+                            if (!btn.hasAttribute('data-action')) {
+                                btn.setAttribute('data-action', 'action-' + index);
+                            }
+                        });
+                        
+                        // Initialize dragging for quick actions
+                        actionsSortable = new Sortable(actionsRow, {
+                            animation: 150,
+                            ghostClass: 'sortable-ghost',
+                            dragClass: 'sortable-drag',
+                            draggable: '.col-md-3',
+                            onEnd: function(evt) {
+                                // Save order to localStorage
+                                const order = Array.from(actionsRow.children).map(el => 
+                                    el.getAttribute('data-action') || Array.from(actionsRow.children).indexOf(el)
+                                );
+                                localStorage.setItem('actionsOrder', JSON.stringify(order));
+                                showNotification('Quick actions layout saved!', 'success');
+                            }
+                        });
+                        
+                        showNotification('Quick actions edit mode enabled!', 'info');
+                    } else {
+                        // Disable actions edit mode
+                        const actionsRow = document.querySelector('[data-section="quick-actions-section"] .card-body .row');
+                        actionsRow.classList.remove('actions-edit-mode');
+                        editActionsBtn.classList.remove('active');
+                        editActionsBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit Actions';
+                        
+                        // Destroy actions sortable
+                        if (actionsSortable) {
+                            actionsSortable.destroy();
+                            actionsSortable = null;
+                        }
+                        
+                        showNotification('Quick actions layout saved!', 'success');
+                    }
+                });
             }
             
             // Initialize status dropdowns
