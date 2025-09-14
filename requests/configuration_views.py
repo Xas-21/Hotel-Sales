@@ -312,7 +312,7 @@ def add_field(request, section_id):
 @staff_member_required
 @require_POST
 def update_field(request, field_id):
-    """Update an existing field"""
+    """Update an existing field (both core and custom fields)"""
     try:
         field = get_object_or_404(DynamicField, id=field_id)
         data = json.loads(request.body)
@@ -333,11 +333,19 @@ def update_field(request, field_id):
                 # Clear choices for non-choice fields
                 field.choices = '{}'  # Empty JSON object as string
         
-        field.section = data.get('section', field.section)
-        field.order = data.get('order', field.order)
-        field.max_length = data.get('max_length', field.max_length)
-        field.default_value = data.get('default_value', field.default_value)
+        # For custom fields, update additional properties
+        if not field.is_core_field:
+            field.section = data.get('section', field.section)
+            field.order = data.get('order', field.order)
+            field.max_length = data.get('max_length', field.max_length)
+            field.default_value = data.get('default_value', field.default_value)
+        
         field.save()
+        
+        # Log the update for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Updated field {field.name} (id={field_id}, is_core={field.is_core_field}): choices={field.choices}")
         
         return JsonResponse({'success': True})
         

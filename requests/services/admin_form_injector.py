@@ -206,14 +206,18 @@ class AdminFormInjector:
                 ])
             ]
         
-        # Add choice field options
-        if field_type in ['choice', 'multiple_choice', 'ChoiceField'] and field_config.get('choices'):
+        # Add choice field options - check if field has choices regardless of field_type
+        # (CharField with choices should become ChoiceField)
+        if field_config.get('choices') and field_config['choices'] not in ['{}', '', None]:
             try:
                 # Parse choices (assuming JSON format)
                 choices_data = json.loads(field_config['choices'])
-                if isinstance(choices_data, dict):
+                if isinstance(choices_data, dict) and choices_data:  # Non-empty dict
                     # Convert dict to tuples: {'key': 'label'} -> [('key', 'label'), ...]
                     kwargs['choices'] = list(choices_data.items())
+                    # Override field class to ChoiceField if it has choices
+                    if field_type not in ['multiple_choice']:
+                        field_class = ChoiceField
                 elif isinstance(choices_data, list) and choices_data:
                     # Handle list format properly
                     formatted_choices = []
@@ -228,13 +232,19 @@ class AdminFormInjector:
                             # Convert anything else to string tuple
                             formatted_choices.append((str(choice), str(choice)))
                     kwargs['choices'] = formatted_choices
+                    # Override field class to ChoiceField if it has choices
+                    if field_type not in ['multiple_choice']:
+                        field_class = ChoiceField
                 else:
-                    kwargs['choices'] = []
+                    # Empty choices - don't override field type
+                    pass
             except (json.JSONDecodeError, ValueError):
                 # Fallback to CharField if choices parsing fails
                 logger.warning(f"Failed to parse choices for {field_config.get('name', 'unknown')}: {field_config.get('choices', '')}")
-                field_class = CharField
-                kwargs['max_length'] = field_config.get('max_length', 255)
+                if field_type in ['choice', 'multiple_choice', 'ChoiceField']:
+                    # If it was supposed to be a choice field, fallback to CharField
+                    field_class = CharField
+                    kwargs['max_length'] = field_config.get('max_length', 255)
         
         return field_class(**kwargs)
     
