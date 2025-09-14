@@ -128,7 +128,7 @@
                                 <small class="text-muted">{{ field.name }}</small>
                             </div>
                             <div class="col-md-2">
-                                <span class="badge bg-primary field-type-badge">{{ field.field_type }}</span>
+                                <span class="badge bg-primary field-type-badge" data-type="{{ field.field_type }}">{{ field.field_type }}</span>
                             </div>
                             <div class="col-md-2">
                                 {% if field.required %}
@@ -179,7 +179,7 @@
                                 <small class="text-muted">{{ field.name }}</small>
                             </div>
                             <div class="col-md-2">
-                                <span class="badge bg-success field-type-badge">{{ field.field_type }}</span>
+                                <span class="badge bg-success field-type-badge" data-type="{{ field.field_type }}">{{ field.field_type }}</span>
                             </div>
                             <div class="col-md-2">
                                 <span class="editable-toggle" data-field="required" data-value="{{ field.required|yesno:'true,false' }}">
@@ -365,7 +365,7 @@
 
             // Extract current field values
             const displayName = fieldCard.querySelector('.field-title').textContent.trim();
-            const currentType = fieldCard.querySelector('.field-type-badge').textContent.trim();
+            const currentType = fieldCard.querySelector('.field-type-badge').dataset.type || fieldCard.querySelector('.field-type-badge').textContent.trim();
             const isRequired = fieldCard.querySelector('.bg-danger') !== null;
             
             // Get existing choices for choice fields
@@ -442,6 +442,9 @@
             fieldCard.setAttribute('data-original-content', originalContent);
             fieldCard.innerHTML = editForm;
 
+            // Initialize choice options based on current field type
+            toggleChoiceOptions(fieldId);
+            
             // Load existing choices if this is a choice field
             if (currentType === 'ChoiceField') {
                 loadExistingChoices(fieldId, existingChoices);
