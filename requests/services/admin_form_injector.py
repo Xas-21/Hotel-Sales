@@ -8,7 +8,7 @@ into Django admin forms for Core Sections (existing admin models).
 from django.contrib import admin
 from django.forms import (
     CharField, IntegerField, BooleanField, DateField, DateTimeField, 
-    ChoiceField, DecimalField, FloatField, FileField, ImageField, TimeField, 
+    ChoiceField, TypedChoiceField, DecimalField, FloatField, FileField, ImageField, TimeField, 
     MultipleChoiceField, EmailField, URLField
 )
 from django.core.validators import FileExtensionValidator
@@ -215,9 +215,17 @@ class AdminFormInjector:
                 if isinstance(choices_data, dict) and choices_data:  # Non-empty dict
                     # Convert dict to tuples: {'key': 'label'} -> [('key', 'label'), ...]
                     kwargs['choices'] = list(choices_data.items())
-                    # Override field class to ChoiceField if it has choices
+                    # Override field class to TypedChoiceField for core fields (matches Django's default)
+                    # Use ChoiceField for custom fields
                     if field_type not in ['multiple_choice']:
-                        field_class = ChoiceField
+                        # Use TypedChoiceField for core field overrides to match Django's behavior
+                        if field_config.get('is_core_override', False):
+                            field_class = TypedChoiceField
+                            # TypedChoiceField needs a coerce function - use str by default
+                            kwargs['coerce'] = str
+                            kwargs['empty_value'] = ''
+                        else:
+                            field_class = ChoiceField
                 elif isinstance(choices_data, list) and choices_data:
                     # Handle list format properly
                     formatted_choices = []
@@ -232,9 +240,16 @@ class AdminFormInjector:
                             # Convert anything else to string tuple
                             formatted_choices.append((str(choice), str(choice)))
                     kwargs['choices'] = formatted_choices
-                    # Override field class to ChoiceField if it has choices
+                    # Override field class to TypedChoiceField for core fields (matches Django's default)
                     if field_type not in ['multiple_choice']:
-                        field_class = ChoiceField
+                        # Use TypedChoiceField for core field overrides to match Django's behavior
+                        if field_config.get('is_core_override', False):
+                            field_class = TypedChoiceField
+                            # TypedChoiceField needs a coerce function - use str by default
+                            kwargs['coerce'] = str
+                            kwargs['empty_value'] = ''
+                        else:
+                            field_class = ChoiceField
                 else:
                     # Empty choices - don't override field type
                     pass
@@ -288,21 +303,32 @@ class AdminFormInjector:
                         super().__init__(*args, **kwargs)
                         
                         # Process both custom fields and core field overrides
+                        # Do this AFTER parent __init__ to ensure we override any other modifications
                         for field_config in custom_field_configs:
                             field_name = field_config['name']
                             
                             if field_config.get('is_core_override', False):
                                 # Override existing model field choices
                                 if field_name in self.fields:
-                                    existing_field = self.fields[field_name]
-                                    # Create new field with dynamic choices
+                                    # For core fields with custom choices, always replace the field
+                                    # to ensure our choices override any model or mixin choices
                                     new_field = cls.create_form_field(field_config)
-                                    # Preserve other attributes from original field
-                                    new_field.label = field_config.get('display_name', existing_field.label)
-                                    new_field.required = existing_field.required
-                                    new_field.help_text = existing_field.help_text
-                                    # Replace the field
+                                    
+                                    # Try to preserve attributes from existing field
+                                    existing_field = self.fields.get(field_name)
+                                    if existing_field:
+                                        # Only preserve these if not explicitly set in config
+                                        if not field_config.get('display_name'):
+                                            new_field.label = existing_field.label
+                                        new_field.help_text = getattr(existing_field, 'help_text', '')
+                                        # Use configured required, not model's
+                                        new_field.required = field_config.get('required', existing_field.required)
+                                    
+                                    # Replace the field completely
                                     self.fields[field_name] = new_field
+                                    
+                                    # Log for debugging
+                                    logger.debug(f"Replaced field {field_name} with custom choices")
                             else:
                                 # Add new custom field (original logic)
                                 form_field = cls.create_form_field(field_config)
