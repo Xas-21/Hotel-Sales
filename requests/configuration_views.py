@@ -155,6 +155,14 @@ def section_fields(request, section_id):
             core_fields = fields.filter(is_core_field=True)
             
             for field in core_fields:
+                # Parse choices for core fields 
+                choices_obj = {}
+                try:
+                    if field.choices and field.choices != '{}':
+                        choices_obj = json.loads(field.choices)
+                except (json.JSONDecodeError, ValueError):
+                    choices_obj = {}
+                    
                 model_fields.append({
                     'id': field.id,
                     'name': field.name,
@@ -162,7 +170,8 @@ def section_fields(request, section_id):
                     'field_type': field.field_type,
                     'required': field.required,
                     'is_model_field': True,
-                    'is_core_field': True
+                    'is_core_field': True,
+                    'choices': choices_obj  # Pass parsed object, not JSON string
                 })
         else:
             model_fields = []
@@ -174,6 +183,14 @@ def section_fields(request, section_id):
         if section_type == 'core' and field.is_core_field:
             continue
             
+        # Parse choices for dynamic fields
+        choices_obj = {}
+        try:
+            if field.choices and field.choices != '{}':
+                choices_obj = json.loads(field.choices)
+        except (json.JSONDecodeError, ValueError):
+            choices_obj = {}
+            
         dynamic_fields.append({
             'id': field.id,
             'name': field.name,
@@ -183,7 +200,7 @@ def section_fields(request, section_id):
             'section_name': field.section_name if hasattr(field, 'section_name') else 'Custom Fields',
             'order': field.order,
             'max_length': field.max_length,
-            'choices': field.choices,
+            'choices': choices_obj,  # Pass parsed object, not JSON string
             'default_value': field.default_value,
             'is_model_field': False,
             'is_core_field': getattr(field, 'is_core_field', False)
@@ -204,6 +221,21 @@ def section_fields(request, section_id):
     }
     
     return render(request, 'configuration/section_fields.html', context)
+
+
+def _normalize_choices_data(choices):
+    """Helper function to normalize choice data to JSON string format"""
+    if isinstance(choices, (dict, list)):
+        return json.dumps(choices)
+    elif isinstance(choices, str):
+        # Validate and re-save existing JSON string
+        try:
+            parsed = json.loads(choices)
+            return json.dumps(parsed)  # Normalize formatting
+        except (json.JSONDecodeError, ValueError):
+            return '{}'  # Fallback for invalid JSON
+    else:
+        return '{}'  # Empty JSON object as string
 
 
 @staff_member_required
@@ -228,7 +260,7 @@ def add_field(request, section_id):
                 required=data.get('required', False),
                 section=data.get('section', 'Custom Fields'),
                 max_length=data.get('max_length') or 255,
-                choices=data.get('choices') or '{}',
+                choices=_normalize_choices_data(data.get('choices') or {}),
                 default_value=data.get('default_value') or '',
                 order=data.get('order', 100)
             )
@@ -247,7 +279,7 @@ def add_field(request, section_id):
                 required=data.get('required', False),
                 section_name=data.get('section_name', 'Custom Fields'),  # Section grouping name
                 max_length=data.get('max_length') or 255,
-                choices=data.get('choices') or '{}',
+                choices=_normalize_choices_data(data.get('choices') or {}),
                 default_value=data.get('default_value') or '',
                 order=data.get('order', 100),
                 is_core_field=is_core_field
@@ -288,18 +320,16 @@ def update_field(request, field_id):
         field.field_type = data.get('field_type', field.field_type)
         field.required = data.get('required', field.required)
         
-        # Handle choices properly for ChoiceField
+        # Handle choices properly for choice fields
         if 'choices' in data:
-            if field.field_type == 'ChoiceField':
-                # Validate and save choices
-                choices = data.get('choices', {})
-                if isinstance(choices, dict) and choices:
-                    field.choices = choices
-                else:
-                    field.choices = {}
+            # Normalize field type for comparison (handle case variations)
+            normalized_type = field.field_type.lower()
+            if normalized_type in ['choicefield', 'choice', 'multiple_choice']:
+                # Use helper function for consistent normalization
+                field.choices = _normalize_choices_data(data.get('choices', {}))
             else:
                 # Clear choices for non-choice fields
-                field.choices = {}
+                field.choices = '{}'  # Empty JSON object as string
         
         field.section = data.get('section', field.section)
         field.order = data.get('order', field.order)
