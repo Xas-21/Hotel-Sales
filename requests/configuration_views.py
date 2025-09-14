@@ -171,7 +171,8 @@ def section_fields(request, section_id):
                     'required': field.required,
                     'is_model_field': True,
                     'is_core_field': True,
-                    'choices': choices_obj  # Pass parsed object, not JSON string
+                    'choices': choices_obj,  # Pass Python dict for json_script filter
+                    'choices_script_id': f'choices-{field.id}'  # Pre-computed script ID
                 })
         else:
             model_fields = []
@@ -200,7 +201,8 @@ def section_fields(request, section_id):
             'section_name': field.section_name if hasattr(field, 'section_name') else 'Custom Fields',
             'order': field.order,
             'max_length': field.max_length,
-            'choices': choices_obj,  # Pass parsed object, not JSON string
+            'choices': choices_obj,  # Pass Python dict for json_script filter
+            'choices_script_id': f'choices-{field.id}',  # Pre-computed script ID
             'default_value': field.default_value,
             'is_model_field': False,
             'is_core_field': getattr(field, 'is_core_field', False)

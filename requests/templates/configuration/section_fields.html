@@ -79,6 +79,18 @@
         </div>
     </div>
 
+    <!-- Hidden container for choice data scripts (outside field cards) -->
+    {% for field in model_fields %}
+        {% if field.choices %}
+            {{ field.choices|json_script:field.choices_script_id }}
+        {% endif %}
+    {% endfor %}
+    {% for field in dynamic_fields %}
+        {% if field.choices %}
+            {{ field.choices|json_script:field.choices_script_id }}
+        {% endif %}
+    {% endfor %}
+
     <div class="container my-5">
         <!-- Summary -->
         <div class="row mb-4">
@@ -120,7 +132,6 @@
                 </h3>
                 {% for field in model_fields %}
                 <div class="card field-card model-field mb-3" data-field-id="{{ field.id }}">
-                {% with script_id="choices-"|add:field.id %}{{ field.choices|default:'{}'|json_script:script_id }}{% endwith %}
                     <div class="card-body">
                         <div class="row align-items-center">
                             <div class="col-md-3">
@@ -167,7 +178,6 @@
                 </h3>
                 {% for field in dynamic_fields %}
                 <div class="card field-card dynamic-field mb-3" data-field-id="{{ field.id }}">
-                {% with script_id="choices-"|add:field.id %}{{ field.choices|default:'{}'|json_script:script_id %}{% endwith %}
                     <div class="card-body">
                         <div class="row align-items-center">
                             <div class="col-md-3">
@@ -370,16 +380,20 @@
             
             // Get existing choices for any field (regardless of current type)
             let existingChoices = {};
+            
             try {
                 // Try to extract choices from json_script for any field
                 const choicesScript = document.getElementById(`choices-${fieldId}`);
+                
                 if (choicesScript) {
                     const choicesText = choicesScript.textContent;
+                    
                     if (choicesText && choicesText.trim() !== '{}' && choicesText.trim() !== '') {
                         existingChoices = JSON.parse(choicesText);
                     }
                 }
             } catch (e) {
+                console.error('Error parsing choices:', e);
                 existingChoices = {};
             }
 
