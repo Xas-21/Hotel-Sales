@@ -173,8 +173,8 @@ class AdminFormInjector:
         field_class = cls.FIELD_TYPE_MAPPING.get(field_type, CharField)
         
         kwargs = {
-            'label': field_config['display_name'],
-            'required': field_config['required'],
+            'label': field_config.get('display_name', field_config.get('name', 'Unknown Field')),
+            'required': field_config.get('required', False),
             'initial': field_config.get('default_value', '')
         }
         
