@@ -280,8 +280,12 @@ class AdminFormInjector:
         def enhanced_get_form(self, request: HttpRequest, obj=None, **kwargs):
             """Enhanced get_form that includes custom fields without triggering model validation"""
             
+            # Debug logging
+            logger.info(f"Enhanced get_form called for {self.model.__name__}")
+            
             # Get custom fields for this model
             custom_field_configs = cls.get_custom_fields_for_model(self.model)
+            logger.info(f"Found {len(custom_field_configs)} custom field configs for {self.model.__name__}")
             
             if custom_field_configs:
                 # Get model-only field names to avoid validation errors
