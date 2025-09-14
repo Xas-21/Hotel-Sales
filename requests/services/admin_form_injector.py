@@ -108,13 +108,20 @@ class AdminFormInjector:
                 logger.debug(f"No DynamicSection found for model: {model_class.__name__}")
                 return []
             
-            # Get active custom fields (not core fields)
-            custom_fields = section.fields.filter(
-                is_active=True,
-                is_core_field=False  # Only custom fields, not original model fields
+            # Get active fields (both custom and core fields with configured choices)
+            all_fields = section.fields.filter(
+                is_active=True
             ).order_by('order')
             
+            # Split into custom fields and core fields with choices
+            custom_fields = all_fields.filter(is_core_field=False)
+            core_fields_with_choices = all_fields.filter(
+                is_core_field=True
+            ).exclude(choices__in=['{}', ''])
+            
             field_configs = []
+            
+            # Add custom fields (new fields not in Django model)
             for field in custom_fields:
                 field_configs.append({
                     'name': field.name,
@@ -124,7 +131,22 @@ class AdminFormInjector:
                     'max_length': field.max_length,
                     'choices': field.choices,
                     'default_value': field.default_value,
-                    'section_name': field.section_name or 'Custom Fields'
+                    'section_name': field.section_name or 'Custom Fields',
+                    'is_core_override': False
+                })
+            
+            # Add core fields with configured choices (to override model choices)
+            for field in core_fields_with_choices:
+                field_configs.append({
+                    'name': field.name,
+                    'display_name': field.display_name,
+                    'field_type': field.field_type,
+                    'required': field.required,
+                    'max_length': field.max_length,
+                    'choices': field.choices,
+                    'default_value': field.default_value,
+                    'section_name': field.section_name or 'Core Fields',
+                    'is_core_override': True  # Flag to indicate this overrides model field
                 })
             
             logger.info(f"Found {len(field_configs)} custom fields for {model_class.__name__}")
@@ -248,16 +270,31 @@ class AdminFormInjector:
                 # Call original get_form with model fields only
                 form_class = original_get_form(self, request, obj, **form_kwargs)
                 
-                # Create enhanced form that adds custom fields after construction
+                # Create enhanced form that adds custom fields and overrides core field choices
                 class EnhancedForm(form_class):
                     def __init__(self, *args, **kwargs):
                         super().__init__(*args, **kwargs)
                         
-                        # Add custom fields to form (these bypass model validation)
+                        # Process both custom fields and core field overrides
                         for field_config in custom_field_configs:
                             field_name = field_config['name']
-                            form_field = cls.create_form_field(field_config)
-                            self.fields[field_name] = form_field
+                            
+                            if field_config.get('is_core_override', False):
+                                # Override existing model field choices
+                                if field_name in self.fields:
+                                    existing_field = self.fields[field_name]
+                                    # Create new field with dynamic choices
+                                    new_field = cls.create_form_field(field_config)
+                                    # Preserve other attributes from original field
+                                    new_field.label = field_config.get('display_name', existing_field.label)
+                                    new_field.required = existing_field.required
+                                    new_field.help_text = existing_field.help_text
+                                    # Replace the field
+                                    self.fields[field_name] = new_field
+                            else:
+                                # Add new custom field (original logic)
+                                form_field = cls.create_form_field(field_config)
+                                self.fields[field_name] = form_field
                             
                             # Load existing value if this is an edit form
                             if self.instance and self.instance.pk:
