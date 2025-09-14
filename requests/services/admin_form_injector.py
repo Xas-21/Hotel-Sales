@@ -115,11 +115,16 @@ class AdminFormInjector:
                 is_active=True
             ).order_by('order')
             
-            # Split into custom fields and core fields with choices
+            # Split into different field types based on new core_mode field
             custom_fields = all_fields.filter(is_core_field=False)
-            core_fields_with_choices = all_fields.filter(
-                is_core_field=True
-            ).exclude(choices__in=['{}', ''])
+            core_override_fields = all_fields.filter(
+                is_core_field=True,
+                core_mode='override'
+            )
+            core_create_fields = all_fields.filter(
+                is_core_field=True,
+                core_mode='create'
+            )
             
             field_configs = []
             
@@ -134,11 +139,30 @@ class AdminFormInjector:
                     'choices': field.choices,
                     'default_value': field.default_value,
                     'section_name': field.section_name or 'Custom Fields',
-                    'is_core_override': False
+                    'is_core_override': False,
+                    'is_core_create': False,
+                    'storage': 'value_store'
                 })
             
-            # Add core fields with configured choices (to override model choices)
-            for field in core_fields_with_choices:
+            # Add core fields that override existing model fields
+            for field in core_override_fields:
+                field_configs.append({
+                    'name': field.model_field_name or field.name,  # Use model_field_name for override
+                    'display_name': field.display_name,
+                    'field_type': field.field_type,
+                    'required': field.required,
+                    'max_length': field.max_length,
+                    'choices': field.choices,
+                    'default_value': field.default_value,
+                    'section_name': field.section_name or 'Core Fields',
+                    'is_core_override': True,
+                    'is_core_create': False,
+                    'storage': field.storage,
+                    'model_field_name': field.model_field_name
+                })
+            
+            # Add new core fields that don't exist in the model
+            for field in core_create_fields:
                 field_configs.append({
                     'name': field.name,
                     'display_name': field.display_name,
@@ -148,7 +172,10 @@ class AdminFormInjector:
                     'choices': field.choices,
                     'default_value': field.default_value,
                     'section_name': field.section_name or 'Core Fields',
-                    'is_core_override': True  # Flag to indicate this overrides model field
+                    'is_core_override': False,
+                    'is_core_create': True,
+                    'storage': 'value_store',  # Always use value_store for new core fields
+                    'dynamic_field_id': field.id  # Store the DynamicField ID for loading values
                 })
             
             logger.info(f"Found {len(field_configs)} custom fields for {model_class.__name__}")
@@ -212,23 +239,13 @@ class AdminFormInjector:
             try:
                 # Parse choices (assuming JSON format)
                 choices_data = json.loads(field_config['choices'])
+                formatted_choices = []
+                
                 if isinstance(choices_data, dict) and choices_data:  # Non-empty dict
                     # Convert dict to tuples: {'key': 'label'} -> [('key', 'label'), ...]
-                    kwargs['choices'] = list(choices_data.items())
-                    # Override field class to TypedChoiceField for core fields (matches Django's default)
-                    # Use ChoiceField for custom fields
-                    if field_type not in ['multiple_choice']:
-                        # Use TypedChoiceField for core field overrides to match Django's behavior
-                        if field_config.get('is_core_override', False):
-                            field_class = TypedChoiceField
-                            # TypedChoiceField needs a coerce function - use str by default
-                            kwargs['coerce'] = str
-                            kwargs['empty_value'] = ''
-                        else:
-                            field_class = ChoiceField
+                    formatted_choices = list(choices_data.items())
                 elif isinstance(choices_data, list) and choices_data:
                     # Handle list format properly
-                    formatted_choices = []
                     for choice in choices_data:
                         if isinstance(choice, (list, tuple)) and len(choice) >= 2:
                             # Convert ['value', 'label'] to ('value', 'label')
@@ -239,8 +256,12 @@ class AdminFormInjector:
                         else:
                             # Convert anything else to string tuple
                             formatted_choices.append((str(choice), str(choice)))
+                
+                # Only set choices if we have valid formatted choices
+                if formatted_choices:
                     kwargs['choices'] = formatted_choices
-                    # Override field class to TypedChoiceField for core fields (matches Django's default)
+                    
+                    # Override field class for choice fields (not multiple_choice)
                     if field_type not in ['multiple_choice']:
                         # Use TypedChoiceField for core field overrides to match Django's behavior
                         if field_config.get('is_core_override', False):
@@ -250,9 +271,7 @@ class AdminFormInjector:
                             kwargs['empty_value'] = ''
                         else:
                             field_class = ChoiceField
-                else:
-                    # Empty choices - don't override field type
-                    pass
+                            
             except (json.JSONDecodeError, ValueError):
                 # Fallback to CharField if choices parsing fails
                 logger.warning(f"Failed to parse choices for {field_config.get('name', 'unknown')}: {field_config.get('choices', '')}")
@@ -333,13 +352,36 @@ class AdminFormInjector:
                                     
                                     # Log for debugging
                                     logger.debug(f"Replaced field {field_name} with custom choices")
+                            elif field_config.get('is_core_create', False):
+                                # Add new core field (stored in DynamicFieldValue)
+                                # Check for name collision with existing model fields
+                                if field_name in self.fields:
+                                    logger.warning(f"Core-create field '{field_name}' conflicts with existing model field. Skipping to prevent override.")
+                                    continue
+                                    
+                                form_field = cls.create_form_field(field_config)
+                                self.fields[field_name] = form_field
+                                
+                                # Load initial value from DynamicFieldValue for edit forms
+                                if self.instance and self.instance.pk:
+                                    initial_value = cls.get_dynamic_field_value(
+                                        self.instance, field_config.get('dynamic_field_id')
+                                    )
+                                    if initial_value is not None:
+                                        # Handle different field types for initial values
+                                        if field_config['field_type'] == 'multiple_choice':
+                                            if not isinstance(initial_value, list):
+                                                initial_value = [initial_value] if initial_value else []
+                                        self.initial[field_name] = initial_value
+                                
+                                logger.debug(f"Added new core field {field_name}")
                             else:
                                 # Add new custom field (original logic)
                                 form_field = cls.create_form_field(field_config)
                                 self.fields[field_name] = form_field
                             
-                            # Load existing value if this is an edit form
-                            if self.instance and self.instance.pk:
+                            # Load existing value for regular custom fields (not core fields)
+                            if not field_config.get('is_core_create', False) and self.instance and self.instance.pk:
                                 existing_value = cls.get_existing_field_value(
                                     self.instance, field_config['name']
                                 )
@@ -418,6 +460,11 @@ class AdminFormInjector:
             for field_config in custom_field_configs:
                 field_name = field_config['name']
                 field_type = field_config['field_type']
+                storage = field_config.get('storage', 'value_store')
+                
+                # Skip fields that are stored in model fields (core overrides)
+                if storage == 'model_field':
+                    continue
                 
                 # Check both cleaned_data and FILES for file fields
                 field_value_data = None
@@ -428,7 +475,15 @@ class AdminFormInjector:
                 
                 if field_value_data is not None:
                     try:
-                        dynamic_field = DynamicField.objects.get(name=field_name, is_active=True)
+                        # For new core fields, use the dynamic_field_id if available
+                        if field_config.get('dynamic_field_id'):
+                            dynamic_field = DynamicField.objects.get(
+                                id=field_config['dynamic_field_id'], 
+                                is_active=True
+                            )
+                        else:
+                            # For regular custom fields, find by name
+                            dynamic_field = DynamicField.objects.get(name=field_name, is_active=True)
                         
                         # Update or create the field value
                         field_value, created = DynamicFieldValue.objects.update_or_create(
@@ -461,12 +516,14 @@ class AdminFormInjector:
                         elif field_type == 'multiple_choice':
                             display_value = f"{len(display_value) if display_value else 0} items"
                         
-                        logger.info(f"{action} custom field value: {field_name} ({field_type}) = {display_value}")
+                        field_category = "core" if field_config.get('is_core_create') else "custom"
+                        logger.info(f"{action} {field_category} field value: {field_name} ({field_type}) = {display_value}")
                         
                     except DynamicField.DoesNotExist:
                         logger.warning(f"DynamicField not found for {field_name}")
                     except Exception as e:
-                        logger.error(f"Error saving custom field {field_name}: {e}")
+                        field_category = "core" if field_config.get('is_core_create') else "custom"
+                        logger.error(f"Error saving {field_category} field {field_name}: {e}")
         
         # Replace the methods
         admin_class.get_form = enhanced_get_form
@@ -497,6 +554,33 @@ class AdminFormInjector:
             return None
         except Exception as e:
             logger.error(f"Error loading field value for {field_name}: {e}")
+            return None
+    
+    @classmethod
+    def get_dynamic_field_value(cls, instance, dynamic_field_id: int):
+        """Get existing value for a core field by DynamicField ID from DynamicFieldValue"""
+        try:
+            from requests.models import DynamicFieldValue, DynamicField
+            from django.contrib.contenttypes.models import ContentType
+            
+            if not dynamic_field_id:
+                return None
+                
+            content_type = ContentType.objects.get_for_model(instance.__class__)
+            dynamic_field = DynamicField.objects.get(id=dynamic_field_id, is_active=True)
+            
+            field_value = DynamicFieldValue.objects.get(
+                content_type=content_type,
+                object_id=instance.pk,
+                field=dynamic_field
+            )
+            
+            return field_value.get_value()
+            
+        except (DynamicField.DoesNotExist, DynamicFieldValue.DoesNotExist):
+            return None
+        except Exception as e:
+            logger.error(f"Error loading dynamic field value for ID {dynamic_field_id}: {e}")
             return None
     
     @classmethod
