@@ -678,6 +678,35 @@ class DynamicField(models.Model):
     # Core field integration
     is_core_field = models.BooleanField(default=False, help_text="True if this represents an existing model field")
     
+    # New core field creation features
+    CORE_MODE_CHOICES = [
+        ('override', 'Override Existing Field'),
+        ('create', 'Create New Core Field'),
+    ]
+    
+    STORAGE_CHOICES = [
+        ('model_field', 'Store in Model Field'),
+        ('value_store', 'Store in DynamicFieldValue'),
+    ]
+    
+    core_mode = models.CharField(
+        max_length=20, 
+        choices=CORE_MODE_CHOICES, 
+        default='override',
+        help_text="Whether to override existing field or create new one"
+    )
+    model_field_name = models.CharField(
+        max_length=100, 
+        blank=True,
+        help_text="Name of existing model field to override (required for override mode)"
+    )
+    storage = models.CharField(
+        max_length=20,
+        choices=STORAGE_CHOICES,
+        default='value_store',
+        help_text="Where to store field values"
+    )
+    
     # Field options
     required = models.BooleanField(default=False)
     default_value = models.TextField(blank=True, help_text="Default value (JSON format for complex types)")
@@ -719,6 +748,15 @@ class DynamicField(models.Model):
             raise ValidationError("Field must belong to either a DynamicModel or DynamicSection")
         if self.model and self.section:
             raise ValidationError("Field cannot belong to both a DynamicModel and DynamicSection")
+        
+        # Validate core field configuration
+        if self.is_core_field:
+            if self.core_mode == 'override' and not self.model_field_name:
+                raise ValidationError("Override mode requires model_field_name to be specified")
+            if self.core_mode == 'create' and self.model_field_name:
+                raise ValidationError("Create mode should not have model_field_name specified")
+            if self.core_mode == 'create' and self.storage == 'model_field':
+                raise ValidationError("New core fields must use value_store storage")
         
         # Validate field data
         if self.name and (not str(self.name).isidentifier() or not str(self.name).islower()):
