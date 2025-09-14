@@ -53,6 +53,8 @@ class AdminFormInjector:
         
         # Choice fields
         'choice': ChoiceField,
+        'ChoiceField': ChoiceField,  # Support both formats
+        'CharField': ChoiceField,  # Override for fields with choices
         'multiple_choice': MultipleChoiceField,
         
         # File fields
@@ -205,7 +207,7 @@ class AdminFormInjector:
             ]
         
         # Add choice field options
-        if field_type in ['choice', 'multiple_choice'] and field_config.get('choices'):
+        if field_type in ['choice', 'multiple_choice', 'ChoiceField'] and field_config.get('choices'):
             try:
                 # Parse choices (assuming JSON format)
                 choices_data = json.loads(field_config['choices'])
