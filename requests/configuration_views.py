@@ -285,11 +285,25 @@ def update_field(request, field_id):
         
         # Update field properties
         field.display_name = data.get('display_name', field.display_name)
+        field.field_type = data.get('field_type', field.field_type)
         field.required = data.get('required', field.required)
+        
+        # Handle choices properly for ChoiceField
+        if 'choices' in data:
+            if field.field_type == 'ChoiceField':
+                # Validate and save choices
+                choices = data.get('choices', {})
+                if isinstance(choices, dict) and choices:
+                    field.choices = choices
+                else:
+                    field.choices = {}
+            else:
+                # Clear choices for non-choice fields
+                field.choices = {}
+        
         field.section = data.get('section', field.section)
         field.order = data.get('order', field.order)
         field.max_length = data.get('max_length', field.max_length)
-        field.choices = data.get('choices', field.choices)
         field.default_value = data.get('default_value', field.default_value)
         field.save()
         

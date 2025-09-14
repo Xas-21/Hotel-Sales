@@ -120,6 +120,7 @@
                 </h3>
                 {% for field in model_fields %}
                 <div class="card field-card model-field mb-3" data-field-id="{{ field.id }}">
+                {% with script_id="choices-"|add:field.id %}{{ field.choices|default:'{}'|json_script:script_id }}{% endwith %}
                     <div class="card-body">
                         <div class="row align-items-center">
                             <div class="col-md-3">
@@ -166,6 +167,7 @@
                 </h3>
                 {% for field in dynamic_fields %}
                 <div class="card field-card dynamic-field mb-3" data-field-id="{{ field.id }}">
+                {% with script_id="choices-"|add:field.id %}{{ field.choices|default:'{}'|json_script:script_id %}{% endwith %}
                     <div class="card-body">
                         <div class="row align-items-center">
                             <div class="col-md-3">
@@ -262,6 +264,7 @@
                                         <option value="BooleanField">Checkbox</option>
                                         <option value="EmailField">Email</option>
                                         <option value="URLField">URL</option>
+                                        <option value="ChoiceField">Choice/Dropdown</option>
                                     </select>
                                 </div>
                             </div>
@@ -363,40 +366,73 @@
             // Extract current field values
             const displayName = fieldCard.querySelector('.field-title').textContent.trim();
             const currentType = fieldCard.querySelector('.field-type-badge').textContent.trim();
-            const isRequired = fieldCard.querySelector('.text-danger') !== null;
+            const isRequired = fieldCard.querySelector('.bg-danger') !== null;
             
+            // Get existing choices for choice fields
+            let existingChoices = {};
+            try {
+                if (currentType === 'ChoiceField') {
+                    // Try to extract choices from json_script
+                    const choicesScript = document.getElementById(`choices-${fieldId}`);
+                    if (choicesScript) {
+                        existingChoices = JSON.parse(choicesScript.textContent);
+                    }
+                }
+            } catch (e) {
+                existingChoices = {};
+            }
+
             // Create inline edit form
             const editForm = `
-                <div class="row align-items-center" id="edit-form-${fieldId}">
-                    <div class="col-md-3">
-                        <input type="text" class="form-control form-control-sm" value="${displayName}" id="edit-display-name-${fieldId}">
-                    </div>
-                    <div class="col-md-2">
-                        <select class="form-select form-select-sm" id="edit-type-${fieldId}">
-                            <option value="char" ${currentType === 'CharField' ? 'selected' : ''}>Text</option>
-                            <option value="email" ${currentType === 'EmailField' ? 'selected' : ''}>Email</option>
-                            <option value="integer" ${currentType === 'IntegerField' ? 'selected' : ''}>Number</option>
-                            <option value="boolean" ${currentType === 'BooleanField' ? 'selected' : ''}>Boolean</option>
-                            <option value="date" ${currentType === 'DateField' ? 'selected' : ''}>Date</option>
-                            <option value="choice" ${currentType === 'ChoiceField' ? 'selected' : ''}>Choice</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" ${isRequired ? 'checked' : ''} id="edit-required-${fieldId}">
-                            <label class="form-check-label" for="edit-required-${fieldId}">Required</label>
+                <div id="edit-form-${fieldId}">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <input type="text" class="form-control form-control-sm" value="${displayName}" id="edit-display-name-${fieldId}">
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="edit-type-${fieldId}" onchange="toggleChoiceOptions(${fieldId})">
+                                <option value="CharField" ${currentType === 'CharField' ? 'selected' : ''}>Text</option>
+                                <option value="EmailField" ${currentType === 'EmailField' ? 'selected' : ''}>Email</option>
+                                <option value="IntegerField" ${currentType === 'IntegerField' ? 'selected' : ''}>Number</option>
+                                <option value="BooleanField" ${currentType === 'BooleanField' ? 'selected' : ''}>Boolean</option>
+                                <option value="DateField" ${currentType === 'DateField' ? 'selected' : ''}>Date</option>
+                                <option value="ChoiceField" ${currentType === 'ChoiceField' ? 'selected' : ''}>Choice</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" ${isRequired ? 'checked' : ''} id="edit-required-${fieldId}">
+                                <label class="form-check-label" for="edit-required-${fieldId}">Required</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted">Editing...</small>
+                        </div>
+                        <div class="col-md-2 text-end">
+                            <button class="btn btn-success btn-sm me-1" onclick="saveFieldEdit(${fieldId})">
+                                <i class="fas fa-check"></i>
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="cancelFieldEdit(${fieldId})">
+                                <i class="fas fa-times"></i>
+                            </button>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <small class="text-muted">Editing...</small>
-                    </div>
-                    <div class="col-md-2 text-end">
-                        <button class="btn btn-success btn-sm me-1" onclick="saveFieldEdit(${fieldId})">
-                            <i class="fas fa-check"></i>
-                        </button>
-                        <button class="btn btn-secondary btn-sm" onclick="cancelFieldEdit(${fieldId})">
-                            <i class="fas fa-times"></i>
-                        </button>
+                    <div class="row mt-3" id="choice-options-${fieldId}" style="display: ${currentType === 'ChoiceField' ? 'block' : 'none'};">
+                        <div class="col-12">
+                            <div class="card border-info">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="fas fa-list me-2"></i>Choice Options</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="choices-container-${fieldId}">
+                                        <!-- Choice options will be loaded here -->
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="addChoiceOption(${fieldId})">
+                                        <i class="fas fa-plus me-1"></i>Add Option
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -405,6 +441,11 @@
             const originalContent = fieldCard.innerHTML;
             fieldCard.setAttribute('data-original-content', originalContent);
             fieldCard.innerHTML = editForm;
+
+            // Load existing choices if this is a choice field
+            if (currentType === 'ChoiceField') {
+                loadExistingChoices(fieldId, existingChoices);
+            }
         }
 
         function saveFieldEdit(fieldId) {
@@ -417,6 +458,20 @@
                 field_type: fieldType,
                 required: required
             };
+
+            // If this is a choice field, collect the choice options
+            if (fieldType === 'ChoiceField') {
+                const choices = {};
+                const choiceRows = document.querySelectorAll(`#choices-container-${fieldId} .choice-row`);
+                choiceRows.forEach(row => {
+                    const valueInput = row.querySelector('.choice-value');
+                    const displayInput = row.querySelector('.choice-display');
+                    if (valueInput && displayInput && valueInput.value.trim()) {
+                        choices[valueInput.value.trim()] = displayInput.value.trim() || valueInput.value.trim();
+                    }
+                });
+                updateData.choices = choices;
+            }
 
             fetch(`{% url "configuration:update_field" 0 %}`.replace('0', fieldId), {
                 method: 'POST',
@@ -447,6 +502,72 @@
             if (originalContent) {
                 fieldCard.innerHTML = originalContent;
                 fieldCard.removeAttribute('data-original-content');
+            }
+        }
+
+        function toggleChoiceOptions(fieldId) {
+            const fieldType = document.getElementById(`edit-type-${fieldId}`).value;
+            const choiceOptions = document.getElementById(`choice-options-${fieldId}`);
+            
+            if (fieldType === 'ChoiceField') {
+                choiceOptions.style.display = 'block';
+                // Load default options if container is empty
+                const container = document.getElementById(`choices-container-${fieldId}`);
+                if (container.children.length === 0) {
+                    addChoiceOption(fieldId);
+                }
+            } else {
+                choiceOptions.style.display = 'none';
+            }
+        }
+
+        function addChoiceOption(fieldId, value = '', display = '') {
+            const container = document.getElementById(`choices-container-${fieldId}`);
+            const optionIndex = container.children.length;
+            
+            const optionHtml = `
+                <div class="choice-row mb-2">
+                    <div class="row align-items-center">
+                        <div class="col-md-4">
+                            <input type="text" class="form-control form-control-sm choice-value" 
+                                   placeholder="Value (e.g., biz_mgmt)" value="${value}">
+                        </div>
+                        <div class="col-md-6">
+                            <input type="text" class="form-control form-control-sm choice-display" 
+                                   placeholder="Display Name (e.g., Business Relationship Management)" value="${display}">
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                    onclick="removeChoiceOption(this)">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.insertAdjacentHTML('beforeend', optionHtml);
+        }
+
+        function removeChoiceOption(button) {
+            const choiceRow = button.closest('.choice-row');
+            if (choiceRow) {
+                choiceRow.remove();
+            }
+        }
+
+        function loadExistingChoices(fieldId, choices) {
+            const container = document.getElementById(`choices-container-${fieldId}`);
+            container.innerHTML = ''; // Clear existing
+            
+            // Load existing choices
+            if (choices && Object.keys(choices).length > 0) {
+                Object.entries(choices).forEach(([value, display]) => {
+                    addChoiceOption(fieldId, value, display);
+                });
+            } else {
+                // Add one empty option
+                addChoiceOption(fieldId);
             }
         }
 
