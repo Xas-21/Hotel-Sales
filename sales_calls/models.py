@@ -6,15 +6,6 @@ class SalesCall(models.Model):
     """
     Sales Calls / Visits tracking with detailed business potential and follow-up requirements.
     """
-    MEETING_SUBJECTS = [
-        ('BRM', 'Business Relationship Management'),
-        ('Negotiations', 'Negotiations'),
-        ('Contract Review', 'Contract Review'),
-        ('Site Inspection', 'Site Inspection'),
-        ('Presentation', 'Presentation'),
-        ('Follow-up', 'Follow-up Meeting'),
-        ('Other', 'Other'),
-    ]
     
     BUSINESS_POTENTIAL = [
         ('High', 'High'),
@@ -30,7 +21,7 @@ class SalesCall(models.Model):
     address = models.TextField(blank=True)
     
     # Meeting details
-    meeting_subject = models.CharField(max_length=20, choices=MEETING_SUBJECTS)
+    meeting_subject = models.CharField(max_length=50)  # Increased length for longer choice labels
     business_potential = models.CharField(max_length=10, choices=BUSINESS_POTENTIAL, default='Unknown')
     
     # Detailed tracking
