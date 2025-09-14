@@ -270,8 +270,101 @@ def add_field(request, section_id):
             # Handle DynamicSection (Core or Custom)
             section = get_object_or_404(DynamicSection, id=section_id)
             
-            # For Core sections, new fields are marked as custom additions
-            is_core_field = False  # New fields added to core sections are custom additions
+            # Determine if this is a core field and what mode
+            core_mode = data.get('core_mode', 'custom')  # 'override', 'create', or 'custom'
+            is_core_field = core_mode in ['override', 'create']
+            
+            # Validate core mode for core sections
+            if section.is_core_section and core_mode in ['override', 'create']:
+                # This is a core field - either override existing or create new
+                if core_mode == 'override':
+                    # Override mode requires model_field_name
+                    model_field_name = data.get('model_field_name', '')
+                    if not model_field_name:
+                        return JsonResponse({
+                            'success': False, 
+                            'error': 'Override mode requires specifying the model field name to override.'
+                        })
+                    
+                    # Verify the model field actually exists on the target model
+                    if section.source_model:
+                        app_label, model_name = section.source_model.split('.')
+                        try:
+                            from django.apps import apps
+                            model_class = apps.get_model(app_label, model_name)
+                            try:
+                                model_class._meta.get_field(model_field_name)
+                            except FieldDoesNotExist:
+                                return JsonResponse({
+                                    'success': False,
+                                    'error': f'Model field "{model_field_name}" does not exist on {section.source_model}.'
+                                })
+                        except LookupError:
+                            return JsonResponse({
+                                'success': False,
+                                'error': f'Model {section.source_model} not found.'
+                            })
+                    
+                    # Check for duplicate overrides within this section
+                    existing_override = DynamicField.objects.filter(
+                        section=section,
+                        is_core_field=True,
+                        core_mode='override',
+                        model_field_name=model_field_name,
+                        is_active=True
+                    ).first()
+                    
+                    if existing_override:
+                        return JsonResponse({
+                            'success': False,
+                            'error': f'Model field "{model_field_name}" is already overridden by field "{existing_override.name}".'
+                        })
+                        
+                elif core_mode == 'create':
+                    # Create mode should not have model_field_name
+                    if data.get('model_field_name'):
+                        return JsonResponse({
+                            'success': False, 
+                            'error': 'Create mode should not specify a model field name.'
+                        })
+                    
+                    # Check for name collision with existing model fields
+                    from django.apps import apps
+                    if section.source_model:
+                        app_label, model_name = section.source_model.split('.')
+                        try:
+                            model_class = apps.get_model(app_label, model_name)
+                            existing_field_names = [f.name for f in model_class._meta.get_fields()]
+                            if data['name'] in existing_field_names:
+                                return JsonResponse({
+                                    'success': False,
+                                    'error': f'Field name "{data["name"]}" conflicts with existing model field. Choose a different name.'
+                                })
+                        except LookupError:
+                            pass  # Model not found, proceed
+                    
+                    # Check for collisions with existing DynamicField names in this section
+                    existing_field = DynamicField.objects.filter(
+                        section=section,
+                        name=data['name'],
+                        is_active=True
+                    ).first()
+                    
+                    if existing_field:
+                        return JsonResponse({
+                            'success': False,
+                            'error': f'Field name "{data["name"]}" already exists in this section.'
+                        })
+            else:
+                # Regular custom field
+                is_core_field = False
+                core_mode = 'custom'
+            
+            # Determine storage type based on core_mode
+            if is_core_field and core_mode == 'override':
+                storage_type = 'model_field'
+            else:
+                storage_type = 'value_store'
             
             field = DynamicField.objects.create(
                 section=section,  # Link to DynamicSection instead of DynamicModel
@@ -279,12 +372,16 @@ def add_field(request, section_id):
                 display_name=data['display_name'],
                 field_type=data['field_type'],
                 required=data.get('required', False),
-                section_name=data.get('section_name', 'Custom Fields'),  # Section grouping name
+                section_name=data.get('section_name', 'Core Fields' if is_core_field else 'Custom Fields'),
                 max_length=data.get('max_length') or 255,
                 choices=_normalize_choices_data(data.get('choices') or {}),
                 default_value=data.get('default_value') or '',
                 order=data.get('order', 100),
-                is_core_field=is_core_field
+                is_core_field=is_core_field,
+                # Fixed core field creation logic
+                core_mode=core_mode if is_core_field else 'custom',  # Fixed: 'custom' for non-core fields
+                model_field_name=data.get('model_field_name', '') if core_mode == 'override' else '',
+                storage=storage_type  # Fixed: core overrides use 'model_field', others use 'value_store'
             )
         
         # Apply schema changes if needed (for legacy dynamic models only)
@@ -301,7 +398,10 @@ def add_field(request, section_id):
                 'field_type': field.field_type,
                 'required': field.required,
                 'section_name': getattr(field, 'section_name', 'Custom Fields'),
-                'is_core_field': getattr(field, 'is_core_field', False)
+                'is_core_field': getattr(field, 'is_core_field', False),
+                'core_mode': getattr(field, 'core_mode', 'override'),
+                'model_field_name': getattr(field, 'model_field_name', ''),
+                'storage': getattr(field, 'storage', 'value_store')
             }
         })
         
