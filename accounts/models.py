@@ -16,7 +16,7 @@ class Account(models.Model):
     
     name = models.CharField(max_length=200, help_text="Company/Organization name")
     account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPES)
-    contact_person = models.CharField(max_length=100)
+    contact_person = models.TextField(blank=True, max_length=100)
     position = models.TextField(blank=True, help_text="Contact person's position/title (can be detailed)")
     phone = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)

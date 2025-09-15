@@ -17,7 +17,7 @@ def sanitize_csv_value(value):
     return str_value
 
 @admin.register(Account)
-class AccountAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
+class AccountAdmin(ConfigEnforcedAdminMixin,admin.ModelAdmin):
     list_display = ['name', 'account_type', 'contact_person', 'phone', 'email', 'created_at', 'get_contact_info_display']
     list_filter = ['account_type', 'created_at']
     search_fields = ['name', 'contact_person', 'email', 'phone']

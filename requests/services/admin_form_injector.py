@@ -293,6 +293,12 @@ class AdminFormInjector:
         Args:
             admin_class: The Django ModelAdmin class to modify
         """
+        
+        # SKIP injection for modules where we want standard Django admin behavior
+        excluded_models = ['Account', 'Agreement', 'SalesCall']
+        if admin_class.model.__name__ in excluded_models:
+            logger.info(f"Skipping AdminFormInjector for {admin_class.model.__name__} - using standard Django admin")
+            return
         original_get_form = admin_class.get_form
         original_get_fieldsets = getattr(admin_class, 'get_fieldsets', None)
         

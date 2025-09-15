@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('name', models.CharField(help_text='Company/Organization name', max_length=200)),
                 ('account_type', models.CharField(choices=[('Company', 'Company'), ('Government', 'Government'), ('Travel Agency', 'Travel Agency')], max_length=20)),
-                ('contact_person', models.CharField(max_length=100)),
+                ('contact_person', models.TextField(blank=True, max_length=100)),
                 ('position', models.CharField(blank=True, max_length=100)),
                 ('phone', models.CharField(blank=True, max_length=20)),
                 ('email', models.EmailField(blank=True, max_length=254)),
