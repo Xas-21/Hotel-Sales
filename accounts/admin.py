@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.http import HttpResponse
+from django.db import models
 from .models import Account
 from hotel_sales.admin.mixins import ConfigEnforcedAdminMixin
 import csv
@@ -23,6 +24,13 @@ class AccountAdmin(ConfigEnforcedAdminMixin,admin.ModelAdmin):
     search_fields = ['name', 'contact_person', 'email', 'phone']
     ordering = ['name']
     readonly_fields = ['created_at', 'get_contact_info_display']
+    
+    # Force admin widgets for date/time fields to ensure calendar pickers display
+    formfield_overrides = {
+        models.DateField: {'widget': admin.widgets.AdminDateWidget},
+        models.DateTimeField: {'widget': admin.widgets.AdminSplitDateTime},
+        models.TimeField: {'widget': admin.widgets.AdminTimeWidget},
+    }
 
     def get_config_form_type(self, obj=None):
         """Get the form type for configuration lookup"""

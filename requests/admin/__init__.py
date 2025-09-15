@@ -4,6 +4,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
+from django.db import models
 from requests.models import (
     Request, CancelledRequest, RoomEntry, Transportation, EventAgenda, SeriesGroupEntry, SeriesRoomEntry,
     RoomType, RoomOccupancy, CancellationReason, SystemFieldRequirement, SystemFormLayout,
@@ -94,6 +95,12 @@ class RequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     inlines = [RoomEntryInline, TransportationInline, EventAgendaInline, SeriesGroupEntryInline]
     ordering = ['-created_at']
     
+    # Force admin widgets for date/time fields to ensure calendar pickers display
+    formfield_overrides = {
+        models.DateField: {'widget': admin.widgets.AdminDateWidget},
+        models.DateTimeField: {'widget': admin.widgets.AdminSplitDateTime},
+        models.TimeField: {'widget': admin.widgets.AdminTimeWidget},
+    }
     
     def get_config_form_type(self, obj=None):
         """Get the form type for configuration lookup based on request type"""

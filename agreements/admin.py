@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db import models
 from .models import Agreement
 from django.utils.html import format_html
 from django.http import HttpResponse
@@ -26,6 +27,13 @@ class AgreementAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     
     # Enhanced export preparation for Phase 3
     actions = ['export_selected_agreements']
+    
+    # Force admin widgets for date/time fields to ensure calendar pickers display
+    formfield_overrides = {
+        models.DateField: {'widget': admin.widgets.AdminDateWidget},
+        models.DateTimeField: {'widget': admin.widgets.AdminSplitDateTime},
+        models.TimeField: {'widget': admin.widgets.AdminTimeWidget},
+    }
     
     def get_config_form_type(self, obj=None):
         """Get the form type for configuration lookup"""
