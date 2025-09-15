@@ -18,7 +18,7 @@ def sanitize_csv_value(value):
 
 
 @admin.register(SalesCall)
-class SalesCallAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
+class SalesCallAdmin(admin.ModelAdmin):
     list_display = [
         'account', 'meeting_subject', 'visit_date', 'city',
         'business_potential', 'follow_up_status', 'created_at', 'get_next_steps_summary'
