@@ -17,9 +17,15 @@ class Account(models.Model):
     name = models.CharField(max_length=200, help_text="Company/Organization name")
     account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPES)
     contact_person = models.CharField(max_length=100)
-    position = models.CharField(max_length=100, blank=True)
+    position = models.TextField(blank=True, help_text="Contact person's position/title (can be detailed)")
     phone = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)
+    
+    # Enhanced fields for Phase 1D - TextField conversions and additional information
+    address = models.TextField(blank=True, help_text="Complete address including street, city, state, country")
+    notes = models.TextField(blank=True, help_text="Additional notes about this account")
+    website = models.URLField(blank=True, help_text="Company website URL")
+    
     created_at = models.DateTimeField(default=timezone.now)
     
     class Meta:
