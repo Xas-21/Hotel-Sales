@@ -60,6 +60,7 @@ class RequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     inlines = [RoomEntryInline, TransportationInline, EventAgendaInline, SeriesGroupEntryInline]
     ordering = ['-created_at']
     
+    
     def get_config_form_type(self, obj=None):
         """Get the form type for configuration lookup based on request type"""
         if obj and hasattr(obj, 'request_type'):

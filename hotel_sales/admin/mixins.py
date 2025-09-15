@@ -166,7 +166,7 @@ class ConfigEnforcedAdminMixin:
                                 break
                         
                         if model_field and (hasattr(model_field, 'remote_field') and model_field.remote_field):
-                            # This is a ForeignKey/ManyToMany/OneToOne field - skip it
+                            # This is a ForeignKey/ManyToMany/OneToOne field - skip it to preserve dropdown functionality
                             logger.debug(f"Skipping ForeignKey field {field_name} to preserve dropdown functionality")
                             continue
                         
