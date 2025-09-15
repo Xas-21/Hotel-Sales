@@ -80,11 +80,10 @@ class AdminFormInjector:
         """
         from requests.models import DynamicSection, DynamicField
         
-        # SKIP field retrieval for excluded models to prevent form override
-        excluded_models = ['Account', 'Agreement', 'SalesCall', 'Request']
-        if model_class.__name__ in excluded_models:
-            logger.info(f"Skipping field retrieval for excluded model: {model_class.__name__}")
-            return []
+        # For core models, only allow choices overrides (not field type overrides)
+        # This preserves configuration dashboard choices while keeping date widgets
+        core_models_choices_only = ['Account', 'Agreement', 'SalesCall', 'Request']
+        choices_only_mode = model_class.__name__ in core_models_choices_only
         
         try:
             # Find the DynamicSection for this model - use source_model first
@@ -184,7 +183,19 @@ class AdminFormInjector:
                     'dynamic_field_id': field.id  # Store the DynamicField ID for loading values
                 })
             
-            logger.info(f"Found {len(field_configs)} custom fields for {model_class.__name__}")
+            # Filter for choices_only_mode - only return core overrides with choices
+            if choices_only_mode:
+                original_count = len(field_configs)
+                field_configs = [
+                    config for config in field_configs 
+                    if (config.get('is_core_override', False) and 
+                        config.get('choices') and 
+                        config['choices'] not in ['{}', '', None])
+                ]
+                logger.info(f"Choices-only mode for {model_class.__name__}: {original_count} -> {len(field_configs)} fields (choices overrides only)")
+            else:
+                logger.info(f"Found {len(field_configs)} custom fields for {model_class.__name__}")
+            
             return field_configs
             
         except Exception as e:
