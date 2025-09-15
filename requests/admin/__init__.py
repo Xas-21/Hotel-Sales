@@ -26,12 +26,12 @@ class RoomEntryInline(admin.TabularInline):
 class TransportationInline(admin.TabularInline):
     model = Transportation
     extra = 0
-    fields = ['vehicle_type', 'number_of_pax', 'cost', 'notes']
+    fields = ['vehicle_type', 'number_of_pax', 'cost_per_way', 'timing', 'notes']
 
 class EventAgendaInline(admin.TabularInline):
     model = EventAgenda
     extra = 0
-    fields = ['event_date', 'start_time', 'end_time', 'coffee_break_time', 'lunch_time', 'agenda_details']
+    fields = ['event_date', 'start_time', 'end_time', 'coffee_break_time', 'lunch_time', 'dinner_time', 'agenda_details', 'rental_fees_per_day', 'rate_per_person', 'total_persons', 'packages']
 
 class SeriesRoomEntryInline(admin.TabularInline):
     model = SeriesRoomEntry
