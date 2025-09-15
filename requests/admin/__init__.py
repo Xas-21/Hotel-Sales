@@ -71,15 +71,26 @@ class SeriesRoomEntryInline(admin.TabularInline):
 class SeriesGroupEntryInline(admin.TabularInline):
     model = SeriesGroupEntry
     extra = 0
-    fields = ['arrival_date', 'departure_date', 'arrival_time', 'departure_time', 'group_size', 'special_notes']
+    fields = ['arrival_date', 'departure_date', 'nights', 'arrival_time', 'departure_time', 'group_size', 'special_notes']
     readonly_fields = ['nights']
+    verbose_name = "Series Group Entry"
+    verbose_name_plural = "Series Group Schedule & Arrivals"
+    can_delete = True
+    
+    def get_extra(self, request, obj=None, **kwargs):
+        """Show 1 extra form for new series group requests, 0 for existing ones"""
+        if obj and obj.pk:
+            return 0
+        return 1
 
 @admin.register(Request)
 class RequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     list_display = ['confirmation_number', 'account', 'request_type', 'meal_plan', 'status', 'check_in_date', 'check_out_date', 'nights', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
     list_filter = ['request_type', 'meal_plan', 'status', 'created_at', 'check_in_date']
     search_fields = ['confirmation_number', 'account__name', 'account__contact_person']
-    readonly_fields = ['nights', 'total_cost', 'total_rooms', 'total_room_nights', 'created_at', 'updated_at']
+    readonly_fields = ['nights', 'total_cost', 'total_rooms', 'total_room_nights', 'created_at', 'updated_at', 
+                      'get_adr_display', 'get_room_total_display', 'get_transportation_total_display', 
+                      'get_event_total_display', 'get_statistics_summary']
     inlines = [RoomEntryInline, TransportationInline, EventAgendaInline, SeriesGroupEntryInline]
     ordering = ['-created_at']
     
@@ -120,6 +131,11 @@ class RequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
                 'description': 'Automatically calculated totals from room entries, transportation, and event costs. ADR (Average Daily Rate) is calculated as total_cost ÷ total_room_nights.',
                 'classes': ('wide',)
             }),
+            ('Advanced Statistics & Analytics', {
+                'fields': ('get_adr_display', 'get_room_total_display', 'get_transportation_total_display', 'get_event_total_display', 'get_statistics_summary'),
+                'description': 'Detailed cost breakdowns and performance analytics for this request.',
+                'classes': ('collapse', 'wide')
+            }),
             ('Documents & Notes', {
                 'fields': ('agreement_file', 'notes'),
                 'description': 'Upload agreements and add detailed notes',
@@ -158,6 +174,66 @@ class RequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
         # Update financial totals after any inline forms (room entries, transportation, events) are saved
         if formset.model in [RoomEntry, Transportation, EventAgenda]:
             form.instance.update_financial_totals()
+    
+    # Statistics display methods for Phase 1C advanced features
+    def get_adr_display(self, obj):
+        """Display ADR (Average Daily Rate) calculation"""
+        if obj:
+            adr = obj.get_adr()
+            return f"${adr:.2f} per room night"
+        return "No ADR calculated"
+    get_adr_display.short_description = "ADR (Average Daily Rate)"
+    
+    def get_room_total_display(self, obj):
+        """Display room cost breakdown"""
+        if obj:
+            room_total = obj.get_room_total()
+            return f"${room_total:.2f} from {obj.total_rooms} rooms"
+        return "$0.00"
+    get_room_total_display.short_description = "Room Costs"
+    
+    def get_transportation_total_display(self, obj):
+        """Display transportation cost breakdown"""
+        if obj:
+            transport_total = obj.get_transportation_total()
+            transport_count = obj.transportation_entries.count()
+            return f"${transport_total:.2f} from {transport_count} arrangements"
+        return "$0.00"
+    get_transportation_total_display.short_description = "Transportation Costs"
+    
+    def get_event_total_display(self, obj):
+        """Display event cost breakdown"""
+        if obj:
+            event_entries = obj.event_agenda_entries.all()
+            if event_entries:
+                total_cost = sum(entry.get_total_event_cost() for entry in event_entries)
+                return f"${total_cost:.2f} from {event_entries.count()} events"
+        return "No event costs"
+    get_event_total_display.short_description = "Event Costs"
+    
+    def get_statistics_summary(self, obj):
+        """Display comprehensive statistics summary"""
+        if obj:
+            summary = []
+            if obj.total_room_nights > 0:
+                summary.append(f"Room nights: {obj.total_room_nights}")
+            # Remove incorrect occupancy calculation - requires inventory data not available
+            if obj.total_cost > 0 and obj.total_room_nights > 0:
+                adr = obj.get_adr()
+                summary.append(f"ADR: ${adr:.2f}")
+            
+            payment_status = "Unpaid"
+            if obj.paid_amount > 0:
+                payment_pct = (obj.paid_amount / obj.total_cost) * 100 if obj.total_cost > 0 else 0
+                if payment_pct >= 100:
+                    payment_status = "Fully Paid"
+                else:
+                    payment_status = f"Partially Paid ({payment_pct:.1f}%)"
+            summary.append(f"Payment: {payment_status}")
+            
+            return " | ".join(summary)
+        return "No statistics available"
+    get_statistics_summary.short_description = "Statistics Summary"
 
 # Import configuration admin classes
 from .configuration_admin import DynamicModelAdmin, DynamicFieldAdmin, DynamicModelMigrationAdmin
