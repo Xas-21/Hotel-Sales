@@ -139,19 +139,61 @@ class ConfigEnforcedAdminMixin:
     
     def get_form(self, request, obj=None, **kwargs):
         """Apply configuration enforcement to forms using AdminFormInjector"""
-        # SKIP form configuration for excluded models - use native Django widgets
-        excluded_models = ['Account', 'Agreement', 'SalesCall', 'Request']
-        if self.model.__name__ in excluded_models:
-            logger.debug(f"Skipping form configuration for excluded model: {self.model.__name__}")
-            return super().get_form(request, obj, **kwargs)
-        
         from requests.services.admin_form_injector import AdminFormInjector
+        from django.db import models
+        from django.forms import Select
         
         # Get the base form class first
         form_class = super().get_form(request, obj, **kwargs)
         
         # Get custom field configurations
         custom_field_configs = AdminFormInjector.get_custom_fields_for_model(self.model)
+        
+        excluded_models = ['Account', 'Agreement', 'SalesCall', 'Request']
+        if self.model.__name__ in excluded_models:
+            logger.debug(f"Using SafeOverrideForm for excluded model: {self.model.__name__}")
+            
+            # Create SafeOverrideForm that only updates choices on existing fields
+            class SafeOverrideForm(form_class):
+                def __init__(form_self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    
+                    # Process only core_override configurations for excluded models
+                    for field_config in custom_field_configs:
+                        if not field_config.get('is_core_override', False):
+                            continue
+                            
+                        field_name = field_config['name']
+                        
+                        # Check if this is a date/time field - SKIP to preserve native widgets
+                        try:
+                            model_field = self.model._meta.get_field(field_name)
+                            if isinstance(model_field, (models.DateField, models.DateTimeField, models.TimeField)):
+                                logger.debug(f"Skipping date/time field {field_name} to preserve native widget")
+                                continue
+                            if hasattr(model_field, 'remote_field') and model_field.remote_field:
+                                logger.debug(f"Skipping relation field {field_name} to preserve functionality")
+                                continue
+                        except models.FieldDoesNotExist:
+                            continue
+                        
+                        # Update choices on existing form field without replacing the field
+                        if field_name in form_self.fields and field_config.get('choices'):
+                            choices = AdminFormInjector.parse_choices(field_config.get('choices', []))
+                            if choices:
+                                form_self.fields[field_name].choices = choices
+                                # Only set widget to Select for non-date fields that don't already have a proper widget
+                                if not hasattr(form_self.fields[field_name].widget, 'format_value'):
+                                    form_self.fields[field_name].widget = Select(choices=choices)
+                                logger.debug(f"Updated choices for {field_name}")
+                            
+                            # Update label and required if specified
+                            if field_config.get('display_name'):
+                                form_self.fields[field_name].label = field_config['display_name']
+                            if 'required' in field_config:
+                                form_self.fields[field_name].required = field_config['required']
+            
+            return SafeOverrideForm
         
         if not custom_field_configs:
             # No custom fields, return original form

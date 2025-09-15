@@ -185,6 +185,35 @@ class AdminFormInjector:
             logger.error(f"Error getting custom fields for {model_class.__name__}: {e}")
             return []
     
+    @staticmethod
+    def parse_choices(choices_data):
+        """Parse choices from configuration data"""
+        if isinstance(choices_data, str):
+            try:
+                import json
+                choices_data = json.loads(choices_data)
+            except json.JSONDecodeError:
+                return []
+        
+        if isinstance(choices_data, list):
+            parsed_choices = []
+            for choice in choices_data:
+                if isinstance(choice, dict):
+                    # Handle {"value": "X", "label": "Y"} format
+                    value = choice.get('value', '')
+                    label = choice.get('label', choice.get('display_name', value))
+                    if value:  # Only add if value is not empty
+                        parsed_choices.append((value, label))
+                elif isinstance(choice, (list, tuple)) and len(choice) >= 2:
+                    # Handle ["value", "label"] format
+                    parsed_choices.append((choice[0], choice[1]))
+                else:
+                    # Handle simple string values
+                    parsed_choices.append((str(choice), str(choice)))
+            return parsed_choices
+        
+        return []
+    
     @classmethod
     def create_form_field(cls, field_config: Dict[str, Any]):
         """
