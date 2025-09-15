@@ -5,7 +5,7 @@ from hotel_sales.admin.mixins import ConfigEnforcedAdminMixin
 
 
 @admin.register(SalesCall)
-class SalesCallAdmin(admin.ModelAdmin):
+class SalesCallAdmin(ConfigEnforcedAdminMixin,admin.ModelAdmin):
     list_display = [
         'account', 'meeting_subject', 'visit_date', 'city',
         'business_potential', 'follow_up_status', 'created_at'

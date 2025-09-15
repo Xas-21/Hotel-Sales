@@ -135,43 +135,25 @@ class ConfigEnforcedAdminMixin:
         return []
     
     def get_form(self, request, obj=None, **kwargs):
-        """Apply configuration enforcement to forms"""
-        # Get the form type for this request
-        form_type = ConfigEnforcementService.map_form_type(self.model)
+        """Apply configuration enforcement to forms using AdminFormInjector"""
+        from requests.services.admin_form_injector import AdminFormInjector
         
-        # Get field configurations to handle dynamic fields  
-        field_configs = ConfigEnforcementService.get_field_configs(form_type)
-        dynamic_field_names = [name for name, cfg in field_configs.items() if cfg.get('is_dynamic')]
+        # Get the base form class first
+        form_class = super().get_form(request, obj, **kwargs)
         
-        # Temporarily modify fieldsets to exclude dynamic fields during form creation
-        original_fieldsets = getattr(self, 'fieldsets', None)
-        if original_fieldsets and dynamic_field_names:
-            # Create safe fieldsets without dynamic fields
-            safe_fieldsets = []
-            for name, options in original_fieldsets:
-                if 'fields' in options:
-                    safe_fields = [f for f in options['fields'] if f not in dynamic_field_names]
-                    if safe_fields:  # Only include section if it has fields
-                        safe_fieldsets.append((name, {**options, 'fields': safe_fields}))
-                else:
-                    safe_fieldsets.append((name, options))
-            self.fieldsets = safe_fieldsets
-        
-        # Get the base form class (this won't include dynamic fields)
-        try:
-            form_class = super().get_form(request, obj, **kwargs)
-        finally:
-            # Always restore original fieldsets
-            if original_fieldsets:
-                self.fieldsets = original_fieldsets
-        
-        # Create a new form class that includes configuration enforcement
+        # Create a new form class that includes dynamic field injection
         class ConfigEnforcedForm(form_class):
             def __init__(form_self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 
-                # Apply configuration enforcement (including adding dynamic fields)
-                ConfigEnforcementService.apply_to_form(form_self, form_type, kwargs.get('instance'))
+                # Use AdminFormInjector to add dynamic fields with proper choices
+                injector = AdminFormInjector()
+                injector.inject_custom_fields_into_form(form_self, self.model)
+                
+                # Load initial values for dynamic fields if editing
+                instance = kwargs.get('instance')
+                if instance and instance.pk:
+                    injector.load_initial_values(form_self, instance, self.model)
         
         return ConfigEnforcedForm
     
@@ -180,9 +162,11 @@ class ConfigEnforcedAdminMixin:
         # First save the main model
         super().save_model(request, obj, form, change)
         
-        # Then save dynamic field values
+        # Then save dynamic field values using AdminFormInjector
         try:
-            ConfigEnforcementService.save_dynamic_field_values(form, obj)
+            from requests.services.admin_form_injector import AdminFormInjector
+            injector = AdminFormInjector()
+            injector.save_dynamic_field_values(form, obj, self.model)
             logger.debug(f"Saved dynamic field values for {obj}")
         except Exception as e:
             logger.error(f"Error saving dynamic field values for {obj}: {e}")
