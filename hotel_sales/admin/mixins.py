@@ -139,6 +139,12 @@ class ConfigEnforcedAdminMixin:
     
     def get_form(self, request, obj=None, **kwargs):
         """Apply configuration enforcement to forms using AdminFormInjector"""
+        # SKIP form configuration for excluded models - use native Django widgets
+        excluded_models = ['Account', 'Agreement', 'SalesCall', 'Request']
+        if self.model.__name__ in excluded_models:
+            logger.debug(f"Skipping form configuration for excluded model: {self.model.__name__}")
+            return super().get_form(request, obj, **kwargs)
+        
         from requests.services.admin_form_injector import AdminFormInjector
         
         # Get the base form class first
