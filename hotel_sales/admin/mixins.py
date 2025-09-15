@@ -21,7 +21,7 @@ class ConfigEnforcedAdminMixin:
     """
     
     def get_fieldsets(self, request, obj=None):
-        """Generate dynamic fieldsets from configuration"""
+        """Generate dynamic fieldsets from configuration - with fallback to original fieldsets"""
         try:
             # Determine form type for this admin
             form_type = self.get_config_form_type(obj)
@@ -30,7 +30,9 @@ class ConfigEnforcedAdminMixin:
             layout = ConfigEnforcementService.get_layout(form_type)
             field_configs = ConfigEnforcementService.get_field_configs(form_type)
             
-            if layout and layout.get('sections'):
+            # PRIORITIZE original fieldsets over dynamic configuration
+            # Only use dynamic config if layout exists AND is explicitly enabled
+            if layout and layout.get('sections') and layout.get('active', True):
                 # Build fieldsets from configuration
                 fieldsets = []
                 
@@ -98,12 +100,13 @@ class ConfigEnforcedAdminMixin:
                 
                 return fieldsets
             
-            # Fallback to original fieldsets if no configuration
+            # Fallback to original fieldsets if no active configuration
+            logger.debug(f"No active dynamic layout found for {form_type}, using original fieldsets")
             return self.get_original_fieldsets(request, obj)
             
         except Exception as e:
             logger.error(f"Error generating dynamic fieldsets: {e}")
-            # Fallback to original implementation
+            # Always fallback to original implementation for reliability
             return self.get_original_fieldsets(request, obj)
     
     def get_config_form_type(self, obj=None):
