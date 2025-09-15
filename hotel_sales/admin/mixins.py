@@ -158,7 +158,19 @@ class ConfigEnforcedAdminMixin:
                     field_name = field_config['name']
                     
                     if field_config.get('is_core_override', False):
-                        # Override existing model field choices
+                        # Skip ForeignKey and other relation fields - let Django handle them normally
+                        model_field = None
+                        for field in self.model._meta.get_fields():
+                            if field.name == field_name:
+                                model_field = field
+                                break
+                        
+                        if model_field and (hasattr(model_field, 'remote_field') and model_field.remote_field):
+                            # This is a ForeignKey/ManyToMany/OneToOne field - skip it
+                            logger.debug(f"Skipping ForeignKey field {field_name} to preserve dropdown functionality")
+                            continue
+                        
+                        # Override existing model field choices (for non-relation fields only)
                         if field_name in form_self.fields:
                             # Replace the field completely with custom choices
                             new_field = AdminFormInjector.create_form_field(field_config)
