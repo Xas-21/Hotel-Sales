@@ -27,11 +27,34 @@ class TransportationInline(admin.TabularInline):
     model = Transportation
     extra = 0
     fields = ['vehicle_type', 'number_of_pax', 'cost_per_way', 'timing', 'notes']
+    verbose_name = "Transportation Entry"
+    verbose_name_plural = "Transportation Arrangements"
+    can_delete = True
+    
+    def get_extra(self, request, obj=None, **kwargs):
+        """Show 1 extra form for new requests, 0 for existing ones"""
+        if obj and obj.pk:
+            return 0
+        return 1
 
 class EventAgendaInline(admin.TabularInline):
     model = EventAgenda
     extra = 0
-    fields = ['event_date', 'start_time', 'end_time', 'coffee_break_time', 'lunch_time', 'dinner_time', 'agenda_details', 'rental_fees_per_day', 'rate_per_person', 'total_persons', 'packages']
+    fields = [
+        'event_date', 'start_time', 'end_time', 
+        'coffee_break_time', 'lunch_time', 'dinner_time',
+        'rate_per_person', 'total_persons', 'rental_fees_per_day',
+        'packages', 'agenda_details'
+    ]
+    verbose_name = "Event Agenda Entry"
+    verbose_name_plural = "Event Agenda & Costs"
+    can_delete = True
+    
+    def get_extra(self, request, obj=None, **kwargs):
+        """Show 1 extra form for new event requests, 0 for existing ones"""
+        if obj and obj.pk:
+            return 0
+        return 1
 
 class SeriesRoomEntryInline(admin.TabularInline):
     model = SeriesRoomEntry
@@ -70,30 +93,39 @@ class RequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     
     def get_original_fieldsets(self, request, obj=None):
         """
-        Fallback fieldsets when no configuration is available.
-        These are the original hardcoded fieldsets.
+        Enhanced fieldsets with improved organization for Phase 1B.
+        Room configuration is placed prominently above status fields.
         """
-        # Base fieldsets
+        # Enhanced fieldsets with better organization
         fieldsets = [
             ('Basic Information', {
-                'fields': ('request_type', 'account', 'confirmation_number', 'request_received_date')
+                'fields': ('request_type', 'account', 'confirmation_number', 'request_received_date'),
+                'description': 'Core request information and identification'
             }),
             ('Accommodation Details & Room Configuration', {
                 'fields': ('check_in_date', 'check_out_date', 'nights', 'meal_plan'),
-                'description': 'Add room entries below in the "Room entries" section - room costs will be automatically included in total cost calculation.'
+                'description': 'Configure accommodation dates and meal plan. Add specific room types and occupancy in the "Room Configuration" section below. Room costs will be automatically calculated and included in totals.'
             }),
-            ('Status & Payment', {
-                'fields': ('status', 'offer_acceptance_deadline', 'deposit_deadline', 'full_payment_deadline')
-            }),
-            ('Financial Tracking (Auto-Calculated)', {
-                'fields': ('total_cost', 'total_rooms', 'total_room_nights', 'deposit_amount', 'paid_amount'),
-                'description': 'Financial totals are automatically calculated from room entries and transportation. If total_cost shows zero, ensure room entries have been added with valid rates.'
-            }),
-            ('File & Notes', {
-                'fields': ('agreement_file', 'notes'),
+            ('Transportation & Event Details', {
+                'fields': (),  # Transportation handled via inline forms
+                'description': 'Transportation arrangements are managed in the "Transportation entries" section below. Event details can be configured in the "Event agenda entries" section for event-type requests.',
                 'classes': ('collapse',)
             }),
-            ('Metadata', {
+            ('Status & Payment Tracking', {
+                'fields': ('status', 'offer_acceptance_deadline', 'deposit_deadline', 'full_payment_deadline'),
+                'description': 'Request status and payment deadlines. Cancellation fields will appear automatically when status is set to "Cancelled".'
+            }),
+            ('Financial Summary (Auto-Calculated)', {
+                'fields': ('total_cost', 'total_rooms', 'total_room_nights', 'deposit_amount', 'paid_amount'),
+                'description': 'Automatically calculated totals from room entries, transportation, and event costs. ADR (Average Daily Rate) is calculated as total_cost ÷ total_room_nights.',
+                'classes': ('wide',)
+            }),
+            ('Documents & Notes', {
+                'fields': ('agreement_file', 'notes'),
+                'description': 'Upload agreements and add detailed notes',
+                'classes': ('collapse',)
+            }),
+            ('System Information', {
                 'fields': ('created_at', 'updated_at'),
                 'classes': ('collapse',)
             })
@@ -121,10 +153,10 @@ class RequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
         obj.update_financial_totals()
     
     def save_formset(self, request, form, formset, change):
-        """Save formset and update totals after room/transportation entries are saved"""
+        """Save formset and update totals after room/transportation/event entries are saved"""
         super().save_formset(request, form, formset, change)
-        # Update financial totals after any inline forms (room entries, transportation) are saved
-        if formset.model in [RoomEntry, Transportation]:
+        # Update financial totals after any inline forms (room entries, transportation, events) are saved
+        if formset.model in [RoomEntry, Transportation, EventAgenda]:
             form.instance.update_financial_totals()
 
 # Import configuration admin classes
