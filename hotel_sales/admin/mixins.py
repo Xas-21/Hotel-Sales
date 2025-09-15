@@ -141,19 +141,67 @@ class ConfigEnforcedAdminMixin:
         # Get the base form class first
         form_class = super().get_form(request, obj, **kwargs)
         
+        # Get custom field configurations
+        custom_field_configs = AdminFormInjector.get_custom_fields_for_model(self.model)
+        
+        if not custom_field_configs:
+            # No custom fields, return original form
+            return form_class
+        
         # Create a new form class that includes dynamic field injection
         class ConfigEnforcedForm(form_class):
             def __init__(form_self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 
-                # Use AdminFormInjector to add dynamic fields with proper choices
-                injector = AdminFormInjector()
-                injector.inject_custom_fields_into_form(form_self, self.model)
-                
-                # Load initial values for dynamic fields if editing
-                instance = kwargs.get('instance')
-                if instance and instance.pk:
-                    injector.load_initial_values(form_self, instance, self.model)
+                # Process each custom field configuration
+                for field_config in custom_field_configs:
+                    field_name = field_config['name']
+                    
+                    if field_config.get('is_core_override', False):
+                        # Override existing model field choices
+                        if field_name in form_self.fields:
+                            # Replace the field completely with custom choices
+                            new_field = AdminFormInjector.create_form_field(field_config)
+                            
+                            # Preserve existing field attributes if not overridden
+                            existing_field = form_self.fields.get(field_name)
+                            if existing_field:
+                                if not field_config.get('display_name'):
+                                    new_field.label = existing_field.label
+                                new_field.help_text = getattr(existing_field, 'help_text', '')
+                                new_field.required = field_config.get('required', existing_field.required)
+                            
+                            # Replace the field
+                            form_self.fields[field_name] = new_field
+                            
+                    elif field_config.get('is_core_create', False):
+                        # Add new core field (doesn't exist in model)
+                        if field_name not in form_self.fields:  # Avoid conflicts
+                            form_field = AdminFormInjector.create_form_field(field_config)
+                            form_self.fields[field_name] = form_field
+                            
+                            # Load initial value for edit forms
+                            instance = kwargs.get('instance')
+                            if instance and instance.pk:
+                                initial_value = AdminFormInjector.get_dynamic_field_value(
+                                    instance, field_config.get('dynamic_field_id')
+                                )
+                                if initial_value is not None:
+                                    form_self.initial[field_name] = initial_value
+                    
+                    else:
+                        # Add regular custom field
+                        form_field = AdminFormInjector.create_form_field(field_config)
+                        form_self.fields[field_name] = form_field
+                        
+                        # Load existing value for custom fields
+                        instance = kwargs.get('instance')
+                        if instance and instance.pk:
+                            existing_value = AdminFormInjector.get_existing_field_value(
+                                instance, field_config['name']
+                            )
+                            if existing_value is not None:
+                                form_self.initial[field_name] = existing_value
         
         return ConfigEnforcedForm
     
@@ -162,11 +210,66 @@ class ConfigEnforcedAdminMixin:
         # First save the main model
         super().save_model(request, obj, form, change)
         
-        # Then save dynamic field values using AdminFormInjector
+        # Then save dynamic field values
         try:
             from requests.services.admin_form_injector import AdminFormInjector
-            injector = AdminFormInjector()
-            injector.save_dynamic_field_values(form, obj, self.model)
-            logger.debug(f"Saved dynamic field values for {obj}")
+            from requests.models import DynamicFieldValue, DynamicField
+            from django.contrib.contenttypes.models import ContentType
+            
+            custom_field_configs = AdminFormInjector.get_custom_fields_for_model(self.model)
+            content_type = ContentType.objects.get_for_model(self.model)
+            
+            for field_config in custom_field_configs:
+                field_name = field_config['name']
+                field_type = field_config['field_type']
+                storage = field_config.get('storage', 'value_store')
+                
+                # Skip fields that are stored in model fields (core overrides)
+                if storage == 'model_field':
+                    continue
+                
+                # Check both cleaned_data and FILES for file fields
+                field_value_data = None
+                if field_name in form.cleaned_data:
+                    field_value_data = form.cleaned_data[field_name]
+                elif field_type in ['file', 'image'] and field_name in request.FILES:
+                    field_value_data = request.FILES[field_name]
+                
+                if field_value_data is not None:
+                    # For new core fields, use the dynamic_field_id if available
+                    if field_config.get('dynamic_field_id'):
+                        dynamic_field = DynamicField.objects.get(
+                            id=field_config['dynamic_field_id'], 
+                            is_active=True
+                        )
+                    else:
+                        # For regular custom fields, find by name
+                        dynamic_field = DynamicField.objects.get(name=field_name, is_active=True)
+                    
+                    # Update or create the field value
+                    field_value, created = DynamicFieldValue.objects.update_or_create(
+                        content_type=content_type,
+                        object_id=obj.pk,
+                        field=dynamic_field,
+                        defaults={}
+                    )
+                    
+                    # Handle different field types properly
+                    if field_type == 'multiple_choice':
+                        # Serialize list data as JSON
+                        if isinstance(field_value_data, list):
+                            field_value.set_value(field_value_data)
+                        else:
+                            field_value.set_value([field_value_data] if field_value_data else [])
+                    elif field_type in ['file', 'image']:
+                        # Handle file uploads
+                        field_value.set_value(field_value_data)
+                    else:
+                        # Standard field types
+                        field_value.set_value(field_value_data)
+                    
+                    field_value.save()
+                    logger.debug(f"Saved dynamic field value for {field_name}")
+                    
         except Exception as e:
             logger.error(f"Error saving dynamic field values for {obj}: {e}")
