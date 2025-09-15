@@ -295,7 +295,7 @@ class AdminFormInjector:
         """
         
         # SKIP injection for modules where we want standard Django admin behavior
-        excluded_models = ['Account', 'Agreement', 'SalesCall']
+        excluded_models = ['Account', 'Agreement', 'SalesCall', 'Request']
         if admin_class.model.__name__ in excluded_models:
             logger.info(f"Skipping AdminFormInjector for {admin_class.model.__name__} - using standard Django admin")
             return
