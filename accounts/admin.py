@@ -1,7 +1,20 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from django.http import HttpResponse
 from .models import Account
 from hotel_sales.admin.mixins import ConfigEnforcedAdminMixin
+import csv
+
+def sanitize_csv_value(value):
+    """Sanitize CSV values to prevent CSV injection attacks"""
+    if value is None:
+        return ""
+    
+    str_value = str(value)
+    # If value starts with formula characters, prefix with single quote
+    if str_value and str_value[0] in ['=', '+', '-', '@', '\t']:
+        return "'" + str_value
+    return str_value
 
 @admin.register(Account)
 class AccountAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
@@ -53,6 +66,31 @@ class AccountAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     get_contact_info_display.short_description = "Contact Information Summary"
     
     def export_selected_accounts(self, request, queryset):
-        """Placeholder action for future CSV export functionality (Phase 3)"""
-        self.message_user(request, "Export functionality will be implemented in Phase 3")
-    export_selected_accounts.short_description = "Export selected accounts (Coming in Phase 3)"
+        """Export selected accounts to CSV file with security safeguards"""
+        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        response['Content-Disposition'] = 'attachment; filename="accounts_export.csv"'
+        
+        writer = csv.writer(response)
+        # Write CSV header
+        writer.writerow([
+            'Name', 'Account Type', 'Contact Person', 'Position', 'Phone', 'Email', 
+            'Address', 'Website', 'Created Date', 'Notes'
+        ])
+        
+        # Write account data with sanitization and proper display values
+        for account in queryset.order_by('name'):
+            writer.writerow([
+                sanitize_csv_value(account.name),
+                sanitize_csv_value(account.get_account_type_display()),  # Use display value for choice field
+                sanitize_csv_value(account.contact_person),
+                sanitize_csv_value(account.position),
+                sanitize_csv_value(account.phone),
+                sanitize_csv_value(account.email),
+                sanitize_csv_value(account.address),
+                sanitize_csv_value(account.website),
+                sanitize_csv_value(account.created_at.strftime('%Y-%m-%d %H:%M') if account.created_at else ''),
+                sanitize_csv_value(account.notes)
+            ])
+        
+        return response
+    export_selected_accounts.short_description = "Export selected accounts to CSV"

@@ -1,7 +1,20 @@
 from django.contrib import admin
 from .models import SalesCall
 from django.utils.html import format_html
+from django.http import HttpResponse
 from hotel_sales.admin.mixins import ConfigEnforcedAdminMixin
+import csv
+
+def sanitize_csv_value(value):
+    """Sanitize CSV values to prevent CSV injection attacks"""
+    if value is None:
+        return ""
+    
+    str_value = str(value)
+    # If value starts with formula characters, prefix with single quote
+    if str_value and str_value[0] in ['=', '+', '-', '@', '\t']:
+        return "'" + str_value
+    return str_value
 
 
 @admin.register(SalesCall)
@@ -81,6 +94,34 @@ class SalesCallAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     get_next_steps_summary.short_description = "Next Steps Summary"
     
     def export_selected_sales_calls(self, request, queryset):
-        """Placeholder action for future CSV export functionality (Phase 3)"""
-        self.message_user(request, "Sales calls export functionality will be implemented in Phase 3")
-    export_selected_sales_calls.short_description = "Export selected sales calls (Coming in Phase 3)"
+        """Export selected sales calls to CSV file with security safeguards"""
+        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        response['Content-Disposition'] = 'attachment; filename="sales_calls_export.csv"'
+        
+        writer = csv.writer(response)
+        # Write CSV header
+        writer.writerow([
+            'Account', 'Meeting Subject', 'Visit Date', 'City', 'Address',
+            'Business Potential', 'Next Steps', 'Detailed Notes',
+            'Follow-up Required', 'Follow-up Date', 'Follow-up Completed', 'Created Date'
+        ])
+        
+        # Write sales call data with sanitization and proper display values
+        for call in queryset.order_by('-visit_date'):
+            writer.writerow([
+                sanitize_csv_value(call.account.name if call.account else ''),
+                sanitize_csv_value(call.get_meeting_subject_display()),
+                sanitize_csv_value(call.visit_date.strftime('%Y-%m-%d') if call.visit_date else ''),
+                sanitize_csv_value(call.city),
+                sanitize_csv_value(call.address),
+                sanitize_csv_value(call.get_business_potential_display()),
+                sanitize_csv_value(call.next_steps),
+                sanitize_csv_value(call.detailed_notes),
+                sanitize_csv_value('Yes' if call.follow_up_required else 'No'),
+                sanitize_csv_value(call.follow_up_date.strftime('%Y-%m-%d') if call.follow_up_date else ''),
+                sanitize_csv_value('Yes' if call.follow_up_completed else 'No'),
+                sanitize_csv_value(call.created_at.strftime('%Y-%m-%d %H:%M') if call.created_at else '')
+            ])
+        
+        return response
+    export_selected_sales_calls.short_description = "Export selected sales calls to CSV"

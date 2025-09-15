@@ -1,8 +1,21 @@
 from django.contrib import admin
 from .models import Agreement
 from django.utils.html import format_html
+from django.http import HttpResponse
 from datetime import date, timedelta
 from hotel_sales.admin.mixins import ConfigEnforcedAdminMixin
+import csv
+
+def sanitize_csv_value(value):
+    """Sanitize CSV values to prevent CSV injection attacks"""
+    if value is None:
+        return ""
+    
+    str_value = str(value)
+    # If value starts with formula characters, prefix with single quote
+    if str_value and str_value[0] in ['=', '+', '-', '@', '\t']:
+        return "'" + str_value
+    return str_value
 
 @admin.register(Agreement)
 class AgreementAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
@@ -79,6 +92,41 @@ class AgreementAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     get_notes_summary.short_description = "Notes Summary"
     
     def export_selected_agreements(self, request, queryset):
-        """Placeholder action for future CSV export functionality (Phase 3)"""
-        self.message_user(request, "Agreements export functionality will be implemented in Phase 3")
-    export_selected_agreements.short_description = "Export selected agreements (Coming in Phase 3)"
+        """Export selected agreements to CSV file with security safeguards"""
+        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        response['Content-Disposition'] = 'attachment; filename="agreements_export.csv"'
+        
+        writer = csv.writer(response)
+        # Write CSV header
+        writer.writerow([
+            'Account', 'Rate Type', 'Start Date', 'End Date', 'Return Deadline',
+            'Status', 'File Uploaded', 'Deadline Status', 'Created Date', 'Notes'
+        ])
+        
+        # Write agreement data with sanitization and corrected deadline status logic
+        for agreement in queryset.order_by('-created_at'):
+            # Determine deadline status - check expired FIRST to avoid misclassification
+            if agreement.is_expired():
+                deadline_status = 'Expired'
+            elif agreement.is_approaching_deadline(7):
+                deadline_status = 'Urgent (within 7 days)'
+            elif agreement.is_approaching_deadline(30):
+                deadline_status = 'Approaching (within 30 days)'
+            else:
+                deadline_status = 'OK'
+            
+            writer.writerow([
+                sanitize_csv_value(agreement.account.name if agreement.account else ''),
+                sanitize_csv_value(agreement.get_rate_type_display()),
+                sanitize_csv_value(agreement.start_date.strftime('%Y-%m-%d') if agreement.start_date else ''),
+                sanitize_csv_value(agreement.end_date.strftime('%Y-%m-%d') if agreement.end_date else ''),
+                sanitize_csv_value(agreement.return_deadline.strftime('%Y-%m-%d') if agreement.return_deadline else ''),
+                sanitize_csv_value(agreement.get_status_display()),
+                sanitize_csv_value('Yes' if agreement.agreement_file else 'No'),
+                sanitize_csv_value(deadline_status),
+                sanitize_csv_value(agreement.created_at.strftime('%Y-%m-%d %H:%M') if agreement.created_at else ''),
+                sanitize_csv_value(agreement.notes)
+            ])
+        
+        return response
+    export_selected_agreements.short_description = "Export selected agreements to CSV"
