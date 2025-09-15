@@ -310,7 +310,7 @@ class Request(models.Model):
     
     def get_transportation_total(self):
         """Calculate total transportation cost"""
-        return sum((transport.cost for transport in self.transportation_entries.all()), Decimal('0'))
+        return sum((transport.cost_per_way for transport in self.transportation_entries.all()), Decimal('0'))
     
     def update_financial_totals(self):
         """Update all financial totals: cost, rooms, and room nights"""
@@ -345,6 +345,12 @@ class Request(models.Model):
         self.total_room_nights = total_room_nights
         
         self.save(update_fields=['total_cost', 'total_rooms', 'total_room_nights'])
+    
+    def get_adr(self):
+        """Calculate ADR (Average Daily Rate): total_cost / total_room_nights"""
+        if self.total_room_nights and self.total_room_nights > 0:
+            return self.total_cost / Decimal(str(self.total_room_nights))
+        return Decimal('0.00')
 
 
 class CancelledRequest(Request):
@@ -433,26 +439,47 @@ class Transportation(models.Model):
     request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name='transportation_entries')
     vehicle_type = models.CharField(max_length=20, choices=VEHICLE_TYPES)
     number_of_pax = models.PositiveIntegerField(help_text="Number of passengers", validators=[MinValueValidator(1)])
-    cost = models.DecimalField(max_digits=8, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
+    cost_per_way = models.DecimalField(max_digits=8, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(Decimal('0.00'))], help_text="Cost per one-way trip")
+    timing = models.TimeField(null=True, blank=True, help_text="Departure/pickup time")
     notes = models.TextField(blank=True)
     
     def __str__(self):
-        return f"{self.vehicle_type} for {self.number_of_pax} pax - ${self.cost}"
+        return f"{self.vehicle_type} for {self.number_of_pax} pax - ${self.cost_per_way}"
 
 class EventAgenda(models.Model):
     """
     Event/Meeting agendas with detailed timing for events.
     """
+    PACKAGE_CHOICES = [
+        ('coffee_only', 'Coffee Break only'),
+        ('coffee_lunch', 'Coffee Break and lunch'),
+        ('coffee_lunch_dinner', 'Coffee Break and Lunch and Dinner'),
+        ('two_coffee', '2 Coffee Break'),
+        ('two_coffee_meal', '2 Coffee Break and lunch or dinner'),
+    ]
+    
     request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name='event_agendas')
     event_date = models.DateField(db_index=True)
     start_time = models.TimeField()
     end_time = models.TimeField()
     coffee_break_time = models.TimeField(null=True, blank=True)
     lunch_time = models.TimeField(null=True, blank=True)
+    dinner_time = models.TimeField(null=True, blank=True)
     agenda_details = models.TextField()
+    
+    # Enhanced financial fields
+    rental_fees_per_day = models.DecimalField(max_digits=8, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(Decimal('0.00'))], help_text="Daily rental fees for venue")
+    packages = models.CharField(max_length=20, choices=PACKAGE_CHOICES, blank=True, help_text="Package selection for catering")
+    rate_per_person = models.DecimalField(max_digits=8, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(Decimal('0.00'))], help_text="Rate per person for selected package")
+    total_persons = models.PositiveIntegerField(default=0, help_text="Total number of attendees")
     
     class Meta:
         ordering = ['event_date', 'start_time']
+    
+    def get_total_event_cost(self):
+        """Calculate total event cost (rental + person costs)"""
+        person_costs = self.rate_per_person * Decimal(str(self.total_persons))
+        return self.rental_fees_per_day + person_costs
     
     def __str__(self):
         return f"Event on {self.event_date} ({self.start_time} - {self.end_time})"
