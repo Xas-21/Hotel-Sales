@@ -80,6 +80,12 @@ class AdminFormInjector:
         """
         from requests.models import DynamicSection, DynamicField
         
+        # SKIP field retrieval for excluded models to prevent form override
+        excluded_models = ['Account', 'Agreement', 'SalesCall', 'Request']
+        if model_class.__name__ in excluded_models:
+            logger.info(f"Skipping field retrieval for excluded model: {model_class.__name__}")
+            return []
+        
         try:
             # Find the DynamicSection for this model - use source_model first
             app_label = model_class._meta.app_label
@@ -213,6 +219,17 @@ class AdminFormInjector:
         if field_type == 'text':
             from django import forms
             kwargs['widget'] = forms.Textarea(attrs={'rows': 3})
+        
+        # Use proper admin widgets for date/time fields to ensure calendar pickers
+        if field_type == 'date':
+            from django.contrib import admin
+            kwargs['widget'] = admin.widgets.AdminDateWidget()
+        elif field_type == 'datetime':
+            from django.contrib import admin
+            kwargs['widget'] = admin.widgets.AdminSplitDateTime()
+        elif field_type == 'time':
+            from django.contrib import admin
+            kwargs['widget'] = admin.widgets.AdminTimeWidget()
         
         # Add decimal-specific parameters
         if field_type == 'decimal':
