@@ -5,12 +5,25 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.db import models
+from django.http import HttpResponse
+import csv
 from requests.models import (
     Request, CancelledRequest, RoomEntry, Transportation, EventAgenda, SeriesGroupEntry, SeriesRoomEntry,
     RoomType, RoomOccupancy, CancellationReason, SystemFieldRequirement, SystemFormLayout,
     RequestFieldRequirement, RequestFormLayout, DynamicModel, DynamicField, DynamicModelMigration, DynamicFieldValue
 )
 from hotel_sales.admin.mixins import ConfigEnforcedAdminMixin
+
+def sanitize_csv_value(value):
+    """Sanitize CSV values to prevent CSV injection attacks"""
+    if value is None:
+        return ""
+    
+    str_value = str(value)
+    # If value starts with formula characters, prefix with single quote
+    if str_value and str_value[0] in ['=', '+', '-', '@', '\t']:
+        return "'" + str_value
+    return str_value
 
 class RoomEntryInline(admin.TabularInline):
     model = RoomEntry
@@ -94,6 +107,7 @@ class RequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
                       'get_event_total_display', 'get_statistics_summary']
     inlines = [RoomEntryInline, TransportationInline, EventAgendaInline, SeriesGroupEntryInline]
     ordering = ['-created_at']
+    actions = ['export_selected_requests']
     
     # Force admin widgets for date/time fields to ensure calendar pickers display
     formfield_overrides = {
@@ -241,6 +255,41 @@ class RequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
             return " | ".join(summary)
         return "No statistics available"
     get_statistics_summary.short_description = "Statistics Summary"
+    
+    def export_selected_requests(self, request, queryset):
+        """Export selected requests to CSV file with security safeguards"""
+        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        response['Content-Disposition'] = 'attachment; filename="requests_export.csv"'
+        
+        writer = csv.writer(response)
+        # Write CSV header with key request information
+        writer.writerow([
+            'Confirmation Number', 'Account Name', 'Request Type', 'Status', 'Check-In Date', 
+            'Check-Out Date', 'Nights', 'Meal Plan', 'Total Rooms', 'Total Cost', 
+            'Paid Amount', 'Deposit Amount', 'Created Date', 'Notes'
+        ])
+        
+        # Write request data with sanitization and proper display values
+        for req in queryset.order_by('confirmation_number'):
+            writer.writerow([
+                sanitize_csv_value(req.confirmation_number),
+                sanitize_csv_value(req.account.name if req.account else 'No Account'),
+                sanitize_csv_value(req.get_request_type_display()),
+                sanitize_csv_value(req.get_status_display()),
+                sanitize_csv_value(req.check_in_date.strftime('%Y-%m-%d') if req.check_in_date else ''),
+                sanitize_csv_value(req.check_out_date.strftime('%Y-%m-%d') if req.check_out_date else ''),
+                sanitize_csv_value(req.nights),
+                sanitize_csv_value(req.get_meal_plan_display()),
+                sanitize_csv_value(req.total_rooms),
+                sanitize_csv_value(f"{req.total_cost:.2f}" if req.total_cost else '0.00'),
+                sanitize_csv_value(f"{req.paid_amount:.2f}" if req.paid_amount else '0.00'),
+                sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
+                sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
+                sanitize_csv_value(req.notes)
+            ])
+        
+        return response
+    export_selected_requests.short_description = "Export selected requests to CSV"
 
 # Import configuration admin classes
 from .configuration_admin import DynamicModelAdmin, DynamicFieldAdmin, DynamicModelMigrationAdmin

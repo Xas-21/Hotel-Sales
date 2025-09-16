@@ -19,9 +19,9 @@ def sanitize_csv_value(value):
 
 @admin.register(Account)
 class AccountAdmin(ConfigEnforcedAdminMixin,admin.ModelAdmin):
-    list_display = ['name', 'account_type', 'contact_person', 'phone', 'email', 'created_at', 'get_contact_info_display']
-    list_filter = ['account_type', 'created_at']
-    search_fields = ['name', 'contact_person', 'email', 'phone']
+    list_display = ['name', 'account_type', 'city', 'contact_person', 'phone', 'email', 'created_at', 'get_contact_info_display']
+    list_filter = ['account_type', 'city', 'created_at']
+    search_fields = ['name', 'contact_person', 'email', 'phone', 'city']
     ordering = ['name']
     readonly_fields = ['created_at', 'get_contact_info_display']
     
