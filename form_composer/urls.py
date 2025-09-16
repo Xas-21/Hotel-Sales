@@ -31,4 +31,9 @@ urlpatterns = [
     
     # Ordering
     path('update-section-order/', views.update_section_order, name='update_section_order'),
+    
+    # Preview
+    path('preview/', views.preview_form, name='preview'),
+    path('preview/<int:form_definition_id>/', views.preview_form, name='preview_form'),
+    path('api/preview/<int:form_definition_id>/', views.api_preview_form, name='api_preview_form'),
 ]

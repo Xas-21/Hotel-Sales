@@ -264,16 +264,77 @@ def field_properties(request, field_id):
 @require_POST
 def update_section(request, section_id):
     """Update section properties"""
-    # Implementation would handle form updates
-    return JsonResponse({'success': True})
+    section = get_object_or_404(FormSection, id=section_id, is_active=True)
+    
+    try:
+        # Update section fields
+        section.name = request.POST.get('name', section.name)
+        section.description = request.POST.get('description', section.description)
+        section.is_collapsed = request.POST.get('is_collapsed') == 'on'
+        section.css_classes = request.POST.get('css_classes', section.css_classes)
+        
+        # Handle conditional logic as JSON
+        conditional_logic = request.POST.get('conditional_logic', '{}')
+        try:
+            section.conditional_logic = json.loads(conditional_logic) if conditional_logic else {}
+        except json.JSONDecodeError:
+            pass  # Keep existing conditional logic if invalid JSON
+        
+        section.save()
+        
+        return JsonResponse({'success': True})
+        
+    except Exception as e:
+        logger.error(f"Error updating section {section_id}: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
 
 @login_required
 @user_passes_test(is_staff)
 @require_POST
 def update_field(request, field_id):
     """Update field properties"""
-    # Implementation would handle field updates
-    return JsonResponse({'success': True})
+    field = get_object_or_404(FieldConfig, id=field_id, is_active=True)
+    
+    try:
+        # Update field properties
+        field.field_key = request.POST.get('field_key', field.field_key)
+        field.label = request.POST.get('label', field.label)
+        field.help_text = request.POST.get('help_text', field.help_text)
+        field.placeholder = request.POST.get('placeholder', field.placeholder)
+        field.is_required = request.POST.get('is_required') == 'on'
+        field.is_readonly = request.POST.get('is_readonly') == 'on'
+        field.widget_type = request.POST.get('widget_type', field.widget_type)
+        field.css_classes = request.POST.get('css_classes', field.css_classes)
+        field.default_value = request.POST.get('default_value', field.default_value)
+        
+        # Handle widget attributes as JSON
+        widget_attrs = request.POST.get('widget_attrs', '{}')
+        try:
+            field.widget_attrs = json.loads(widget_attrs) if widget_attrs else {}
+        except json.JSONDecodeError:
+            pass  # Keep existing widget attrs if invalid JSON
+        
+        # Handle validation rules as JSON
+        validation_rules = request.POST.get('validation_rules', '{}')
+        try:
+            field.validation_rules = json.loads(validation_rules) if validation_rules else {}
+        except json.JSONDecodeError:
+            pass  # Keep existing validation rules if invalid JSON
+        
+        # Handle choices data as JSON
+        choices_data = request.POST.get('choices_data', '[]')
+        try:
+            field.choices_data = json.loads(choices_data) if choices_data else []
+        except json.JSONDecodeError:
+            pass  # Keep existing choices if invalid JSON
+        
+        field.save()
+        
+        return JsonResponse({'success': True})
+        
+    except Exception as e:
+        logger.error(f"Error updating field {field_id}: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
 
 @login_required
 @user_passes_test(is_staff)
@@ -358,3 +419,68 @@ def move_field_to_section(request, section_id):
     except Exception as e:
         logger.error(f"Error moving field to section {section_id}: {e}")
         return JsonResponse({'success': False, 'error': str(e)})
+
+@login_required
+@user_passes_test(is_staff)
+def preview_form(request, form_definition_id=None):
+    """Live preview of the form configuration"""
+    if form_definition_id:
+        form_definition = get_object_or_404(FormDefinition, id=form_definition_id, is_active=True)
+    else:
+        form_definition = FormDefinition.objects.filter(is_active=True).first()
+        if not form_definition:
+            return render(request, 'form_composer/preview_empty.html')
+    
+    # Get the complete configuration
+    config = ConfigEnforcementV2.get_form_config(form_definition.get_model_class())
+    
+    # Create a demo form instance
+    model_class = form_definition.get_model_class()
+    if model_class:
+        from django import forms
+        
+        class DemoForm(forms.ModelForm):
+            class Meta:
+                model = model_class
+                fields = '__all__'
+        
+        demo_form = DemoForm()
+        applied_config = ConfigEnforcementV2.apply_to_form(demo_form, model_class)
+        
+        context = {
+            'form_definition': form_definition,
+            'config': config,
+            'demo_form': demo_form,
+            'applied_config': applied_config,
+            'sections': config['sections'] if config else [],
+        }
+    else:
+        context = {
+            'form_definition': form_definition,
+            'error': 'Could not load model class',
+        }
+    
+    return render(request, 'form_composer/preview.html', context)
+
+@login_required
+@user_passes_test(is_staff)
+def api_preview_form(request, form_definition_id):
+    """API endpoint for live preview updates"""
+    form_definition = get_object_or_404(FormDefinition, id=form_definition_id, is_active=True)
+    
+    try:
+        # Clear cache with proper signature - pass None to clear all or specific ID
+        ConfigEnforcementV2.clear_cache(form_definition.id)
+        config = ConfigEnforcementV2.get_form_config(form_definition.get_model_class())
+        
+        context = {
+            'form_definition': form_definition,
+            'config': config,
+            'sections': config['sections'] if config else [],
+        }
+        
+        return render(request, 'form_composer/partials/form_preview.html', context)
+        
+    except Exception as e:
+        logger.error(f"Error generating preview for {form_definition_id}: {e}")
+        return HttpResponse(f'<div class="alert alert-danger">Preview Error: {e}</div>')
