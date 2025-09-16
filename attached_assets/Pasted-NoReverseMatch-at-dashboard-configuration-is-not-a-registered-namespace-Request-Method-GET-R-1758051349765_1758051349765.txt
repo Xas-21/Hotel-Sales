@@ -1,0 +1,47 @@
+NoReverseMatch at /dashboard/
+'configuration' is not a registered namespace
+Request Method:	GET
+Request URL:	http://9ed73111-1c06-45de-b213-d75dab767a5f-00-11f29xmz0q8so.worf.replit.dev/dashboard/
+Django Version:	4.2.16
+Exception Type:	NoReverseMatch
+Exception Value:	
+'configuration' is not a registered namespace
+Exception Location:	/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/django/urls/base.py, line 82, in reverse
+Raised during:	dashboard.views.dashboard_view
+Python Executable:	/home/runner/workspace/.pythonlibs/bin/python
+Python Version:	3.11.13
+Python Path:	
+['/home/runner/workspace',
+ '/nix/store/zz7i75jb78idaz0rb1y1i4rzdyxq28vf-sitecustomize/lib/python/site-packages',
+ '/nix/store/yaps09f01jp3fd1405qlr0qz6haf6z03-python3.11-pip-25.0.1/lib/python3.11/site-packages',
+ '/nix/store/7d088dip86hlzri9sk0h78b63yfmx0a0-python3-3.11.13/lib/python311.zip',
+ '/nix/store/7d088dip86hlzri9sk0h78b63yfmx0a0-python3-3.11.13/lib/python3.11',
+ '/nix/store/7d088dip86hlzri9sk0h78b63yfmx0a0-python3-3.11.13/lib/python3.11/lib-dynload',
+ '/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages',
+ '/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages',
+ '/nix/store/y0iwy8ma2m45pr23bw4r7lyz69v2b6wf-python3.11-setuptools-80.7.1/lib/python3.11/site-packages']
+Server time:	Tue, 16 Sep 2025 19:31:16 +0000
+Error during template rendering
+In template /home/runner/workspace/dashboard/templates/components/topnav.html, error at line 21
+
+'configuration' is not a registered namespace
+11	                <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+12	                    <i class="fas fa-chart-bar me-1"></i>Dashboard
+13	                </a>
+14	            </li>
+15	            <li class="nav-item">
+16	                <a class="nav-link {% if request.resolver_match.url_name == 'calendar' %}active{% endif %}" href="{% url 'calendar' %}">
+17	                    <i class="fas fa-calendar-alt me-1"></i>Calendar
+18	                </a>
+19	            </li>
+20	            <li class="nav-item">
+21	                <a class="nav-link" href="{% url 'configuration:dashboard' %}">
+22	                    <i class="fas fa-sliders-h me-1"></i>Configuration
+23	                </a>
+24	            </li>
+25	            <li class="nav-item">
+26	                <a class="nav-link" href="{% url 'admin:index' %}">
+27	                    <i class="fas fa-cog me-1"></i>Admin Panel
+28	                </a>
+29	            </li>
+30	        </ul>
