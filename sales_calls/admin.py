@@ -36,7 +36,7 @@ class SalesCallAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     # Enhanced export preparation for Phase 3 
     actions = ['export_selected_sales_calls']
     
-    # Force admin widgets for date/time fields to ensure calendar pickers display
+    # Force admin widgets for date/time fields to ensure proper display
     formfield_overrides = {
         models.DateField: {'widget': admin.widgets.AdminDateWidget},
         models.DateTimeField: {'widget': admin.widgets.AdminSplitDateTime},

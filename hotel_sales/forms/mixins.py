@@ -96,8 +96,10 @@ class SalesCallForm(ConfigEnforcedFormMixin, forms.ModelForm):
         model = SalesCall
         fields = '__all__'
         widgets = {
-            'detailed_notes': forms.Textarea(attrs={'rows': 4}),
-            'next_steps': forms.Textarea(attrs={'rows': 3}),
+            'detailed_notes': forms.Textarea(attrs={'rows': 2}),
+            'next_steps': forms.Textarea(attrs={'rows': 2}),
+            'follow_up_required': forms.CheckboxInput(),
+            'follow_up_completed': forms.CheckboxInput(),
         }
     
     def get_form_type(self, instance=None):
