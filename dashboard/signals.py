@@ -12,6 +12,7 @@ from django.contrib.contenttypes.models import ContentType
 from dashboard.models import Notification
 from requests.models import Request
 from agreements.models import Agreement
+from dashboard.services.deadline_notifications import generate_for_agreements
 import logging
 
 logger = logging.getLogger(__name__)
@@ -43,6 +44,48 @@ def cleanup_notifications_on_agreement_delete(sender, instance, **kwargs):
     
     if deleted_count > 0:
         logger.info(f"Cleaned up {deleted_count} notifications for deleted agreement {instance.id}")
+
+
+@receiver(post_save, sender=Agreement)
+def auto_generate_agreement_notifications(sender, instance, created, **kwargs):
+    """Automatically generate deadline notifications when agreements are created or updated."""
+    print(f"🔔 SIGNAL DEBUG: Agreement {instance.id} saved - Status: {instance.status}")
+    logger.info(f"🔔 Agreement signal triggered: {instance.account.name} (ID: {instance.id}) - Status: {instance.status} - {'Created' if created else 'Updated'}")
+    try:
+        # Generate notifications for this specific agreement based on its current state
+        from datetime import date, timedelta
+        from django.utils import timezone
+        from dashboard.services.deadline_notifications import get_recipients, create_notification_if_absent
+        
+        today = timezone.localdate()
+        window_end = today + timedelta(days=3)
+        
+        # Check if agreement has deadlines within notification window
+        agreement_needs_notification = False
+        
+        # Check return deadline (for Draft/Sent status)
+        if (instance.status in ['Draft', 'Sent'] and 
+            instance.return_deadline and 
+            today <= instance.return_deadline <= window_end):
+            agreement_needs_notification = True
+            
+        # Check end date deadline (for Signed status)  
+        if (instance.status == 'Signed' and 
+            instance.end_date and 
+            today <= instance.end_date <= window_end):
+            agreement_needs_notification = True
+            
+        if agreement_needs_notification:
+            # Run the full agreement notification generation
+            # This is efficient because it only creates notifications that don't already exist
+            created_count = generate_for_agreements()
+            if created_count > 0:
+                logger.info(f"Auto-generated {created_count} notifications after agreement {instance.id} was {'created' if created else 'updated'}")
+        else:
+            logger.debug(f"Agreement {instance.id} ({instance.account.name}) does not need notifications - status: {instance.status}")
+            
+    except Exception as e:
+        logger.error(f"Failed to auto-generate notifications for agreement {instance.id}: {e}")
 
 
 @receiver(post_save, sender=Request)

@@ -96,8 +96,6 @@ class SalesCallForm(ConfigEnforcedFormMixin, forms.ModelForm):
         model = SalesCall
         fields = '__all__'
         widgets = {
-            'visit_date': forms.DateInput(attrs={'type': 'date'}),
-            'follow_up_date': forms.DateInput(attrs={'type': 'date'}),
             'detailed_notes': forms.Textarea(attrs={'rows': 4}),
             'next_steps': forms.Textarea(attrs={'rows': 3}),
         }
@@ -115,9 +113,6 @@ class AgreementForm(ConfigEnforcedFormMixin, forms.ModelForm):
         model = Agreement
         fields = '__all__'
         widgets = {
-            'start_date': forms.DateInput(attrs={'type': 'date'}),
-            'end_date': forms.DateInput(attrs={'type': 'date'}),
-            'return_deadline': forms.DateInput(attrs={'type': 'date'}),
             'notes': forms.Textarea(attrs={'rows': 4}),
         }
     
@@ -134,8 +129,6 @@ class RequestForm(ConfigEnforcedFormMixin, forms.ModelForm):
         model = Request
         fields = '__all__'
         widgets = {
-            'check_in_date': forms.DateInput(attrs={'type': 'date'}),
-            'check_out_date': forms.DateInput(attrs={'type': 'date'}),
             'notes': forms.Textarea(attrs={'rows': 4}),
         }
     

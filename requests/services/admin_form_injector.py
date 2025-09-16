@@ -324,6 +324,12 @@ class AdminFormInjector:
         
         # SKIP injection for modules where we want standard Django admin behavior
         excluded_models = ['Account', 'Agreement', 'SalesCall', 'Request']
+        
+        # Check if admin_class has model attribute
+        if not hasattr(admin_class, 'model') or not admin_class.model:
+            logger.warning(f"Admin class {admin_class.__name__} does not have model attribute - skipping injection")
+            return
+            
         if admin_class.model.__name__ in excluded_models:
             logger.info(f"Skipping AdminFormInjector for {admin_class.model.__name__} - using standard Django admin")
             return
