@@ -193,8 +193,8 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     def save_formset(self, request, form, formset, change):
         """Save formset and update totals after room/transportation/event entries are saved"""
         super().save_formset(request, form, formset, change)
-        # Update financial totals after any inline forms (room entries, transportation, events) are saved
-        if formset.model in [RoomEntry, Transportation, EventAgenda]:
+        # Update financial totals after any inline forms (room entries, transportation, events, series groups) are saved
+        if formset.model in [RoomEntry, Transportation, EventAgenda, SeriesGroupEntry, SeriesRoomEntry]:
             form.instance.update_financial_totals()
     
     # Statistics display methods for Phase 1C advanced features
@@ -296,26 +296,70 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
 # Specialized admin classes for proxy models
 @admin.register(AccommodationRequest)
 class AccommodationRequestAdmin(BaseRequestAdmin):
-    """Admin for Accommodation-only requests"""
-    inlines = [RoomEntryInline, TransportationInline]  # Room + Transport + Documents & Notes (in base) + Calculations (in base)
+    """Admin for Accommodation-only requests - Room + Transport + Documents & Notes + Calculations"""
+    inlines = [RoomEntryInline, TransportationInline]
+    
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        # Hide request_type since it's set automatically for accommodation requests
+        new_fieldsets = []
+        for name, opts in fieldsets:
+            new_fields = [f for f in opts['fields'] if f != 'request_type']
+            new_opts = {k: v for k, v in opts.items()}
+            new_opts['fields'] = new_fields
+            new_fieldsets.append((name, new_opts))
+        return new_fieldsets
 
 
 @admin.register(EventOnlyRequest)  
 class EventOnlyRequestAdmin(BaseRequestAdmin):
-    """Admin for Event-only requests (no accommodation)"""
-    inlines = [EventAgendaInline, TransportationInline]  # Events + Transport + Documents & Notes + Calculations
+    """Admin for Event-only requests - Events + Transport + Documents & Notes + Calculations"""
+    inlines = [EventAgendaInline, TransportationInline]
+    
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        # Hide request_type since it's set automatically for event-only requests
+        new_fieldsets = []
+        for name, opts in fieldsets:
+            new_fields = [f for f in opts['fields'] if f != 'request_type']
+            new_opts = {k: v for k, v in opts.items()}
+            new_opts['fields'] = new_fields
+            new_fieldsets.append((name, new_opts))
+        return new_fieldsets
 
 
 @admin.register(EventWithRoomsRequest)
 class EventWithRoomsRequestAdmin(BaseRequestAdmin):
-    """Admin for Events with accommodation"""
-    inlines = [EventAgendaInline, RoomEntryInline, TransportationInline]  # Events + Room + Transport + Documents & Notes + Calculations
+    """Admin for Events with accommodation - Events + Room + Transport + Documents & Notes + Calculations"""
+    inlines = [EventAgendaInline, RoomEntryInline, TransportationInline]
+    
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        # Hide request_type since it's set automatically for event with rooms
+        new_fieldsets = []
+        for name, opts in fieldsets:
+            new_fields = [f for f in opts['fields'] if f != 'request_type']
+            new_opts = {k: v for k, v in opts.items()}
+            new_opts['fields'] = new_fields
+            new_fieldsets.append((name, new_opts))
+        return new_fieldsets
 
 
 @admin.register(SeriesGroupRequest)
 class SeriesGroupRequestAdmin(BaseRequestAdmin):
-    """Admin for Series Group requests"""
-    inlines = [SeriesGroupEntryInline, TransportationInline]  # Series Details + Transport + Documents & Notes + Calculations
+    """Admin for Series Group requests - Series Details + Transport + Documents & Notes + Calculations"""
+    inlines = [SeriesGroupEntryInline, TransportationInline]
+    
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        # Hide request_type since it's set automatically for series groups
+        new_fieldsets = []
+        for name, opts in fieldsets:
+            new_fields = [f for f in opts['fields'] if f != 'request_type']
+            new_opts = {k: v for k, v in opts.items()}
+            new_opts['fields'] = new_fields
+            new_fieldsets.append((name, new_opts))
+        return new_fieldsets
 
 
 # Keep original RequestAdmin for backward compatibility and unified view
