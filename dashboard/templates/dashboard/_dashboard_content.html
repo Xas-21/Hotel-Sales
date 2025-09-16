@@ -1,0 +1,411 @@
+        <!-- Dashboard Content -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="mb-0">Dashboard Overview</h1>
+                    <button id="edit-sections-btn" class="btn btn-outline-secondary">
+                        <i class="fas fa-edit me-1"></i>Edit Sections Place
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard organized into 4 main draggable sections -->
+        <div id="full-dashboard-container">
+        
+        <!-- Section 1: Cards (All Metrics) -->
+        <div class="dashboard-section" data-section="cards-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header" data-section-header>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Dashboard Metrics</h5>
+                            <button id="edit-cards-btn" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-edit me-1"></i>Edit Cards
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="cards-container">
+                            <!-- Key Metrics -->
+                            <div class="col-md-3 mb-3 metric-card" data-card="total-accounts">
+                                <a href="/admin/accounts/account/" class="text-decoration-none">
+                                    <div class="card bg-primary text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>{{ total_accounts }}</h4>
+                                                    <p class="mb-0">Total Accounts</p>
+                                                </div>
+                                                <i class="fas fa-building fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3 metric-card" data-card="confirmed-requests">
+                                <a href="/admin/requests/request/?status__exact=Confirmed" class="text-decoration-none">
+                                    <div class="card bg-success text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>{{ confirmed_requests }}</h4>
+                                                    <p class="mb-0">Confirmed Requests</p>
+                                                </div>
+                                                <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3 metric-card" data-card="total-revenue">
+                                <a href="/admin/requests/request/?status__exact=Paid" class="text-decoration-none">
+                                    <div class="card bg-info text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>${{ total_revenue|floatformat:0 }}</h4>
+                                                    <p class="mb-0">Total Revenue</p>
+                                                </div>
+                                                <i class="fas fa-dollar-sign fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3 metric-card" data-card="total-requests">
+                                <a href="/admin/requests/request/" class="text-decoration-none">
+                                    <div class="card bg-warning text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>{{ total_requests }}</h4>
+                                                    <p class="mb-0">Total Requests</p>
+                                                </div>
+                                                <i class="fas fa-clipboard-list fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            
+                            <!-- Agreement and Financial Metrics -->
+                            <div class="col-md-3 mb-3 metric-card" data-card="signed-agreements">
+                                <a href="/admin/agreements/agreement/?status__exact=Signed" class="text-decoration-none">
+                                    <div class="card bg-success text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>{{ signed_agreements }}</h4>
+                                                    <p class="mb-0">Signed Agreements</p>
+                                                </div>
+                                                <i class="fas fa-file-contract fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3 metric-card" data-card="pending-agreements">
+                                <a href="/admin/agreements/agreement/?status__exact=Draft" class="text-decoration-none">
+                                    <div class="card bg-warning text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>{{ pending_agreements }}</h4>
+                                                    <p class="mb-0">Pending Agreements</p>
+                                                </div>
+                                                <i class="fas fa-file-signature fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3 metric-card" data-card="cancelled-requests">
+                                <a href="/admin/requests/cancelledrequest/" class="text-decoration-none">
+                                    <div class="card bg-danger text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>{{ cancelled_requests }}</h4>
+                                                    <p class="mb-0">Cancelled Requests</p>
+                                                </div>
+                                                <i class="fas fa-times-circle fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3 metric-card" data-card="cancelled-lost-amount">
+                                <a href="/admin/requests/cancelledrequest/" class="text-decoration-none">
+                                    <div class="card bg-danger text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>${{ cancelled_lost_amount|floatformat:0 }}</h4>
+                                                    <p class="mb-0">Lost Amount (Cancelled)</p>
+                                                </div>
+                                                <i class="fas fa-chart-line-down fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3 metric-card" data-card="confirmed-paid-amount">
+                                <a href="/admin/requests/request/?status__exact=Paid" class="text-decoration-none">
+                                    <div class="card bg-success text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>${{ confirmed_paid_amount|floatformat:0 }}</h4>
+                                                    <p class="mb-0">Confirmed Paid Amount</p>
+                                                </div>
+                                                <i class="fas fa-check-double fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3 metric-card" data-card="unpaid-total">
+                                <a href="/admin/requests/request/?status__exact=Confirmed" class="text-decoration-none">
+                                    <div class="card bg-warning text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>${{ unpaid_total|floatformat:0 }}</h4>
+                                                    <p class="mb-0">Total Unpaid Amount</p>
+                                                </div>
+                                                <i class="fas fa-exclamation-triangle fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Recent Activity -->
+        <div class="dashboard-section" data-section="recent-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header" data-section-header>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Recent Activity</h5>
+                            <button id="edit-recent-btn" class="btn btn-sm btn-outline-info">
+                                <i class="fas fa-edit me-1"></i>Edit Recent
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Recent Requests -->
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Recent Requests</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if recent_requests %}
+                                            <div class="list-group list-group-flush">
+                                                {% for request in recent_requests %}
+                                                <div class="list-group-item d-flex justify-content-between align-items-center p-2">
+                                                    <div>
+                                                        <a href="/admin/accounts/account/{{ request.account.id }}/change/" class="company-link">
+                                                            <strong>{{ request.account.name }}</strong>
+                                                        </a><br>
+                                                        <small class="text-muted">{{ request.request_type }}</small>
+                                                        <br><small class="text-info">{{ request.check_in_date|default:"No check-in date" }}</small>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <select class="form-select form-select-sm mb-1 status-dropdown" 
+                                                                data-type="request" 
+                                                                data-id="{{ request.id }}"
+                                                                data-current-status="{{ request.status }}">
+                                                            <option value="Draft" {% if request.status == 'Draft' %}selected{% endif %}>Draft</option>
+                                                            <option value="Confirmed" {% if request.status == 'Confirmed' %}selected{% endif %}>Confirmed</option>
+                                                            <option value="Cancelled" {% if request.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                                                            <option value="Pending" {% if request.status == 'Pending' %}selected{% endif %}>Pending</option>
+                                                            <option value="Paid" {% if request.status == 'Paid' %}selected{% endif %}>Paid</option>
+                                                            <option value="Partially Paid" {% if request.status == 'Partially Paid' %}selected{% endif %}>Partially Paid</option>
+                                                        </select>
+                                                        <a href="/admin/requests/request/{{ request.id }}/change/" class="btn btn-sm btn-outline-primary">View</a>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <p class="text-muted">No recent requests found.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Recent Sales Calls -->
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Recent Sales Calls</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if recent_sales_calls %}
+                                            <div class="list-group list-group-flush">
+                                                {% for call in recent_sales_calls %}
+                                                <div class="list-group-item d-flex justify-content-between align-items-center p-2">
+                                                    <div>
+                                                        <a href="/admin/accounts/account/{{ call.account.id }}/change/" class="company-link">
+                                                            <strong>{{ call.account.name }}</strong>
+                                                        </a><br>
+                                                        <small class="text-muted">{{ call.meeting_subject }}</small>
+                                                        <br><small class="text-info">{{ call.city }}</small>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <small class="text-muted d-block">{{ call.visit_date }}</small>
+                                                        <a href="/admin/sales_calls/salescall/{{ call.id }}/change/" class="btn btn-sm btn-outline-primary">View</a>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <p class="text-muted">No recent sales calls found.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Recent Agreements -->
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Recent Agreements</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if recent_agreements %}
+                                            <div class="list-group list-group-flush">
+                                                {% for agreement in recent_agreements %}
+                                                <div class="list-group-item d-flex justify-content-between align-items-center p-2">
+                                                    <div>
+                                                        <a href="/admin/accounts/account/{{ agreement.account.id }}/change/" class="company-link">
+                                                            <strong>{{ agreement.account.name }}</strong>
+                                                        </a><br>
+                                                        <small class="text-muted">{{ agreement.agreement_type }}</small>
+                                                        <br><small class="text-info">Valid: {{ agreement.valid_from|date:"Y-m-d" }} to {{ agreement.valid_to|date:"Y-m-d" }}</small>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <select class="form-select form-select-sm mb-1 status-dropdown" 
+                                                                data-type="agreement" 
+                                                                data-id="{{ agreement.id }}"
+                                                                data-current-status="{{ agreement.status }}">
+                                                            <option value="Draft" {% if agreement.status == 'Draft' %}selected{% endif %}>Draft</option>
+                                                            <option value="Signed" {% if agreement.status == 'Signed' %}selected{% endif %}>Signed</option>
+                                                            <option value="Expired" {% if agreement.status == 'Expired' %}selected{% endif %}>Expired</option>
+                                                            <option value="Cancelled" {% if agreement.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                                                            <option value="Pending" {% if agreement.status == 'Pending' %}selected{% endif %}>Pending</option>
+                                                            <option value="Sent" {% if agreement.status == 'Sent' %}selected{% endif %}>Sent</option>
+                                                        </select>
+                                                        <a href="/admin/agreements/agreement/{{ agreement.id }}/change/" class="btn btn-sm btn-outline-primary">View</a>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <p class="text-muted">No recent agreements found.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Section 3: Charts and Data -->
+        <div class="dashboard-section" data-section="charts-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header" data-section-header>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Analytics & Charts</h5>
+                            <button id="edit-charts-btn" class="btn btn-sm btn-outline-warning">
+                                <i class="fas fa-edit me-1"></i>Edit Charts
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Request Type Distribution -->
+                            <div class="col-md-6 mb-3">
+                                <h6>Request Type Distribution</h6>
+                                <canvas id="requestTypeChart" width="400" height="200"></canvas>
+                            </div>
+                            
+                            <!-- Request Status Distribution -->
+                            <div class="col-md-6 mb-3">
+                                <h6>Request Status Distribution</h6>
+                                <canvas id="requestStatusChart" width="400" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: Alerts and Notifications -->
+        <div class="dashboard-section" data-section="alerts-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header" data-section-header>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-bell me-2"></i>Important Alerts</h5>
+                            <button id="edit-alerts-btn" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-edit me-1"></i>Edit Alerts
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% if deadlines_approaching or overdue_payments %}
+                            <div class="row">
+                                {% if deadlines_approaching %}
+                                <div class="col-md-6">
+                                    <div class="alert alert-warning">
+                                        <h6><i class="fas fa-clock me-2"></i>Deadlines Approaching</h6>
+                                        <ul class="mb-0">
+                                            {% for item in deadlines_approaching %}
+                                            <li>
+                                                <strong>{{ item.account.name }}</strong>: {{ item.deadline_type }} on {{ item.deadline_date|date:"M d, Y" }}
+                                                <a href="{{ item.admin_url }}" class="ms-2 btn btn-sm btn-outline-warning">View</a>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                {% if overdue_payments %}
+                                <div class="col-md-6">
+                                    <div class="alert alert-danger">
+                                        <h6><i class="fas fa-exclamation-triangle me-2"></i>Overdue Payments</h6>
+                                        <ul class="mb-0">
+                                            {% for request in overdue_payments %}
+                                            <li>
+                                                <strong>{{ request.account.name }}</strong>: ${{ request.total_cost|floatformat:0 }} due {{ request.check_in_date|date:"M d, Y" }}
+                                                <a href="/admin/requests/request/{{ request.id }}/change/" class="ms-2 btn btn-sm btn-outline-danger">View</a>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle me-2"></i>No urgent alerts at this time.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div> <!-- full-dashboard-container -->
