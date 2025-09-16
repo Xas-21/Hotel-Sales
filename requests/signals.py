@@ -1,6 +1,6 @@
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from .models import Request, RoomEntry, Transportation, SeriesRoomEntry, SeriesGroupEntry
+from .models import Request, RoomEntry, Transportation, SeriesRoomEntry, SeriesGroupEntry, EventAgenda
 
 @receiver(post_save, sender=RoomEntry)
 @receiver(post_delete, sender=RoomEntry)
@@ -39,6 +39,17 @@ def update_request_totals_from_series_room(sender, instance, **kwargs):
 @receiver(post_delete, sender=SeriesGroupEntry)
 def update_request_totals_from_series_group(sender, instance, **kwargs):
     """Update request financial totals when series group entries change"""
+    if instance.request_id:
+        try:
+            request = Request.objects.get(id=instance.request_id)
+            request.update_financial_totals()
+        except Request.DoesNotExist:
+            pass
+
+@receiver(post_save, sender=EventAgenda)
+@receiver(post_delete, sender=EventAgenda)
+def update_request_totals_from_event(sender, instance, **kwargs):
+    """Update request financial totals when event agenda entries change"""
     if instance.request_id:
         try:
             request = Request.objects.get(id=instance.request_id)

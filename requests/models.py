@@ -312,6 +312,10 @@ class Request(models.Model):
         """Calculate total transportation cost"""
         return sum((transport.cost_per_way for transport in self.transportation_entries.all()), Decimal('0'))
     
+    def get_event_total(self):
+        """Calculate total event cost from all event agenda entries"""
+        return sum((event.get_total_event_cost() for event in self.event_agendas.all()), Decimal('0'))
+    
     def update_financial_totals(self):
         """Update all financial totals: cost, rooms, and room nights"""
         # Refresh from database to ensure we have latest related objects
@@ -320,6 +324,7 @@ class Request(models.Model):
         # Calculate totals from room entries
         room_total = self.get_room_total()
         transport_total = self.get_transportation_total()
+        event_total = self.get_event_total()
         total_rooms = sum(room.quantity for room in self.room_entries.all())
         total_room_nights = sum(room.quantity * (self.nights or 0) for room in self.room_entries.all())
         
@@ -348,7 +353,7 @@ class Request(models.Model):
             total_room_nights = series_total_room_nights
         
         # Update fields
-        self.total_cost = room_total + transport_total
+        self.total_cost = room_total + transport_total + event_total
         self.total_rooms = total_rooms
         self.total_room_nights = total_room_nights
         
