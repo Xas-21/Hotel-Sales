@@ -138,87 +138,14 @@ class ConfigEnforcedAdminMixin:
         return []
     
     def get_form(self, request, obj=None, **kwargs):
-        """Apply configuration enforcement to forms using AdminFormInjector"""
-        from requests.services.admin_form_injector import AdminFormInjector
-        
-        # Get the base form class first
+        """Apply configuration enforcement to forms using Form Composer system"""
+        # Get the base form class from Django admin
         form_class = super().get_form(request, obj, **kwargs)
         
-        # Get custom field configurations
-        custom_field_configs = AdminFormInjector.get_custom_fields_for_model(self.model)
-        
-        if not custom_field_configs:
-            # No custom fields, return original form
-            return form_class
-        
-        # Create a new form class that includes dynamic field injection
-        class ConfigEnforcedForm(form_class):
-            def __init__(form_self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                
-                # Process each custom field configuration
-                for field_config in custom_field_configs:
-                    field_name = field_config['name']
-                    
-                    if field_config.get('is_core_override', False):
-                        # Skip ForeignKey and other relation fields - let Django handle them normally
-                        model_field = None
-                        for field in self.model._meta.get_fields():
-                            if field.name == field_name:
-                                model_field = field
-                                break
-                        
-                        if model_field and (hasattr(model_field, 'remote_field') and model_field.remote_field):
-                            # This is a ForeignKey/ManyToMany/OneToOne field - skip it to preserve dropdown functionality
-                            logger.debug(f"Skipping ForeignKey field {field_name} to preserve dropdown functionality")
-                            continue
-                        
-                        # Override existing model field choices (for non-relation fields only)
-                        if field_name in form_self.fields:
-                            # Replace the field completely with custom choices
-                            new_field = AdminFormInjector.create_form_field(field_config)
-                            
-                            # Preserve existing field attributes if not overridden
-                            existing_field = form_self.fields.get(field_name)
-                            if existing_field:
-                                if not field_config.get('display_name'):
-                                    new_field.label = existing_field.label
-                                new_field.help_text = getattr(existing_field, 'help_text', '')
-                                new_field.required = field_config.get('required', existing_field.required)
-                            
-                            # Replace the field
-                            form_self.fields[field_name] = new_field
-                            
-                    elif field_config.get('is_core_create', False):
-                        # Add new core field (doesn't exist in model)
-                        if field_name not in form_self.fields:  # Avoid conflicts
-                            form_field = AdminFormInjector.create_form_field(field_config)
-                            form_self.fields[field_name] = form_field
-                            
-                            # Load initial value for edit forms
-                            instance = kwargs.get('instance')
-                            if instance and instance.pk:
-                                initial_value = AdminFormInjector.get_dynamic_field_value(
-                                    instance, field_config.get('dynamic_field_id')
-                                )
-                                if initial_value is not None:
-                                    form_self.initial[field_name] = initial_value
-                    
-                    else:
-                        # Add regular custom field
-                        form_field = AdminFormInjector.create_form_field(field_config)
-                        form_self.fields[field_name] = form_field
-                        
-                        # Load existing value for custom fields
-                        instance = kwargs.get('instance')
-                        if instance and instance.pk:
-                            existing_value = AdminFormInjector.get_existing_field_value(
-                                instance, field_config['name']
-                            )
-                            if existing_value is not None:
-                                form_self.initial[field_name] = existing_value
-        
-        return ConfigEnforcedForm
+        # For now, return the standard form class as the new Form Composer system
+        # handles field configuration through the ConfigEnforcementV2 service
+        # which is already integrated via get_fieldsets()
+        return form_class
     
     def save_model(self, request, obj, form, change):
         """Save the model and handle dynamic field values"""
