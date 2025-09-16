@@ -133,3 +133,9 @@ class SalesCallAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
         
         return response
     export_selected_sales_calls.short_description = "Export selected sales calls to CSV"
+    
+    def get_form(self, request, obj=None, **kwargs):
+        """Use custom form with proper widgets"""
+        from hotel_sales.forms.mixins import SalesCallForm
+        kwargs['form'] = SalesCallForm
+        return super().get_form(request, obj, **kwargs)
