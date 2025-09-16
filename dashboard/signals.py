@@ -235,3 +235,108 @@ def cleanup_all_stale_notifications():
     
     logger.info(f"Manual cleanup completed. Removed {total_deleted} stale notifications")
     return total_deleted
+
+
+# Request-based automatic notification refresh signals
+@receiver(post_save, sender=Request)
+def auto_generate_request_notifications(sender, instance, created, **kwargs):
+    """Auto-generate request notifications when dates change"""
+    from django.contrib.contenttypes.models import ContentType
+    from dashboard.models import Notification
+    from dashboard.services.deadline_notifications import (
+        generate_for_event_beo_reminders, 
+        generate_for_series_group_arrivals, 
+        generate_for_event_with_rooms,
+        generate_for_group_checkins
+    )
+    
+    try:
+        logger.info(f"🔔 SIGNAL DEBUG: Request {instance.id} saved - Type: {instance.request_type}")
+        
+        # Clean up existing request notifications if it's being updated
+        if not created:
+            content_type = ContentType.objects.get_for_model(instance.__class__)
+            old_notifications = Notification.objects.filter(
+                content_type=content_type,
+                object_id=instance.id,
+                notification_type__in=['beo', 'arrival', 'event_checkin', 'event_start', 'checkin']
+            )
+            deleted_count = old_notifications.count()
+            if deleted_count > 0:
+                old_notifications.delete()
+                logger.info(f"Cleaned up {deleted_count} old notifications for request {instance.id} before regenerating")
+        
+        # Generate all request-related notifications (they filter appropriately internally)
+        created_count = 0
+        created_count += generate_for_event_beo_reminders()
+        created_count += generate_for_series_group_arrivals()  
+        created_count += generate_for_event_with_rooms()
+        created_count += generate_for_group_checkins()
+        
+        logger.info(f"Generated {created_count} deadline notifications for request {instance.id}")
+    except Exception as e:
+        logger.error(f"Error generating deadline notifications for request {instance.id}: {str(e)}")
+
+
+@receiver(post_save, sender='requests.EventAgenda')
+def auto_generate_event_agenda_notifications(sender, instance, created, **kwargs):
+    """Auto-generate notifications when EventAgenda dates change"""
+    from django.contrib.contenttypes.models import ContentType
+    from dashboard.models import Notification
+    from dashboard.services.deadline_notifications import generate_for_event_beo_reminders, generate_for_event_with_rooms
+    
+    try:
+        logger.info(f"🔔 SIGNAL DEBUG: EventAgenda {instance.id} saved - Event Date: {instance.event_date}")
+        
+        # Clean up existing event notifications for this request
+        if not created:
+            request_content_type = ContentType.objects.get_for_model(instance.request.__class__)
+            old_notifications = Notification.objects.filter(
+                content_type=request_content_type,
+                object_id=instance.request.id,
+                notification_type__in=['beo', 'event_start']
+            )
+            deleted_count = old_notifications.count()
+            if deleted_count > 0:
+                old_notifications.delete()
+                logger.info(f"Cleaned up {deleted_count} old event notifications for request {instance.request.id} before regenerating")
+        
+        # Regenerate event notifications
+        created_count = 0
+        created_count += generate_for_event_beo_reminders()
+        created_count += generate_for_event_with_rooms()
+        
+        logger.info(f"Generated {created_count} event notifications for agenda {instance.id}")
+    except Exception as e:
+        logger.error(f"Error generating event notifications for agenda {instance.id}: {str(e)}")
+
+
+@receiver(post_save, sender='requests.SeriesGroupEntry')
+def auto_generate_series_entry_notifications(sender, instance, created, **kwargs):
+    """Auto-generate notifications when SeriesGroupEntry dates change"""
+    from django.contrib.contenttypes.models import ContentType
+    from dashboard.models import Notification
+    from dashboard.services.deadline_notifications import generate_for_series_group_arrivals
+    
+    try:
+        logger.info(f"🔔 SIGNAL DEBUG: SeriesGroupEntry {instance.id} saved - Arrival Date: {instance.arrival_date}")
+        
+        # Clean up existing series notifications for this request
+        if not created:
+            request_content_type = ContentType.objects.get_for_model(instance.request.__class__)
+            old_notifications = Notification.objects.filter(
+                content_type=request_content_type,
+                object_id=instance.request.id,
+                notification_type='arrival'
+            )
+            deleted_count = old_notifications.count()
+            if deleted_count > 0:
+                old_notifications.delete()
+                logger.info(f"Cleaned up {deleted_count} old series notifications for request {instance.request.id} before regenerating")
+        
+        # Regenerate series group notifications
+        created_count = generate_for_series_group_arrivals()
+        
+        logger.info(f"Generated {created_count} series group notifications for entry {instance.id}")
+    except Exception as e:
+        logger.error(f"Error generating series notifications for entry {instance.id}: {str(e)}")
