@@ -226,7 +226,7 @@ class ConfigEnforcedAdminMixin:
         super().save_model(request, obj, form, change)
         
         # SKIP dynamic field processing for excluded models
-        excluded_models = ['Account', 'Agreement', 'SalesCall', 'Request']
+        excluded_models = ['Account', 'Agreement', 'SalesCall', 'Request', 'AccommodationRequest', 'EventOnlyRequest', 'EventWithRoomsRequest', 'SeriesGroupRequest']
         if self.model.__name__ in excluded_models:
             logger.debug(f"Skipping dynamic field processing for excluded model: {self.model.__name__}")
             return
