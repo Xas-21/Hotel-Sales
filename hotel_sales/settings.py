@@ -50,7 +50,6 @@ INSTALLED_APPS = [
     'agreements',
     'sales_calls',
     'dashboard',
-    'form_composer',  # New modern configuration system
 ]
 
 MIDDLEWARE = [
@@ -75,7 +74,6 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'form_composer.context_processors.user_preferences',
             ],
         },
     },

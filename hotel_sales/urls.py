@@ -41,7 +41,7 @@ urlpatterns = [
     path('api/notifications/generate/', generate_notifications, name='api_notifications_generate'),
     
     path('logout/', logout_view, name='logout'),
-    path('form-composer/', include('form_composer.urls')),
+    path('configuration/', include('requests.configuration_urls')),
     path('admin/', admin.site.urls),
 ]
 

@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('requests', '0007_populate_system_configuration_data'),
+        ('requests', '0009_populate_system_wide_config'),
     ]
 
     operations = [

@@ -9,7 +9,8 @@ from django.http import HttpResponse
 import csv
 from requests.models import (
     Request, CancelledRequest, RoomEntry, Transportation, EventAgenda, SeriesGroupEntry, SeriesRoomEntry,
-    RoomType, RoomOccupancy, CancellationReason,
+    RoomType, RoomOccupancy, CancellationReason, SystemFieldRequirement, SystemFormLayout,
+    RequestFieldRequirement, RequestFormLayout, DynamicModel, DynamicField, DynamicModelMigration, DynamicFieldValue,
     AccommodationRequest, EventOnlyRequest, EventWithRoomsRequest, SeriesGroupRequest
 )
 from hotel_sales.admin.mixins import ConfigEnforcedAdminMixin
@@ -294,7 +295,7 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
 
 # Specialized admin classes for proxy models
 @admin.register(AccommodationRequest)
-class AccommodationRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
+class AccommodationRequestAdmin(admin.ModelAdmin):
     """Admin for Accommodation-only requests - Room + Transport + Documents & Notes + Calculations"""
     inlines = [RoomEntryInline, TransportationInline]
     
@@ -476,7 +477,7 @@ class AccommodationRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
 
 
 @admin.register(EventOnlyRequest)  
-class EventOnlyRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
+class EventOnlyRequestAdmin(admin.ModelAdmin):
     """Admin for Event-only requests - Events + Transport + Documents & Notes + Calculations"""
     inlines = [EventAgendaInline, TransportationInline]
     
@@ -644,7 +645,7 @@ class EventOnlyRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
 
 
 @admin.register(EventWithRoomsRequest)
-class EventWithRoomsRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
+class EventWithRoomsRequestAdmin(admin.ModelAdmin):
     """Admin for Events with accommodation - Events + Room + Transport + Documents & Notes + Calculations"""
     inlines = [EventAgendaInline, RoomEntryInline, TransportationInline]
     
@@ -821,7 +822,7 @@ class EventWithRoomsRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
 
 
 @admin.register(SeriesGroupRequest)
-class SeriesGroupRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
+class SeriesGroupRequestAdmin(admin.ModelAdmin):
     """Admin for Series Group requests - Series Details + Transport + Documents & Notes + Calculations"""
     inlines = [SeriesGroupEntryInline, TransportationInline]
     
@@ -997,5 +998,24 @@ class RequestAdmin(BaseRequestAdmin):
     inlines = [RoomEntryInline, TransportationInline, EventAgendaInline, SeriesGroupEntryInline]
 
 
-# Configuration admin classes removed as part of migration to Form Composer system
-# The new Form Composer system provides the configuration interface
+# Import configuration admin classes  
+from .configuration_admin import DynamicModelAdmin, DynamicFieldAdmin, DynamicModelMigrationAdmin
+
+# @admin.register(DynamicFieldValue)  # Removed from admin panel - use Configuration dashboard instead
+class DynamicFieldValueAdmin(admin.ModelAdmin):
+    list_display = ['field', 'content_type', 'object_id', 'get_value_display', 'created_at']
+    list_filter = ['field__field_type', 'content_type', 'created_at']
+    search_fields = ['field__name', 'field__display_name', 'value_text']
+    readonly_fields = ['created_at', 'updated_at']
+    raw_id_fields = ['field']
+    
+    def get_value_display(self, obj):
+        """Display the field value in a readable format"""
+        value = obj.get_value()
+        if value is None:
+            return "None"
+        elif isinstance(value, str) and len(value) > 50:
+            return f"{value[:47]}..."
+        else:
+            return str(value)
+    get_value_display.short_description = "Value"

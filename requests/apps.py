@@ -11,3 +11,14 @@ class RequestsConfig(AppConfig):
             import requests.signals
         except ImportError:
             pass
+        
+        # Import configuration enforcement to register signal handlers
+        import requests.services.config_enforcement
+        
+        # Register admin form injection for custom fields
+        try:
+            from requests.services.admin_form_injector import auto_register_admin_injection
+            auto_register_admin_injection()
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to register admin injection: {e}")
