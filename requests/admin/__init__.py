@@ -28,7 +28,7 @@ def sanitize_csv_value(value):
 class RoomEntryInline(admin.TabularInline):
     model = RoomEntry
     extra = 1
-    fields = ['room_type', 'occupancy_type', 'category', 'occupancy', 'quantity', 'rate_per_night']
+    fields = ['room_type', 'occupancy_type', 'quantity', 'rate_per_night']
     verbose_name = "Room Entry"
     verbose_name_plural = "Room Configuration"
     can_delete = True
@@ -73,7 +73,7 @@ class EventAgendaInline(admin.TabularInline):
 class SeriesRoomEntryInline(admin.TabularInline):
     model = SeriesRoomEntry
     extra = 1
-    fields = ['room_type', 'occupancy_type', 'category', 'occupancy', 'quantity', 'rate_per_night']
+    fields = ['room_type', 'occupancy_type', 'quantity', 'rate_per_night']
     verbose_name = "Room Configuration"
     verbose_name_plural = "Room Configuration for this Date"
     can_delete = True
@@ -85,10 +85,10 @@ class SeriesRoomEntryInline(admin.TabularInline):
 class SeriesGroupEntryInline(admin.TabularInline):
     model = SeriesGroupEntry
     extra = 0
-    fields = ['arrival_date', 'departure_date', 'nights', 'arrival_time', 'departure_time', 'group_size', 'special_notes']
+    fields = ['arrival_date', 'departure_date', 'nights', 'room_type', 'occupancy_type', 'number_of_rooms', 'rate_per_night']
     readonly_fields = ['nights']
     verbose_name = "Series Group Entry"
-    verbose_name_plural = "Series Group Schedule & Arrivals"
+    verbose_name_plural = "Series Group Details"
     can_delete = True
     
     def get_extra(self, request, obj=None, **kwargs):

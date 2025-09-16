@@ -330,10 +330,18 @@ class Request(models.Model):
             series_total_room_nights = 0
             
             for series_entry in self.series_entries.all():
-                for room in series_entry.room_entries.all():
-                    series_room_total += room.get_total_cost()
-                    series_total_rooms += room.quantity
-                    series_total_room_nights += room.quantity * series_entry.nights
+                # Check if series entry has direct room configuration or uses SeriesRoomEntry objects
+                if series_entry.room_type and series_entry.number_of_rooms:
+                    # Use direct room fields from SeriesGroupEntry
+                    series_room_total += series_entry.get_total_cost()
+                    series_total_rooms += series_entry.number_of_rooms
+                    series_total_room_nights += series_entry.number_of_rooms * (series_entry.nights or 0)
+                else:
+                    # Fall back to SeriesRoomEntry objects (backward compatibility)
+                    for room in series_entry.room_entries.all():
+                        series_room_total += room.get_total_cost()
+                        series_total_rooms += room.quantity
+                        series_total_room_nights += room.quantity * (series_entry.nights or 0)
             
             room_total = series_room_total
             total_rooms = series_total_rooms
@@ -366,57 +374,31 @@ class CancelledRequest(Request):
 
 class RoomEntry(models.Model):
     """
-    Dynamic room entry system for requests with different room types and categories.
+    Dynamic room entry system for requests with configurable room types and occupancy types.
     """
-    ROOM_CATEGORIES = [
-        ('Superior', 'Superior'),
-        ('Deluxe', 'Deluxe'),
-        ('Executive', 'Executive'),
-        ('Villa with Garden', 'Villa with Garden'),
-        ('Villa with Pool', 'Villa with Pool'),
-    ]
-    
-    OCCUPANCY_TYPES = [
-        ('Single', 'Single'),
-        ('Double', 'Double'),
-        ('Twin', 'Twin'),
-    ]
-    
     request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name='room_entries')
-    category = models.CharField(max_length=20, choices=ROOM_CATEGORIES)
-    occupancy = models.CharField(max_length=10, choices=OCCUPANCY_TYPES)
     
-    # New configurable fields (nullable for backward compatibility)
+    # Configurable fields linked to admin-configured choices
     room_type = models.ForeignKey(
         'RoomType', 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True,
+        on_delete=models.PROTECT, 
+        null=False, 
+        blank=False,
         help_text="Select from admin-configured room types"
     )
     occupancy_type = models.ForeignKey(
         'RoomOccupancy', 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True,
+        on_delete=models.PROTECT, 
+        null=False, 
+        blank=False,
         help_text="Select from admin-configured occupancy types"
     )
     
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     rate_per_night = models.DecimalField(max_digits=8, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
     
-    @property
-    def effective_room_type(self):
-        """Return room type from new config or fallback to legacy category"""
-        return self.room_type.name if self.room_type else self.category
-    
-    @property
-    def effective_occupancy(self):
-        """Return occupancy from new config or fallback to legacy occupancy"""
-        return self.occupancy_type.label if self.occupancy_type else self.occupancy
-    
     def __str__(self):
-        return f"{self.quantity}x {self.effective_room_type} ({self.effective_occupancy})"
+        return f"{self.quantity}x {self.room_type.name} ({self.occupancy_type.label})"
     
     def get_total_cost(self):
         """Calculate total cost for this room entry"""
@@ -486,16 +468,30 @@ class EventAgenda(models.Model):
 
 class SeriesGroupEntry(models.Model):
     """
-    Series Group support for multiple arrival/departure dates with different room configurations.
+    Series Group support for multiple arrival/departure dates with room configurations.
     """
     request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name='series_entries')
     arrival_date = models.DateField(db_index=True)
     departure_date = models.DateField()
-    arrival_time = models.TimeField(null=True, blank=True, help_text="Expected arrival time")
-    departure_time = models.TimeField(null=True, blank=True, help_text="Expected departure time") 
     nights = models.PositiveIntegerField(editable=False)
-    group_size = models.PositiveIntegerField()
-    special_notes = models.TextField(blank=True)
+    
+    # Room configuration fields
+    room_type = models.ForeignKey(
+        'RoomType', 
+        on_delete=models.PROTECT, 
+        null=False, 
+        blank=False,
+        help_text="Select from admin-configured room types"
+    )
+    occupancy_type = models.ForeignKey(
+        'RoomOccupancy', 
+        on_delete=models.PROTECT, 
+        null=False, 
+        blank=False,
+        help_text="Select from admin-configured occupancy types"
+    )
+    number_of_rooms = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    rate_per_night = models.DecimalField(max_digits=8, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
     
     if TYPE_CHECKING:
         room_entries: 'RelatedManager[SeriesRoomEntry]'
@@ -523,62 +519,40 @@ class SeriesGroupEntry(models.Model):
         self.clean()
         super().save(*args, **kwargs)
     
+    def get_total_cost(self):
+        """Calculate total cost for this series entry"""
+        return Decimal(str(self.number_of_rooms)) * self.rate_per_night * Decimal(self.nights or 0)
+    
     def __str__(self):
-        return f"Series: {self.arrival_date} to {self.departure_date} ({self.group_size} pax)"
+        return f"Series: {self.arrival_date} to {self.departure_date} ({self.number_of_rooms}x {self.room_type.name})"
 
 class SeriesRoomEntry(models.Model):
     """
     Room configuration for each series group entry.
     """
-    ROOM_CATEGORIES = [
-        ('Superior', 'Superior'),
-        ('Deluxe', 'Deluxe'),
-        ('Executive', 'Executive'),
-        ('Villa with Garden', 'Villa with Garden'),
-        ('Villa with Pool', 'Villa with Pool'),
-    ]
-    
-    OCCUPANCY_TYPES = [
-        ('Single', 'Single'),
-        ('Double', 'Double'),
-        ('Twin', 'Twin'),
-    ]
-    
     series_entry = models.ForeignKey(SeriesGroupEntry, on_delete=models.CASCADE, related_name='room_entries')
-    category = models.CharField(max_length=20, choices=ROOM_CATEGORIES)
-    occupancy = models.CharField(max_length=10, choices=OCCUPANCY_TYPES)
     
-    # New configurable fields (nullable for backward compatibility)
+    # Configurable fields linked to admin-configured choices
     room_type = models.ForeignKey(
         'RoomType', 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True,
+        on_delete=models.PROTECT, 
+        null=False, 
+        blank=False,
         help_text="Select from admin-configured room types"
     )
     occupancy_type = models.ForeignKey(
         'RoomOccupancy', 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True,
+        on_delete=models.PROTECT, 
+        null=False, 
+        blank=False,
         help_text="Select from admin-configured occupancy types"
     )
     
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     rate_per_night = models.DecimalField(max_digits=8, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
     
-    @property
-    def effective_room_type(self):
-        """Return room type from new config or fallback to legacy category"""
-        return self.room_type.name if self.room_type else self.category
-    
-    @property
-    def effective_occupancy(self):
-        """Return occupancy from new config or fallback to legacy occupancy"""
-        return self.occupancy_type.label if self.occupancy_type else self.occupancy
-    
     def __str__(self):
-        return f"{self.quantity}x {self.effective_room_type} ({self.effective_occupancy})"
+        return f"{self.quantity}x {self.room_type.name} ({self.occupancy_type.label})"
     
     def get_total_cost(self):
         """Calculate total cost for this series room entry"""
