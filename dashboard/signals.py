@@ -259,7 +259,7 @@ def auto_generate_request_notifications(sender, instance, created, **kwargs):
             old_notifications = Notification.objects.filter(
                 content_type=content_type,
                 object_id=instance.id,
-                notification_type__in=['beo', 'arrival', 'event_checkin', 'event_start', 'checkin']
+notification_type__in=['beo', 'arrival', 'event_checkin', 'event_start', 'checkin', 'deadline']
             )
             deleted_count = old_notifications.count()
             if deleted_count > 0:
@@ -278,8 +278,11 @@ def auto_generate_request_notifications(sender, instance, created, **kwargs):
         logger.error(f"Error generating deadline notifications for request {instance.id}: {str(e)}")
 
 
-@receiver(post_save, sender='requests.EventAgenda')
+@receiver(post_save)
 def auto_generate_event_agenda_notifications(sender, instance, created, **kwargs):
+    # Only process EventAgenda saves
+    if sender.__name__ != 'EventAgenda':
+        return
     """Auto-generate notifications when EventAgenda dates change"""
     from django.contrib.contenttypes.models import ContentType
     from dashboard.models import Notification
@@ -311,8 +314,11 @@ def auto_generate_event_agenda_notifications(sender, instance, created, **kwargs
         logger.error(f"Error generating event notifications for agenda {instance.id}: {str(e)}")
 
 
-@receiver(post_save, sender='requests.SeriesGroupEntry')
+@receiver(post_save)
 def auto_generate_series_entry_notifications(sender, instance, created, **kwargs):
+    # Only process SeriesGroupEntry saves
+    if sender.__name__ != 'SeriesGroupEntry':
+        return
     """Auto-generate notifications when SeriesGroupEntry dates change"""
     from django.contrib.contenttypes.models import ContentType
     from dashboard.models import Notification
