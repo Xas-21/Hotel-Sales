@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'agreements',
     'sales_calls',
     'dashboard',
+    'form_composer',  # New modern configuration system
 ]
 
 MIDDLEWARE = [
