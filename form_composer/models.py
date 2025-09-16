@@ -529,3 +529,41 @@ class UserPreference(models.Model):
             defaults={'preference_value': value}
         )
         return pref
+
+
+# Signal handlers for cache invalidation
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+
+@receiver([post_save, post_delete], sender=FormDefinition)
+def invalidate_form_definition_cache(sender, instance, **kwargs):
+    """Invalidate caches when FormDefinition changes."""
+    from .services import ConfigRegistry, ConfigEnforcementV2
+    
+    # Clear registry cache for the target model
+    if instance.target_model:
+        try:
+            model_class = instance.target_model.model_class()
+            if model_class:
+                ConfigRegistry._clear_cache_for_model(model_class)
+        except:
+            pass  # Model might not exist anymore
+    
+    # Clear enforcement cache for this form definition
+    ConfigEnforcementV2.clear_cache(instance.id)
+
+@receiver([post_save, post_delete], sender=FormSection)
+def invalidate_form_section_cache(sender, instance, **kwargs):
+    """Invalidate caches when FormSection changes."""
+    from .services import ConfigEnforcementV2
+    
+    # Clear enforcement cache for the parent form definition
+    ConfigEnforcementV2.clear_cache(instance.form_definition.id)
+
+@receiver([post_save, post_delete], sender=FieldConfig)
+def invalidate_field_config_cache(sender, instance, **kwargs):
+    """Invalidate caches when FieldConfig changes."""
+    from .services import ConfigEnforcementV2
+    
+    # Clear enforcement cache for the parent form definition
+    ConfigEnforcementV2.clear_cache(instance.section.form_definition.id)
