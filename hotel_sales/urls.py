@@ -8,6 +8,10 @@ from dashboard.views import (
     health_check, api_health_check, calendar_view, api_calendar_events,
     api_update_request_status, api_update_agreement_status, logout_view
 )
+from dashboard.api_views import (
+    get_notifications, get_unread_count, mark_notification_read, 
+    mark_all_read, generate_notifications
+)
 
 # Configure admin site headers
 admin.site.site_header = "Hotel Sales Request Management System"
@@ -27,6 +31,14 @@ urlpatterns = [
     path('api/calendar/events/', api_calendar_events, name='api_calendar_events'),
     path('api/update-request-status/', api_update_request_status, name='api_update_request_status'),
     path('api/update-agreement-status/', api_update_agreement_status, name='api_update_agreement_status'),
+    
+    # Notification API endpoints
+    path('api/notifications/', get_notifications, name='api_notifications'),
+    path('api/notifications/unread-count/', get_unread_count, name='api_notifications_unread_count'),
+    path('api/notifications/<int:notification_id>/mark-read/', mark_notification_read, name='api_notification_mark_read'),
+    path('api/notifications/mark-all-read/', mark_all_read, name='api_notifications_mark_all_read'),
+    path('api/notifications/generate/', generate_notifications, name='api_notifications_generate'),
+    
     path('logout/', logout_view, name='logout'),
     path('configuration/', include('requests.configuration_urls')),
     path('admin/', admin.site.urls),

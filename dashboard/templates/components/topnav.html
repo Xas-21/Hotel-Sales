@@ -1,0 +1,383 @@
+<!-- Persistent Top Navigation Component -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark hsrms-nav" id="persistent-topnav" style="position: sticky; top: 0; z-index: 1050;">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{% url 'dashboard' %}">
+            <i class="fas fa-hotel me-2"></i>Hotel Sales Management
+        </a>
+        
+        <!-- Navigation Links -->
+        <ul class="navbar-nav me-auto">
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+                    <i class="fas fa-chart-bar me-1"></i>Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'calendar' %}active{% endif %}" href="{% url 'calendar' %}">
+                    <i class="fas fa-calendar-alt me-1"></i>Calendar
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'configuration:dashboard' %}">
+                    <i class="fas fa-sliders-h me-1"></i>Configuration
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'admin:index' %}">
+                    <i class="fas fa-cog me-1"></i>Admin Panel
+                </a>
+            </li>
+        </ul>
+        
+        <!-- Notifications and User Menu -->
+        <ul class="navbar-nav">
+            <!-- Notifications Bell -->
+            <li class="nav-item dropdown me-2">
+                <a class="nav-link position-relative" href="#" id="notificationsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notification-badge" style="font-size: 0.7em; display: none;">
+                        <span id="notification-count">0</span>
+                    </span>
+                </a>
+                <div class="dropdown-menu dropdown-menu-end shadow-lg" aria-labelledby="notificationsDropdown" style="min-width: 350px; max-height: 400px; overflow-y: auto;">
+                    <div class="dropdown-header d-flex justify-content-between align-items-center">
+                        <span class="fw-bold">Notifications</span>
+                        <button class="btn btn-sm btn-link text-muted p-0" id="mark-all-read" style="display: none;">
+                            <small>Mark all read</small>
+                        </button>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <div id="notifications-container">
+                        <div class="dropdown-item-text text-muted text-center">
+                            <i class="fas fa-bell-slash me-2"></i>No new notifications
+                        </div>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item text-center" href="#" id="view-all-notifications">
+                        <small>View all notifications</small>
+                    </a>
+                </div>
+            </li>
+            
+            <!-- User Profile -->
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-user me-1"></i>{{ request.user.get_full_name|default:request.user.username }}
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="{% url 'admin:auth_user_change' request.user.id %}"><i class="fas fa-user-edit me-2"></i>Profile</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{% url 'admin:logout' %}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+</nav>
+
+<!-- Add body padding to prevent content overlap with sticky nav -->
+<style>
+.hsrms-nav {
+    box-shadow: 0 2px 4px rgba(0,0,0,.1);
+}
+body {
+    padding-top: 0 !important; /* Reset any existing padding */
+}
+#persistent-topnav + * {
+    margin-top: 0 !important; /* Ensure content starts right after nav */
+}
+
+/* Notification styles */
+#notification-badge {
+    font-size: 0.7em;
+    min-width: 1.2em;
+    height: 1.2em;
+}
+
+.notification-item {
+    max-width: 320px;
+    word-wrap: break-word;
+}
+
+.notification-item.unread {
+    background-color: #f8f9fa;
+    border-left: 3px solid #007bff;
+}
+
+.notification-item .notification-time {
+    font-size: 0.75em;
+    color: #6c757d;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 767px) {
+    .hsrms-nav .dropdown-menu {
+        min-width: 280px !important;
+        right: 0 !important;
+        left: auto !important;
+    }
+    
+    .hsrms-nav .navbar-nav {
+        margin-top: 0.5rem;
+    }
+}
+
+/* Admin page compatibility */
+body.admin #persistent-topnav {
+    margin-bottom: 0;
+}
+</style>
+
+<!-- Notification JavaScript -->
+<script>
+class NotificationManager {
+    constructor() {
+        this.pollingInterval = null;
+        this.lastPollTime = null;
+        this.dropdownOpen = false;
+        this.init();
+    }
+    
+    init() {
+        // Start polling for notifications
+        this.startPolling();
+        
+        // Bind event listeners
+        this.bindEvents();
+        
+        // Initial load
+        this.updateUnreadCount();
+    }
+    
+    bindEvents() {
+        const dropdown = document.getElementById('notificationsDropdown');
+        const markAllReadBtn = document.getElementById('mark-all-read');
+        
+        if (dropdown) {
+            dropdown.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.toggleDropdown();
+            });
+        }
+        
+        if (markAllReadBtn) {
+            markAllReadBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.markAllRead();
+            });
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (this.dropdownOpen && !e.target.closest('#notificationsDropdown') && !e.target.closest('.dropdown-menu')) {
+                this.closeDropdown();
+            }
+        });
+    }
+    
+    startPolling() {
+        // Poll every 30 seconds
+        this.pollingInterval = setInterval(() => {
+            this.updateUnreadCount();
+        }, 30000);
+    }
+    
+    stopPolling() {
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+            this.pollingInterval = null;
+        }
+    }
+    
+    async updateUnreadCount() {
+        try {
+            const response = await fetch('/api/notifications/unread-count/');
+            const data = await response.json();
+            
+            if (data.success) {
+                this.updateBadge(data.unread_count);
+            }
+        } catch (error) {
+            console.error('Failed to fetch unread count:', error);
+        }
+    }
+    
+    updateBadge(count) {
+        const badge = document.getElementById('notification-badge');
+        const countSpan = document.getElementById('notification-count');
+        
+        if (badge && countSpan) {
+            if (count > 0) {
+                badge.style.display = 'inline-block';
+                countSpan.textContent = count > 99 ? '99+' : count;
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    }
+    
+    async toggleDropdown() {
+        const dropdownMenu = document.querySelector('#notificationsDropdown + .dropdown-menu');
+        
+        if (!this.dropdownOpen) {
+            await this.loadNotifications();
+            this.openDropdown();
+        } else {
+            this.closeDropdown();
+        }
+    }
+    
+    openDropdown() {
+        const dropdownMenu = document.querySelector('#notificationsDropdown + .dropdown-menu');
+        if (dropdownMenu) {
+            dropdownMenu.classList.add('show');
+            this.dropdownOpen = true;
+        }
+    }
+    
+    closeDropdown() {
+        const dropdownMenu = document.querySelector('#notificationsDropdown + .dropdown-menu');
+        if (dropdownMenu) {
+            dropdownMenu.classList.remove('show');
+            this.dropdownOpen = false;
+        }
+    }
+    
+    async loadNotifications() {
+        const container = document.getElementById('notifications-container');
+        const markAllBtn = document.getElementById('mark-all-read');
+        
+        try {
+            // Show loading
+            if (container) {
+                container.innerHTML = '<div class="dropdown-item-text text-center"><i class="fas fa-spinner fa-spin me-2"></i>Loading notifications...</div>';
+            }
+            
+            const response = await fetch('/api/notifications/?limit=10');
+            const data = await response.json();
+            
+            if (data.success && container) {
+                this.renderNotifications(data.notifications, container);
+                
+                // Show/hide mark all read button
+                if (markAllBtn) {
+                    const hasUnread = data.notifications.some(n => !n.is_read);
+                    markAllBtn.style.display = hasUnread ? 'block' : 'none';
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load notifications:', error);
+            if (container) {
+                container.innerHTML = '<div class="dropdown-item-text text-danger text-center"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load notifications</div>';
+            }
+        }
+    }
+    
+    renderNotifications(notifications, container) {
+        if (notifications.length === 0) {
+            container.innerHTML = '<div class="dropdown-item-text text-muted text-center"><i class="fas fa-bell-slash me-2"></i>No new notifications</div>';
+            return;
+        }
+        
+        container.innerHTML = notifications.map(notification => `
+            <div class="dropdown-item notification-item ${notification.is_read ? '' : 'unread'} ${notification.priority_class}" 
+                 data-notification-id="${notification.id}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center mb-1">
+                            <i class="${notification.icon} me-2"></i>
+                            <small class="fw-bold">${this.escapeHtml(notification.title)}</small>
+                            ${notification.is_read ? '' : '<span class="badge bg-primary ms-2" style="font-size: 0.6em;">NEW</span>'}
+                        </div>
+                        <div class="small text-muted mb-1">${this.escapeHtml(notification.message)}</div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="notification-time">${notification.time_since}</span>
+                            ${notification.link_url ? `<a href="${notification.link_url}" class="btn btn-sm btn-outline-primary" style="font-size: 0.7em;">${this.escapeHtml(notification.link_text || 'View')}</a>` : ''}
+                        </div>
+                    </div>
+                    ${!notification.is_read ? `<button class="btn btn-sm btn-link text-muted p-0 ms-2" onclick="notificationManager.markAsRead(${notification.id})" title="Mark as read"><i class="fas fa-check"></i></button>` : ''}
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    async markAsRead(notificationId) {
+        try {
+            const response = await fetch(`/api/notifications/${notificationId}/mark-read/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': this.getCSRFToken(),
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                // Remove the unread styling and NEW badge
+                const notificationElement = document.querySelector(`[data-notification-id="${notificationId}"]`);
+                if (notificationElement) {
+                    notificationElement.classList.remove('unread');
+                    const newBadge = notificationElement.querySelector('.badge');
+                    if (newBadge) newBadge.remove();
+                    const markBtn = notificationElement.querySelector('button[onclick*="markAsRead"]');
+                    if (markBtn) markBtn.remove();
+                }
+                
+                // Update unread count
+                this.updateUnreadCount();
+                
+                // Hide mark all read if no unread left
+                const hasUnread = document.querySelectorAll('.notification-item.unread').length > 0;
+                const markAllBtn = document.getElementById('mark-all-read');
+                if (markAllBtn) {
+                    markAllBtn.style.display = hasUnread ? 'block' : 'none';
+                }
+            }
+        } catch (error) {
+            console.error('Failed to mark notification as read:', error);
+        }
+    }
+    
+    async markAllRead() {
+        try {
+            const response = await fetch('/api/notifications/mark-all-read/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': this.getCSRFToken(),
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                // Reload notifications
+                await this.loadNotifications();
+                this.updateUnreadCount();
+            }
+        } catch (error) {
+            console.error('Failed to mark all as read:', error);
+        }
+    }
+    
+    getCSRFToken() {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'csrftoken') {
+                return value;
+            }
+        }
+        return '';
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+}
+
+// Initialize notification manager when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    window.notificationManager = new NotificationManager();
+});
+</script>

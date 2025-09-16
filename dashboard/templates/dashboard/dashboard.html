@@ -46,98 +46,11 @@
     </style>
 </head>
 <body>
+    <!-- Include Persistent Navigation -->
+    {% include 'components/topnav.html' %}
+    
     <div class="container-fluid">
         <div class="row">
-            <!-- Header -->
-            <div class="col-12">
-                <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-                    <div class="container-fluid">
-                        <a class="navbar-brand" href="{% url 'dashboard' %}">
-                            <i class="fas fa-hotel me-2"></i>Hotel Sales Management
-                        </a>
-                        <ul class="navbar-nav ms-auto">
-                            <li class="nav-item">
-                                <a class="nav-link active" href="{% url 'dashboard' %}">
-                                    <i class="fas fa-chart-bar me-1"></i>Dashboard
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'calendar' %}">
-                                    <i class="fas fa-calendar-alt me-1"></i>Calendar
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'configuration:dashboard' %}">
-                                    <i class="fas fa-sliders-h me-1"></i>Configuration
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'admin:index' %}">
-                                    <i class="fas fa-cog me-1"></i>Admin Panel
-                                </a>
-                            </li>
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-user-circle me-1"></i>
-                                    {% if user.is_authenticated %}
-                                        {% if user.profile %}{{ user.profile.full_name }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}
-                                    {% else %}Guest{% endif %}
-                                </a>
-                                <div class="dropdown-menu dropdown-menu-end profile-dropdown" aria-labelledby="profileDropdown">
-                                    <div class="dropdown-header text-center">
-                                        <i class="fas fa-user-circle fa-3x mb-2"></i><br>
-                                        <strong>
-                                            {% if user.is_authenticated %}
-                                                {% if user.profile %}{{ user.profile.full_name }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}
-                                            {% else %}Guest{% endif %}
-                                        </strong><br>
-                                        <small class="text-muted">{{ user.email|default:"No email" }}</small>
-                                    </div>
-                                    <div class="dropdown-divider"></div>
-                                    <div class="dropdown-item-text">
-                                        <small><strong>Role:</strong> {% if user.profile %}{{ user.profile.role_label }}{% elif user.is_superuser %}Admin{% elif user.is_staff %}Staff Member{% else %}User{% endif %}</small>
-                                    </div>
-                                    <div class="dropdown-item-text">
-                                        <small><strong>Permissions:</strong></small>
-                                        <ul class="small mb-0 ps-3">
-                                            {% if user.profile %}
-                                                {% for permission in user.profile.permissions_summary %}
-                                                    <li>{{ permission }}</li>
-                                                {% endfor %}
-                                            {% elif user.is_superuser %}
-                                                <li>All Permissions</li>
-                                            {% else %}
-                                                {% if user.is_staff %}
-                                                    <li>Admin Panel Access</li>
-                                                {% endif %}
-                                                <li>Dashboard Access</li>
-                                                <li>Calendar Access</li>
-                                            {% endif %}
-                                        </ul>
-                                    </div>
-                                    <div class="dropdown-divider"></div>
-                                    {% if user.is_authenticated and user.id %}
-                                        <a class="dropdown-item" href="/admin/auth/user/{{ user.id }}/change/">
-                                            <i class="fas fa-edit me-2"></i>Edit Profile
-                                        </a>
-                                        <a class="dropdown-item" href="/admin/auth/user/{{ user.id }}/password/">
-                                            <i class="fas fa-key me-2"></i>Change Password
-                                        </a>
-                                    {% else %}
-                                        <span class="dropdown-item-text text-muted">
-                                            <i class="fas fa-exclamation-triangle me-2"></i>Please log in again
-                                        </span>
-                                    {% endif %}
-                                    <div class="dropdown-divider"></div>
-                                    <a class="dropdown-item text-danger" href="{% url 'logout' %}">
-                                        <i class="fas fa-sign-out-alt me-2"></i>Logout
-                                    </a>
-                                </div>
-                            </li>
-                        </ul>
-                    </div>
-                </nav>
-            </div>
         </div>
 
         <!-- Dashboard Content -->
@@ -461,76 +374,7 @@
             </div>
         </div>
 
-        <!-- Section 3: Alerts -->
-        {% if approaching_deadlines or overdue_followups or imminent_arrivals %}
-        <div class="dashboard-section" data-section="alerts-section">
-            <div class="col-12">
-                <div class="card border-warning">
-                    <div class="card-header bg-warning" data-section-header>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Alerts & Notifications</h5>
-                            <button id="edit-alerts-btn" class="btn btn-sm btn-outline-warning">
-                                <i class="fas fa-edit me-1"></i>Edit Alerts
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        {% if approaching_deadlines %}
-                            <h6>Approaching Agreement Deadlines</h6>
-                            <ul class="list-unstyled">
-                                {% for agreement in approaching_deadlines %}
-                                <li class="mb-2">
-                                    <i class="fas fa-calendar-exclamation text-warning me-2"></i>
-                                    {{ agreement.account.name }} - {{ agreement.rate_type }} 
-                                    (Due: {{ agreement.return_deadline }})
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        {% endif %}
-
-                        {% if overdue_followups %}
-                            <h6>Overdue Follow-ups</h6>
-                            <ul class="list-unstyled">
-                                {% for followup in overdue_followups %}
-                                <li class="mb-2">
-                                    <i class="fas fa-phone text-danger me-2"></i>
-                                    {{ followup.account.name }} - {{ followup.meeting_subject }}
-                                    (Due: {{ followup.follow_up_date }})
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        {% endif %}
-
-                        {% if imminent_arrivals %}
-                            <h6>Imminent Arrivals & Events</h6>
-                            <ul class="list-unstyled">
-                                {% for arrival in imminent_arrivals %}
-                                <li class="mb-2">
-                                    {% if arrival.date == today %}
-                                        <i class="fas fa-calendar-day text-danger me-2"></i>
-                                        <strong>TODAY:</strong>
-                                    {% elif arrival.date == tomorrow %}
-                                        <i class="fas fa-calendar-plus text-warning me-2"></i>
-                                        <strong>TOMORROW:</strong>
-                                    {% else %}
-                                        <i class="fas fa-calendar-check text-info me-2"></i>
-                                        <strong>IN 2 DAYS:</strong>
-                                    {% endif %}
-                                    {{ arrival.account.name }} - {{ arrival.request_type }}
-                                    {% if arrival.type == 'arrival' %}
-                                        (Check-in: {{ arrival.date }})
-                                    {% else %}
-                                        (Event Start: {{ arrival.date }})
-                                    {% endif %}
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
+        <!-- Alerts & Notifications are now in the persistent navigation bar bell icon -->
 
         <!-- Include Quick Actions Panel -->
         {% include 'dashboard/quick_actions.html' %}
