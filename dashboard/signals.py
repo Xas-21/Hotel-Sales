@@ -1,0 +1,180 @@
+"""
+Django signals for automatic notification cleanup.
+
+Automatically removes or updates notifications when:
+- Requests or agreements are deleted
+- Status changes make notifications irrelevant (Paid, Signed, etc.)
+"""
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import receiver
+from django.contrib.contenttypes.models import ContentType
+
+from dashboard.models import Notification
+from requests.models import Request
+from agreements.models import Agreement
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+@receiver(post_delete, sender=Request)
+def cleanup_notifications_on_request_delete(sender, instance, **kwargs):
+    """Remove all notifications related to a deleted request."""
+    content_type = ContentType.objects.get_for_model(Request)
+    
+    deleted_count = Notification.objects.filter(
+        content_type=content_type,
+        object_id=instance.id
+    ).delete()[0]
+    
+    if deleted_count > 0:
+        logger.info(f"Cleaned up {deleted_count} notifications for deleted request {instance.id}")
+
+
+@receiver(post_delete, sender=Agreement)
+def cleanup_notifications_on_agreement_delete(sender, instance, **kwargs):
+    """Remove all notifications related to a deleted agreement."""
+    content_type = ContentType.objects.get_for_model(Agreement)
+    
+    deleted_count = Notification.objects.filter(
+        content_type=content_type,
+        object_id=instance.id
+    ).delete()[0]
+    
+    if deleted_count > 0:
+        logger.info(f"Cleaned up {deleted_count} notifications for deleted agreement {instance.id}")
+
+
+@receiver(post_save, sender=Request)
+def cleanup_notifications_on_request_status_change(sender, instance, created, **kwargs):
+    """Remove irrelevant notifications when request status changes."""
+    if created:
+        return  # Skip for new requests
+    
+    content_type = ContentType.objects.get_for_model(Request)
+    deleted_count = 0
+    
+    # Remove payment deadline notifications if request is paid
+    if instance.status in ['Paid', 'Completed', 'Cancelled']:
+        payment_notifications = Notification.objects.filter(
+            content_type=content_type,
+            object_id=instance.id,
+            notification_type='payment'
+        )
+        deleted_count += payment_notifications.count()
+        payment_notifications.delete()
+    
+    # Remove offer deadline notifications if request is confirmed/paid
+    if instance.status in ['Confirmed', 'Partially Paid', 'Paid', 'Completed', 'Cancelled']:
+        offer_notifications = Notification.objects.filter(
+            content_type=content_type,
+            object_id=instance.id,
+            notification_type='deadline'
+        )
+        deleted_count += offer_notifications.count()
+        offer_notifications.delete()
+    
+    # Remove check-in and event notifications if request is cancelled
+    if instance.status == 'Cancelled':
+        event_notifications = Notification.objects.filter(
+            content_type=content_type,
+            object_id=instance.id,
+            notification_type__in=['beo', 'arrival', 'event_checkin', 'event_start']
+        )
+        deleted_count += event_notifications.count()
+        event_notifications.delete()
+    
+    if deleted_count > 0:
+        logger.info(f"Cleaned up {deleted_count} notifications for request {instance.id} status change to {instance.status}")
+
+
+@receiver(post_save, sender=Agreement)
+def cleanup_notifications_on_agreement_status_change(sender, instance, created, **kwargs):
+    """Remove irrelevant notifications when agreement status changes."""
+    if created:
+        return  # Skip for new agreements
+    
+    content_type = ContentType.objects.get_for_model(Agreement)
+    deleted_count = 0
+    
+    # Remove return deadline notifications if agreement is signed
+    if instance.status == 'Signed':
+        return_notifications = Notification.objects.filter(
+            content_type=content_type,
+            object_id=instance.id,
+            notification_type='agreement'
+        )
+        deleted_count += return_notifications.count()
+        return_notifications.delete()
+    
+    # Remove renewal notifications if agreement is expired or cancelled
+    if instance.status in ['Expired', 'Cancelled']:
+        renewal_notifications = Notification.objects.filter(
+            content_type=content_type,
+            object_id=instance.id,
+            notification_type='renewal'
+        )
+        deleted_count += renewal_notifications.count()
+        renewal_notifications.delete()
+    
+    if deleted_count > 0:
+        logger.info(f"Cleaned up {deleted_count} notifications for agreement {instance.id} status change to {instance.status}")
+
+
+def cleanup_all_stale_notifications():
+    """
+    Manual cleanup function to remove stale notifications.
+    Can be called as needed to clean up inconsistencies.
+    """
+    total_deleted = 0
+    
+    # Clean up notifications for deleted requests
+    request_ct = ContentType.objects.get_for_model(Request)
+    stale_request_notifications = Notification.objects.filter(content_type=request_ct).exclude(
+        object_id__in=Request.objects.values_list('id', flat=True)
+    )
+    count = stale_request_notifications.count()
+    if count > 0:
+        stale_request_notifications.delete()
+        total_deleted += count
+        logger.info(f"Cleaned up {count} notifications for deleted requests")
+    
+    # Clean up notifications for deleted agreements
+    agreement_ct = ContentType.objects.get_for_model(Agreement)
+    stale_agreement_notifications = Notification.objects.filter(content_type=agreement_ct).exclude(
+        object_id__in=Agreement.objects.values_list('id', flat=True)
+    )
+    count = stale_agreement_notifications.count()
+    if count > 0:
+        stale_agreement_notifications.delete()
+        total_deleted += count
+        logger.info(f"Cleaned up {count} notifications for deleted agreements")
+    
+    # Clean up notifications for non-actionable request statuses
+    paid_requests = Request.objects.filter(status__in=['Paid', 'Completed', 'Cancelled'])
+    for request in paid_requests:
+        payment_notifications = Notification.objects.filter(
+            content_type=request_ct,
+            object_id=request.id,
+            notification_type='payment'
+        )
+        count = payment_notifications.count()
+        if count > 0:
+            payment_notifications.delete()
+            total_deleted += count
+    
+    # Clean up notifications for signed agreements
+    signed_agreements = Agreement.objects.filter(status='Signed')
+    for agreement in signed_agreements:
+        return_notifications = Notification.objects.filter(
+            content_type=agreement_ct,
+            object_id=agreement.id,
+            notification_type='agreement'
+        )
+        count = return_notifications.count()
+        if count > 0:
+            return_notifications.delete()
+            total_deleted += count
+    
+    logger.info(f"Manual cleanup completed. Removed {total_deleted} stale notifications")
+    return total_deleted
