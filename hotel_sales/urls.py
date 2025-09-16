@@ -10,7 +10,7 @@ from dashboard.views import (
 )
 from dashboard.api_views import (
     get_notifications, get_unread_count, mark_notification_read, 
-    mark_all_read, generate_notifications
+    mark_all_read, clear_all_notifications, generate_notifications
 )
 
 # Configure admin site headers
@@ -37,6 +37,7 @@ urlpatterns = [
     path('api/notifications/unread-count/', get_unread_count, name='api_notifications_unread_count'),
     path('api/notifications/<int:notification_id>/mark-read/', mark_notification_read, name='api_notification_mark_read'),
     path('api/notifications/mark-all-read/', mark_all_read, name='api_notifications_mark_all_read'),
+    path('api/notifications/clear-all/', clear_all_notifications, name='api_notifications_clear_all'),
     path('api/notifications/generate/', generate_notifications, name='api_notifications_generate'),
     
     path('logout/', logout_view, name='logout'),

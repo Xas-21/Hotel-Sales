@@ -52,7 +52,21 @@ def auto_generate_agreement_notifications(sender, instance, created, **kwargs):
     print(f"🔔 SIGNAL DEBUG: Agreement {instance.id} saved - Status: {instance.status}")
     logger.info(f"🔔 Agreement signal triggered: {instance.account.name} (ID: {instance.id}) - Status: {instance.status} - {'Created' if created else 'Updated'}")
     try:
-        # Generate notifications for this specific agreement based on its current state
+        # FIRST: Clean up existing notifications for this agreement if it's being updated
+        # This ensures old notifications with outdated dates are removed
+        if not created:
+            content_type = ContentType.objects.get_for_model(Agreement)
+            old_notifications = Notification.objects.filter(
+                content_type=content_type,
+                object_id=instance.id,
+                notification_type__in=['agreement', 'renewal']
+            )
+            deleted_count = old_notifications.count()
+            if deleted_count > 0:
+                old_notifications.delete()
+                logger.info(f"Cleaned up {deleted_count} old notifications for agreement {instance.id} before regenerating")
+        
+        # SECOND: Generate fresh notifications for this specific agreement based on its current state
         from datetime import date, timedelta
         from django.utils import timezone
         from dashboard.services.deadline_notifications import get_recipients, create_notification_if_absent

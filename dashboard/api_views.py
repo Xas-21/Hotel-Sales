@@ -90,7 +90,6 @@ def get_unread_count(request):
 
 
 @login_required
-@csrf_exempt
 @require_http_methods(["POST"])
 def mark_notification_read(request, notification_id):
     """Mark a specific notification as read"""
@@ -114,7 +113,6 @@ def mark_notification_read(request, notification_id):
 
 
 @login_required
-@csrf_exempt
 @require_http_methods(["POST"])
 def mark_all_read(request):
     """Mark all notifications as read for the current user"""
@@ -242,6 +240,24 @@ def generate_notifications(request):
                 'payment_notifications': payment_count,
                 'total': deadline_count + payment_count
             }
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def clear_all_notifications(request):
+    """Clear (delete) all notifications for the current user"""
+    try:
+        deleted_count = Notification.objects.filter(user=request.user).delete()[0]
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Cleared {deleted_count} notifications'
         })
     except Exception as e:
         return JsonResponse({

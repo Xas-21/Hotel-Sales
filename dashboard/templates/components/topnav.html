@@ -42,9 +42,14 @@
                 <div class="dropdown-menu dropdown-menu-end shadow-lg" aria-labelledby="notificationsDropdown" style="min-width: 350px; max-height: 400px; overflow-y: auto;">
                     <div class="dropdown-header d-flex justify-content-between align-items-center">
                         <span class="fw-bold">Notifications</span>
-                        <button class="btn btn-sm btn-link text-muted p-0" id="mark-all-read" style="display: none;">
-                            <small>Mark all read</small>
-                        </button>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-link text-muted p-0" id="mark-all-read" style="display: none;">
+                                <small>Mark all read</small>
+                            </button>
+                            <button class="btn btn-sm btn-link text-danger p-0" id="clear-all-alerts" style="display: none;">
+                                <small>Clear Alerts</small>
+                            </button>
+                        </div>
                     </div>
                     <div class="dropdown-divider"></div>
                     <div id="notifications-container">
@@ -151,6 +156,7 @@ class NotificationManager {
     bindEvents() {
         const dropdown = document.getElementById('notificationsDropdown');
         const markAllReadBtn = document.getElementById('mark-all-read');
+        const clearAllBtn = document.getElementById('clear-all-alerts');
         
         if (dropdown) {
             dropdown.addEventListener('click', (e) => {
@@ -163,6 +169,13 @@ class NotificationManager {
             markAllReadBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.markAllRead();
+            });
+        }
+        
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.clearAllAlerts();
             });
         }
         
@@ -258,10 +271,15 @@ class NotificationManager {
             if (data.success && container) {
                 this.renderNotifications(data.notifications, container);
                 
-                // Show/hide mark all read button
+                // Show/hide buttons
                 if (markAllBtn) {
                     const hasUnread = data.notifications.some(n => !n.is_read);
                     markAllBtn.style.display = hasUnread ? 'block' : 'none';
+                }
+                
+                const clearAllBtn = document.getElementById('clear-all-alerts');
+                if (clearAllBtn) {
+                    clearAllBtn.style.display = data.notifications.length > 0 ? 'block' : 'none';
                 }
             }
         } catch (error) {
@@ -325,11 +343,17 @@ class NotificationManager {
                 // Update unread count
                 this.updateUnreadCount();
                 
-                // Hide mark all read if no unread left
+                // Update button visibility
                 const hasUnread = document.querySelectorAll('.notification-item.unread').length > 0;
                 const markAllBtn = document.getElementById('mark-all-read');
                 if (markAllBtn) {
                     markAllBtn.style.display = hasUnread ? 'block' : 'none';
+                }
+                
+                const hasAnyNotifications = document.querySelectorAll('.notification-item').length > 0;
+                const clearAllBtn = document.getElementById('clear-all-alerts');
+                if (clearAllBtn) {
+                    clearAllBtn.style.display = hasAnyNotifications ? 'block' : 'none';
                 }
             }
         } catch (error) {
@@ -355,6 +379,32 @@ class NotificationManager {
             }
         } catch (error) {
             console.error('Failed to mark all as read:', error);
+        }
+    }
+    
+    async clearAllAlerts() {
+        try {
+            // Confirm with user before clearing all alerts
+            if (!confirm('Are you sure you want to clear all alerts? This action cannot be undone.')) {
+                return;
+            }
+            
+            const response = await fetch('/api/notifications/clear-all/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': this.getCSRFToken(),
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                // Reload notifications (should be empty)
+                await this.loadNotifications();
+                this.updateUnreadCount();
+            }
+        } catch (error) {
+            console.error('Failed to clear all alerts:', error);
         }
     }
     
