@@ -1,5 +1,5 @@
 <!-- Persistent Top Navigation Component -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark hsrms-nav" id="persistent-topnav" style="position: sticky; top: 0; z-index: 1050;">
+<nav class="navbar navbar-expand-lg {% if user_prefs.navigation.ui_theme == 'light' %}navbar-light bg-light{% elif user_prefs.navigation.ui_theme == 'dark' %}navbar-dark bg-dark{% else %}navbar-dark bg-dark{% endif %} hsrms-nav" id="persistent-topnav" style="position: sticky; top: 0; z-index: 1050;">
     <div class="container-fluid">
         <a class="navbar-brand" href="{% url 'dashboard' %}">
             <i class="fas fa-hotel me-2"></i>Hotel Sales Management

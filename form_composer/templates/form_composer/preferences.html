@@ -1,0 +1,339 @@
+{% extends 'admin/base_site.html' %}
+{% load static %}
+
+{% block title %}User Preferences - Form Composer{% endblock %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .preference-section {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .preference-item {
+            margin-bottom: 1rem;
+        }
+        
+        .preference-label {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .preference-description {
+            font-size: 0.875rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+        }
+        
+        .nav-preview {
+            border: 2px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            background: white;
+            min-height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+        
+        .nav-demo {
+            width: 100%;
+            height: 100px;
+            background: #e9ecef;
+            border-radius: 0.25rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .nav-demo.left .nav-bar {
+            width: 60px;
+            height: 100%;
+            background: #007bff;
+            float: left;
+        }
+        
+        .nav-demo.right .nav-bar {
+            width: 60px;
+            height: 100%;
+            background: #007bff;
+            float: right;
+        }
+        
+        .nav-demo.top .nav-bar {
+            width: 100%;
+            height: 30px;
+            background: #007bff;
+        }
+        
+        .theme-preview {
+            width: 50px;
+            height: 30px;
+            border-radius: 0.25rem;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+        
+        .theme-light { background: linear-gradient(45deg, #f8f9fa 50%, #ffffff 50%); }
+        .theme-dark { background: linear-gradient(45deg, #343a40 50%, #495057 50%); }
+        .theme-auto { background: linear-gradient(45deg, #f8f9fa 25%, #343a40 25%, #343a40 50%, #f8f9fa 50%, #f8f9fa 75%, #343a40 75%); }
+        
+        .btn-reset {
+            background: #dc3545;
+            border-color: #dc3545;
+        }
+        
+        .alert-auto-save {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+            display: none;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>User Preferences</h1>
+                <div>
+                    <button type="button" class="btn btn-outline-secondary me-2" id="previewBtn">
+                        <i class="fas fa-eye"></i> Live Preview
+                    </button>
+                    <button type="button" class="btn btn-reset text-white" id="resetBtn">
+                        <i class="fas fa-undo"></i> Reset to Defaults
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Navigation Preferences -->
+            <div class="preference-section">
+                <h3><i class="fas fa-compass"></i> Navigation Settings</h3>
+                <p class="text-muted">Customize how the navigation appears in your interface</p>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="preference-item">
+                            <label class="preference-label" for="navigation_placement">Navigation Placement</label>
+                            <select class="form-select" id="navigation_placement" data-key="navigation_placement">
+                                {% for value, label in navigation_options %}
+                                <option value="{{ value }}" {% if preferences.navigation_placement == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="preference-description">Choose where the main navigation appears</div>
+                        </div>
+                        
+                        <div class="preference-item">
+                            <label class="preference-label" for="sidebar_width">Sidebar Width</label>
+                            <select class="form-select" id="sidebar_width" data-key="sidebar_width">
+                                {% for value, label in sidebar_width_options %}
+                                <option value="{{ value }}" {% if preferences.sidebar_width == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="preference-description">Adjust the width of the navigation sidebar</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="nav-preview">
+                            <div class="nav-demo {{ preferences.navigation_placement }}" id="navDemo">
+                                <div class="nav-bar"></div>
+                                <div style="padding: 20px; text-align: center; color: #6c757d;">
+                                    <small>Content Area</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- UI Theme Preferences -->
+            <div class="preference-section">
+                <h3><i class="fas fa-palette"></i> Appearance</h3>
+                <p class="text-muted">Customize the visual appearance of your interface</p>
+                
+                <div class="preference-item">
+                    <label class="preference-label" for="ui_theme">UI Theme</label>
+                    <div class="d-flex align-items-center">
+                        <select class="form-select me-3" id="ui_theme" data-key="ui_theme" style="max-width: 300px;">
+                            {% for value, label in theme_options %}
+                            <option value="{{ value }}" {% if preferences.ui_theme == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <div>
+                            <span class="theme-preview theme-light" title="Light Theme"></span>
+                            <span class="theme-preview theme-dark" title="Dark Theme"></span>
+                            <span class="theme-preview theme-auto" title="Auto Theme"></span>
+                        </div>
+                    </div>
+                    <div class="preference-description">Choose your preferred color scheme</div>
+                </div>
+            </div>
+            
+            <!-- Form Composer Preferences -->
+            <div class="preference-section">
+                <h3><i class="fas fa-cog"></i> Form Composer Settings</h3>
+                <p class="text-muted">Configure how the form composer behaves and displays</p>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="preference-item">
+                            <label class="preference-label" for="form_composer_layout">Layout Style</label>
+                            <select class="form-select" id="form_composer_layout" data-key="form_composer_layout">
+                                {% for value, label in layout_options %}
+                                <option value="{{ value }}" {% if preferences.form_composer_layout == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="preference-description">How form sections are arranged</div>
+                        </div>
+                        
+                        <div class="preference-item">
+                            <label class="preference-label" for="auto_save_interval">Auto Save Interval (seconds)</label>
+                            <input type="number" class="form-control" id="auto_save_interval" data-key="auto_save_interval" 
+                                   value="{{ preferences.auto_save_interval }}" min="1" max="60">
+                            <div class="preference-description">How often to automatically save changes</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="preference-item">
+                            <label class="form-check-label preference-label">
+                                <input type="checkbox" class="form-check-input" id="show_field_keys" data-key="show_field_keys"
+                                       {% if preferences.show_field_keys %}checked{% endif %}>
+                                Show Field Keys
+                            </label>
+                            <div class="preference-description">Display technical field names alongside labels</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Save Status -->
+            <div class="alert alert-success alert-auto-save" id="autoSaveAlert">
+                <i class="fas fa-check"></i> Preferences saved automatically
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-save preferences on change
+    const preferenceInputs = document.querySelectorAll('[data-key]');
+    let saveTimeout;
+    
+    preferenceInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            const key = this.dataset.key;
+            let value = this.value;
+            
+            // Handle different input types
+            if (this.type === 'checkbox') {
+                value = this.checked;
+            } else if (this.type === 'number') {
+                value = parseInt(value);
+            }
+            
+            // Clear previous timeout
+            if (saveTimeout) {
+                clearTimeout(saveTimeout);
+            }
+            
+            // Debounce save
+            saveTimeout = setTimeout(() => {
+                savePreference(key, value);
+            }, 500);
+        });
+    });
+    
+    // Live navigation preview
+    document.getElementById('navigation_placement').addEventListener('change', function() {
+        updateNavDemo(this.value);
+    });
+    
+    // Reset preferences
+    document.getElementById('resetBtn').addEventListener('click', function() {
+        if (confirm('Are you sure you want to reset all preferences to their defaults?')) {
+            resetPreferences();
+        }
+    });
+    
+    function savePreference(key, value) {
+        fetch('{% url "form_composer:update_preference" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ key: key, value: value })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAutoSaveAlert();
+            } else {
+                console.error('Error saving preference:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+    
+    function updateNavDemo(placement) {
+        const demo = document.getElementById('navDemo');
+        demo.className = 'nav-demo ' + placement;
+    }
+    
+    function resetPreferences() {
+        fetch('{% url "form_composer:reset_preferences" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                console.error('Error resetting preferences:', data.error);
+            }
+        });
+    }
+    
+    function showAutoSaveAlert() {
+        const alert = document.getElementById('autoSaveAlert');
+        alert.style.display = 'block';
+        setTimeout(() => {
+            alert.style.display = 'none';
+        }, 2000);
+    }
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+{% endblock %}

@@ -6,6 +6,7 @@ URL patterns for the Form Composer interface
 
 from django.urls import path
 from . import views
+from .preference_views import preferences_page, update_preference, reset_preferences, get_user_preferences
 
 app_name = 'form_composer'
 
@@ -36,4 +37,10 @@ urlpatterns = [
     path('preview/', views.preview_form, name='preview'),
     path('preview/<int:form_definition_id>/', views.preview_form, name='preview_form'),
     path('api/preview/<int:form_definition_id>/', views.api_preview_form, name='api_preview_form'),
+    
+    # User preferences
+    path('preferences/', preferences_page, name='preferences'),
+    path('api/preferences/update/', update_preference, name='update_preference'),
+    path('api/preferences/reset/', reset_preferences, name='reset_preferences'),
+    path('api/preferences/get/', get_user_preferences, name='get_user_preferences'),
 ]

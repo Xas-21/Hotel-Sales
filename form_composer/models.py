@@ -485,6 +485,33 @@ class UserPreference(models.Model):
     Allows customization of navigation placement, UI settings, etc.
     """
     
+    # Preference key constants
+    NAVIGATION_PLACEMENT = 'navigation_placement'
+    UI_THEME = 'ui_theme'
+    FORM_COMPOSER_LAYOUT = 'form_composer_layout'
+    SIDEBAR_WIDTH = 'sidebar_width'
+    AUTO_SAVE_INTERVAL = 'auto_save_interval'
+    SHOW_FIELD_KEYS = 'show_field_keys'
+    
+    PREFERENCE_CHOICES = [
+        (NAVIGATION_PLACEMENT, 'Navigation Placement'),
+        (UI_THEME, 'UI Theme'),
+        (FORM_COMPOSER_LAYOUT, 'Form Composer Layout'),
+        (SIDEBAR_WIDTH, 'Sidebar Width'),
+        (AUTO_SAVE_INTERVAL, 'Auto Save Interval'),
+        (SHOW_FIELD_KEYS, 'Show Field Keys'),
+    ]
+    
+    # Default preference values
+    PREFERENCE_DEFAULTS = {
+        NAVIGATION_PLACEMENT: 'left',  # 'left', 'right', 'top'
+        UI_THEME: 'light',  # 'light', 'dark', 'auto'
+        FORM_COMPOSER_LAYOUT: 'horizontal',  # 'horizontal', 'vertical'
+        SIDEBAR_WIDTH: 'medium',  # 'small', 'medium', 'large'
+        AUTO_SAVE_INTERVAL: 5,  # seconds
+        SHOW_FIELD_KEYS: False,  # boolean
+    }
+    
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -529,6 +556,30 @@ class UserPreference(models.Model):
             defaults={'preference_value': value}
         )
         return pref
+    
+    @classmethod
+    def get_user_preference_with_default(cls, user, key):
+        """Get a user preference with automatic default fallback"""
+        return cls.get_user_preference(
+            user, 
+            key, 
+            default=cls.PREFERENCE_DEFAULTS.get(key)
+        )
+    
+    @classmethod
+    def initialize_user_defaults(cls, user):
+        """Initialize default preferences for a new user"""
+        for key, default_value in cls.PREFERENCE_DEFAULTS.items():
+            if not cls.objects.filter(user=user, preference_key=key).exists():
+                cls.set_user_preference(user, key, default_value)
+    
+    @classmethod
+    def get_all_user_preferences(cls, user):
+        """Get all preferences for a user as a dictionary"""
+        prefs = {}
+        for key, default_value in cls.PREFERENCE_DEFAULTS.items():
+            prefs[key] = cls.get_user_preference_with_default(user, key)
+        return prefs
 
 
 # Signal handlers for cache invalidation
