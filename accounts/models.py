@@ -14,8 +14,22 @@ class Account(models.Model):
         ('Travel Agency', 'Travel Agency'),
     ]
     
+    CITY_CHOICES = [
+        ('Riyadh', 'Riyadh'),
+        ('Jeddah', 'Jeddah'),
+        ('Medina', 'Medina'),
+        ('Dammam', 'Dammam'),
+        ('Khobar', 'Khobar'),
+        ('Taif', 'Taif'),
+        ('Mecca', 'Mecca'),
+        ('Abha', 'Abha'),
+        ('Tabuk', 'Tabuk'),
+        ('Other', 'Other'),
+    ]
+    
     name = models.CharField(max_length=200, help_text="Company/Organization name")
     account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPES)
+    city = models.CharField(max_length=50, choices=CITY_CHOICES, blank=True, help_text="Primary city location")
     contact_person = models.TextField(blank=True, max_length=100)
     position = models.TextField(blank=True, help_text="Contact person's position/title (can be detailed)")
     phone = models.CharField(max_length=20, blank=True)

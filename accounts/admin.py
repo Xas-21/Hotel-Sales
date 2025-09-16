@@ -40,7 +40,7 @@ class AccountAdmin(ConfigEnforcedAdminMixin,admin.ModelAdmin):
         """Enhanced fieldsets for Phase 1D - better organization and preparation for export functionality"""
         return [
             ('Account Information', {
-                'fields': ('name', 'account_type'),
+                'fields': ('name', 'account_type', 'city'),
                 'description': 'Core account identification and classification'
             }),
             ('Contact Details', {
