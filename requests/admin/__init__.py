@@ -299,6 +299,13 @@ class AccommodationRequestAdmin(BaseRequestAdmin):
     """Admin for Accommodation-only requests - Room + Transport + Documents & Notes + Calculations"""
     inlines = [RoomEntryInline, TransportationInline]
     
+    # Ensure date widgets are properly applied
+    formfield_overrides = {
+        models.DateField: {'widget': admin.widgets.AdminDateWidget},
+        models.DateTimeField: {'widget': admin.widgets.AdminSplitDateTime},
+        models.TimeField: {'widget': admin.widgets.AdminTimeWidget},
+    }
+    
     def get_fieldsets(self, request, obj=None):
         fieldsets = super().get_fieldsets(request, obj)
         # Hide request_type since it's set automatically for accommodation requests
@@ -315,6 +322,13 @@ class AccommodationRequestAdmin(BaseRequestAdmin):
 class EventOnlyRequestAdmin(BaseRequestAdmin):
     """Admin for Event-only requests - Events + Transport + Documents & Notes + Calculations"""
     inlines = [EventAgendaInline, TransportationInline]
+    
+    # Ensure date widgets are properly applied
+    formfield_overrides = {
+        models.DateField: {'widget': admin.widgets.AdminDateWidget},
+        models.DateTimeField: {'widget': admin.widgets.AdminSplitDateTime},
+        models.TimeField: {'widget': admin.widgets.AdminTimeWidget},
+    }
     
     def get_fieldsets(self, request, obj=None):
         fieldsets = super().get_fieldsets(request, obj)
@@ -333,6 +347,13 @@ class EventWithRoomsRequestAdmin(BaseRequestAdmin):
     """Admin for Events with accommodation - Events + Room + Transport + Documents & Notes + Calculations"""
     inlines = [EventAgendaInline, RoomEntryInline, TransportationInline]
     
+    # Ensure date widgets are properly applied
+    formfield_overrides = {
+        models.DateField: {'widget': admin.widgets.AdminDateWidget},
+        models.DateTimeField: {'widget': admin.widgets.AdminSplitDateTime},
+        models.TimeField: {'widget': admin.widgets.AdminTimeWidget},
+    }
+    
     def get_fieldsets(self, request, obj=None):
         fieldsets = super().get_fieldsets(request, obj)
         # Hide request_type since it's set automatically for event with rooms
@@ -349,6 +370,13 @@ class EventWithRoomsRequestAdmin(BaseRequestAdmin):
 class SeriesGroupRequestAdmin(BaseRequestAdmin):
     """Admin for Series Group requests - Series Details + Transport + Documents & Notes + Calculations"""
     inlines = [SeriesGroupEntryInline, TransportationInline]
+    
+    # Ensure date widgets are properly applied
+    formfield_overrides = {
+        models.DateField: {'widget': admin.widgets.AdminDateWidget},
+        models.DateTimeField: {'widget': admin.widgets.AdminSplitDateTime},
+        models.TimeField: {'widget': admin.widgets.AdminTimeWidget},
+    }
     
     def get_fieldsets(self, request, obj=None):
         fieldsets = super().get_fieldsets(request, obj)
