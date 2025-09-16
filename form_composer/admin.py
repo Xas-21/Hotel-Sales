@@ -10,6 +10,7 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
+from hotel_sales.admin.mixins import ConfigEnforcedAdminMixin
 from .models import FormDefinition, FormSection, FieldConfig, DynamicFieldValue, UserPreference
 
 
@@ -37,7 +38,7 @@ class FieldConfigInline(admin.TabularInline):
 
 
 @admin.register(FormDefinition)
-class FormDefinitionAdmin(admin.ModelAdmin):
+class FormDefinitionAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     """Admin for form definitions with advanced management capabilities"""
     
     list_display = [
@@ -95,7 +96,7 @@ class FormDefinitionAdmin(admin.ModelAdmin):
 
 
 @admin.register(FormSection)
-class FormSectionAdmin(admin.ModelAdmin):
+class FormSectionAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     """Admin for form sections with field management"""
     
     list_display = [
@@ -129,7 +130,7 @@ class FormSectionAdmin(admin.ModelAdmin):
 
 
 @admin.register(FieldConfig)
-class FieldConfigAdmin(admin.ModelAdmin):
+class FieldConfigAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     """Admin for individual field configurations"""
     
     list_display = [
@@ -182,7 +183,7 @@ class FieldConfigAdmin(admin.ModelAdmin):
 
 
 @admin.register(DynamicFieldValue)
-class DynamicFieldValueAdmin(admin.ModelAdmin):
+class DynamicFieldValueAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     """Admin for dynamic field values"""
     
     list_display = [
@@ -210,7 +211,7 @@ class DynamicFieldValueAdmin(admin.ModelAdmin):
 
 
 @admin.register(UserPreference)
-class UserPreferenceAdmin(admin.ModelAdmin):
+class UserPreferenceAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     """Admin for user preferences"""
     
     list_display = ['user', 'preference_key', 'get_value_preview', 'updated_at']
