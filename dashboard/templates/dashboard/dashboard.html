@@ -532,45 +532,8 @@
         </div>
         {% endif %}
 
-        <!-- Section 4: Quick Actions -->
-        <div class="dashboard-section" data-section="quick-actions-section">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header" data-section-header>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
-                            <button id="edit-actions-btn" class="btn btn-sm btn-outline-success">
-                                <i class="fas fa-edit me-1"></i>Edit Actions
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-3 mb-2">
-                                <a href="{% url 'admin:requests_request_add' %}" class="btn btn-primary w-100">
-                                    <i class="fas fa-plus me-2"></i>New Request
-                                </a>
-                            </div>
-                            <div class="col-md-3 mb-2">
-                                <a href="{% url 'admin:accounts_account_add' %}" class="btn btn-success w-100">
-                                    <i class="fas fa-building me-2"></i>New Account
-                                </a>
-                            </div>
-                            <div class="col-md-3 mb-2">
-                                <a href="{% url 'admin:sales_calls_salescall_add' %}" class="btn btn-info w-100">
-                                    <i class="fas fa-phone me-2"></i>New Sales Call
-                                </a>
-                            </div>
-                            <div class="col-md-3 mb-2">
-                                <a href="{% url 'admin:agreements_agreement_add' %}" class="btn btn-warning w-100">
-                                    <i class="fas fa-file-contract me-2"></i>New Agreement
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- Include Quick Actions Panel -->
+        {% include 'dashboard/quick_actions.html' %}
         
         </div> <!-- End full-dashboard-container -->
     </div>
