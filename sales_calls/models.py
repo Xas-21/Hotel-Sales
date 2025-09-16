@@ -8,8 +8,11 @@ class SalesCall(models.Model):
     """
     MEETING_SUBJECT = [
         ('BRM', 'Business Review Management'),
-        ('Medium', 'Medium'),
-        ('Low', 'Low'),
+        ('relationship_mgmt', 'Business Review Management'),
+        ('sales_presentation', 'Sales Presentation'),
+        ('contract_negotiation', 'Contract Negotiation'),
+        ('follow_up_meeting', 'Follow-up Meeting'),
+        ('site_inspection', 'Site Inspection'),
         ('Unknown', 'Unknown'),
     ]
     BUSINESS_POTENTIAL = [
