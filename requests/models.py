@@ -377,6 +377,59 @@ class CancelledRequest(Request):
         return f"CANCELLED - {self.confirmation_number or 'Draft'} - {self.account.name} ({self.request_type})"
 
 
+# Proxy models for specialized request forms
+class AccommodationRequest(Request):
+    """Proxy model for accommodation-only requests"""
+    class Meta:
+        proxy = True
+        verbose_name = "Accommodation Request"
+        verbose_name_plural = "Accommodation Requests"
+    
+    def save(self, *args, **kwargs):
+        if not self.pk:  # Set default request_type for new records
+            self.request_type = 'Group Accommodation'
+        super().save(*args, **kwargs)
+
+
+class EventOnlyRequest(Request):
+    """Proxy model for event-only requests (no accommodation)"""
+    class Meta:
+        proxy = True
+        verbose_name = "Event Only Request"
+        verbose_name_plural = "Event Only Requests"
+    
+    def save(self, *args, **kwargs):
+        if not self.pk:  # Set default request_type for new records
+            self.request_type = 'Event without Rooms'
+        super().save(*args, **kwargs)
+
+
+class EventWithRoomsRequest(Request):
+    """Proxy model for events with accommodation"""
+    class Meta:
+        proxy = True
+        verbose_name = "Event with Accommodation"
+        verbose_name_plural = "Events with Accommodation"
+    
+    def save(self, *args, **kwargs):
+        if not self.pk:  # Set default request_type for new records
+            self.request_type = 'Event with Rooms'
+        super().save(*args, **kwargs)
+
+
+class SeriesGroupRequest(Request):
+    """Proxy model for series group requests"""
+    class Meta:
+        proxy = True
+        verbose_name = "Series Group Request"
+        verbose_name_plural = "Series Group Requests"
+    
+    def save(self, *args, **kwargs):
+        if not self.pk:  # Set default request_type for new records
+            self.request_type = 'Series Group'
+        super().save(*args, **kwargs)
+
+
 class RoomEntry(models.Model):
     """
     Dynamic room entry system for requests with configurable room types and occupancy types.

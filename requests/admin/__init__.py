@@ -10,7 +10,8 @@ import csv
 from requests.models import (
     Request, CancelledRequest, RoomEntry, Transportation, EventAgenda, SeriesGroupEntry, SeriesRoomEntry,
     RoomType, RoomOccupancy, CancellationReason, SystemFieldRequirement, SystemFormLayout,
-    RequestFieldRequirement, RequestFormLayout, DynamicModel, DynamicField, DynamicModelMigration, DynamicFieldValue
+    RequestFieldRequirement, RequestFormLayout, DynamicModel, DynamicField, DynamicModelMigration, DynamicFieldValue,
+    AccommodationRequest, EventOnlyRequest, EventWithRoomsRequest, SeriesGroupRequest
 )
 from hotel_sales.admin.mixins import ConfigEnforcedAdminMixin
 
@@ -97,8 +98,8 @@ class SeriesGroupEntryInline(admin.TabularInline):
             return 0
         return 1
 
-@admin.register(Request)
-class RequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
+# Base admin class for shared functionality
+class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     list_display = ['confirmation_number', 'account', 'request_type', 'meal_plan', 'status', 'check_in_date', 'check_out_date', 'nights', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
     list_filter = ['request_type', 'meal_plan', 'status', 'created_at', 'check_in_date']
     search_fields = ['confirmation_number', 'account__name', 'account__contact_person']
@@ -291,7 +292,40 @@ class RequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
         return response
     export_selected_requests.short_description = "Export selected requests to CSV"
 
-# Import configuration admin classes
+
+# Specialized admin classes for proxy models
+@admin.register(AccommodationRequest)
+class AccommodationRequestAdmin(BaseRequestAdmin):
+    """Admin for Accommodation-only requests"""
+    inlines = [RoomEntryInline, TransportationInline]  # Room + Transport + Documents & Notes (in base) + Calculations (in base)
+
+
+@admin.register(EventOnlyRequest)  
+class EventOnlyRequestAdmin(BaseRequestAdmin):
+    """Admin for Event-only requests (no accommodation)"""
+    inlines = [EventAgendaInline, TransportationInline]  # Events + Transport + Documents & Notes + Calculations
+
+
+@admin.register(EventWithRoomsRequest)
+class EventWithRoomsRequestAdmin(BaseRequestAdmin):
+    """Admin for Events with accommodation"""
+    inlines = [EventAgendaInline, RoomEntryInline, TransportationInline]  # Events + Room + Transport + Documents & Notes + Calculations
+
+
+@admin.register(SeriesGroupRequest)
+class SeriesGroupRequestAdmin(BaseRequestAdmin):
+    """Admin for Series Group requests"""
+    inlines = [SeriesGroupEntryInline, TransportationInline]  # Series Details + Transport + Documents & Notes + Calculations
+
+
+# Keep original RequestAdmin for backward compatibility and unified view
+@admin.register(Request)
+class RequestAdmin(BaseRequestAdmin):
+    """Original unified request admin (for backward compatibility)"""
+    inlines = [RoomEntryInline, TransportationInline, EventAgendaInline, SeriesGroupEntryInline]
+
+
+# Import configuration admin classes  
 from .configuration_admin import DynamicModelAdmin, DynamicFieldAdmin, DynamicModelMigrationAdmin
 
 # @admin.register(DynamicFieldValue)  # Removed from admin panel - use Configuration dashboard instead
