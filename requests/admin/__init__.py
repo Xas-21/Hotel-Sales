@@ -295,10 +295,16 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
 
 # Specialized admin classes for proxy models
 @admin.register(AccommodationRequest)
-class AccommodationRequestAdmin(BaseRequestAdmin):
+class AccommodationRequestAdmin(admin.ModelAdmin):
     """Admin for Accommodation-only requests - Room + Transport + Documents & Notes + Calculations"""
     inlines = [RoomEntryInline, TransportationInline]
     
+    # Basic admin configuration
+    list_display = ['confirmation_number', 'account', 'status', 'check_in_date', 'check_out_date', 'total_cost']
+    list_filter = ['status', 'check_in_date', 'created_at']
+    search_fields = ['confirmation_number', 'account__name']
+    readonly_fields = ['nights', 'total_cost', 'created_at', 'updated_at']
+    
     # Ensure date widgets are properly applied
     formfield_overrides = {
         models.DateField: {'widget': admin.widgets.AdminDateWidget},
@@ -307,22 +313,38 @@ class AccommodationRequestAdmin(BaseRequestAdmin):
     }
     
     def get_fieldsets(self, request, obj=None):
-        fieldsets = super().get_fieldsets(request, obj)
-        # Hide request_type since it's set automatically for accommodation requests
-        new_fieldsets = []
-        for name, opts in fieldsets:
-            new_fields = [f for f in opts['fields'] if f != 'request_type']
-            new_opts = {k: v for k, v in opts.items()}
-            new_opts['fields'] = new_fields
-            new_fieldsets.append((name, new_opts))
-        return new_fieldsets
+        """Define fieldsets for accommodation requests - hide request_type"""
+        return [
+            ('Basic Information', {
+                'fields': ('account', 'confirmation_number', 'request_received_date'),
+                'description': 'Core request information and identification'
+            }),
+            ('Accommodation Details', {
+                'fields': ('check_in_date', 'check_out_date', 'nights', 'meal_plan'),
+                'description': 'Configure accommodation dates and meal plan'
+            }),
+            ('Status & Payment', {
+                'fields': ('status', 'deposit_amount', 'paid_amount'),
+                'description': 'Request status and payment tracking'
+            }),
+            ('Additional Information', {
+                'fields': ('notes',),
+                'classes': ('collapse',)
+            })
+        ]
 
 
 @admin.register(EventOnlyRequest)  
-class EventOnlyRequestAdmin(BaseRequestAdmin):
+class EventOnlyRequestAdmin(admin.ModelAdmin):
     """Admin for Event-only requests - Events + Transport + Documents & Notes + Calculations"""
     inlines = [EventAgendaInline, TransportationInline]
     
+    # Basic admin configuration
+    list_display = ['confirmation_number', 'account', 'status', 'request_received_date', 'total_cost']
+    list_filter = ['status', 'request_received_date', 'created_at']
+    search_fields = ['confirmation_number', 'account__name']
+    readonly_fields = ['total_cost', 'created_at', 'updated_at']
+    
     # Ensure date widgets are properly applied
     formfield_overrides = {
         models.DateField: {'widget': admin.widgets.AdminDateWidget},
@@ -331,22 +353,34 @@ class EventOnlyRequestAdmin(BaseRequestAdmin):
     }
     
     def get_fieldsets(self, request, obj=None):
-        fieldsets = super().get_fieldsets(request, obj)
-        # Hide request_type since it's set automatically for event-only requests
-        new_fieldsets = []
-        for name, opts in fieldsets:
-            new_fields = [f for f in opts['fields'] if f != 'request_type']
-            new_opts = {k: v for k, v in opts.items()}
-            new_opts['fields'] = new_fields
-            new_fieldsets.append((name, new_opts))
-        return new_fieldsets
+        """Define fieldsets for event-only requests - hide request_type"""
+        return [
+            ('Basic Information', {
+                'fields': ('account', 'confirmation_number', 'request_received_date'),
+                'description': 'Core request information and identification'
+            }),
+            ('Status & Payment', {
+                'fields': ('status', 'deposit_amount', 'paid_amount'),
+                'description': 'Request status and payment tracking'
+            }),
+            ('Additional Information', {
+                'fields': ('notes',),
+                'classes': ('collapse',)
+            })
+        ]
 
 
 @admin.register(EventWithRoomsRequest)
-class EventWithRoomsRequestAdmin(BaseRequestAdmin):
+class EventWithRoomsRequestAdmin(admin.ModelAdmin):
     """Admin for Events with accommodation - Events + Room + Transport + Documents & Notes + Calculations"""
     inlines = [EventAgendaInline, RoomEntryInline, TransportationInline]
     
+    # Basic admin configuration
+    list_display = ['confirmation_number', 'account', 'status', 'check_in_date', 'check_out_date', 'total_cost']
+    list_filter = ['status', 'check_in_date', 'created_at']
+    search_fields = ['confirmation_number', 'account__name']
+    readonly_fields = ['nights', 'total_cost', 'created_at', 'updated_at']
+    
     # Ensure date widgets are properly applied
     formfield_overrides = {
         models.DateField: {'widget': admin.widgets.AdminDateWidget},
@@ -355,21 +389,37 @@ class EventWithRoomsRequestAdmin(BaseRequestAdmin):
     }
     
     def get_fieldsets(self, request, obj=None):
-        fieldsets = super().get_fieldsets(request, obj)
-        # Hide request_type since it's set automatically for event with rooms
-        new_fieldsets = []
-        for name, opts in fieldsets:
-            new_fields = [f for f in opts['fields'] if f != 'request_type']
-            new_opts = {k: v for k, v in opts.items()}
-            new_opts['fields'] = new_fields
-            new_fieldsets.append((name, new_opts))
-        return new_fieldsets
+        """Define fieldsets for events with accommodation - hide request_type"""
+        return [
+            ('Basic Information', {
+                'fields': ('account', 'confirmation_number', 'request_received_date'),
+                'description': 'Core request information and identification'
+            }),
+            ('Accommodation Details', {
+                'fields': ('check_in_date', 'check_out_date', 'nights', 'meal_plan'),
+                'description': 'Configure accommodation dates and meal plan'
+            }),
+            ('Status & Payment', {
+                'fields': ('status', 'deposit_amount', 'paid_amount'),
+                'description': 'Request status and payment tracking'
+            }),
+            ('Additional Information', {
+                'fields': ('notes',),
+                'classes': ('collapse',)
+            })
+        ]
 
 
 @admin.register(SeriesGroupRequest)
-class SeriesGroupRequestAdmin(BaseRequestAdmin):
+class SeriesGroupRequestAdmin(admin.ModelAdmin):
     """Admin for Series Group requests - Series Details + Transport + Documents & Notes + Calculations"""
     inlines = [SeriesGroupEntryInline, TransportationInline]
+    
+    # Basic admin configuration
+    list_display = ['confirmation_number', 'account', 'status', 'request_received_date', 'total_cost']
+    list_filter = ['status', 'request_received_date', 'created_at']
+    search_fields = ['confirmation_number', 'account__name']
+    readonly_fields = ['total_cost', 'created_at', 'updated_at']
     
     # Ensure date widgets are properly applied
     formfield_overrides = {
@@ -379,15 +429,21 @@ class SeriesGroupRequestAdmin(BaseRequestAdmin):
     }
     
     def get_fieldsets(self, request, obj=None):
-        fieldsets = super().get_fieldsets(request, obj)
-        # Hide request_type since it's set automatically for series groups
-        new_fieldsets = []
-        for name, opts in fieldsets:
-            new_fields = [f for f in opts['fields'] if f != 'request_type']
-            new_opts = {k: v for k, v in opts.items()}
-            new_opts['fields'] = new_fields
-            new_fieldsets.append((name, new_opts))
-        return new_fieldsets
+        """Define fieldsets for series group requests - hide request_type"""
+        return [
+            ('Basic Information', {
+                'fields': ('account', 'confirmation_number', 'request_received_date'),
+                'description': 'Core request information and identification'
+            }),
+            ('Status & Payment', {
+                'fields': ('status', 'deposit_amount', 'paid_amount'),
+                'description': 'Request status and payment tracking'
+            }),
+            ('Additional Information', {
+                'fields': ('notes',),
+                'classes': ('collapse',)
+            })
+        ]
 
 
 # Keep original RequestAdmin for backward compatibility and unified view
