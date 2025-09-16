@@ -7,8 +7,9 @@ class SalesCall(models.Model):
     Sales Calls / Visits tracking with detailed business potential and follow-up requirements.
     """
     MEETING_SUBJECT = [
+        ('initial_contact', 'Initial Contact Meeting'),
         ('BRM', 'Business Review Management'),
-        ('relationship_mgmt', 'Business Review Management'),
+        ('relationship_mgmt', 'Relationship Management'),
         ('sales_presentation', 'Sales Presentation'),
         ('contract_negotiation', 'Contract Negotiation'),
         ('follow_up_meeting', 'Follow-up Meeting'),
