@@ -42,6 +42,7 @@ urlpatterns = [
     
     path('logout/', logout_view, name='logout'),
     path('configuration/', include('requests.configuration_urls')),
+    path('form-composer/', include('form_composer.urls')),
     path('admin/', admin.site.urls),
 ]
 

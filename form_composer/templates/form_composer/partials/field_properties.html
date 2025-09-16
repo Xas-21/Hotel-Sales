@@ -1,0 +1,51 @@
+<div class="field-properties">
+    <h6><i class="bi bi-sliders"></i> Field Properties</h6>
+    <form hx-post="{% url 'form_composer:update_field' field.id %}" 
+          hx-trigger="change delay:1s"
+          hx-swap="none">
+        {% csrf_token %}
+        
+        <div class="property-group">
+            <label class="property-label">Field Key</label>
+            <input type="text" class="property-input" name="field_key" value="{{ field.field_key }}">
+        </div>
+        
+        <div class="property-group">
+            <label class="property-label">Label</label>
+            <input type="text" class="property-input" name="label" value="{{ field.label }}">
+        </div>
+        
+        <div class="property-group">
+            <label class="property-label">Help Text</label>
+            <textarea class="property-input" name="help_text" rows="2">{{ field.help_text }}</textarea>
+        </div>
+        
+        <div class="property-group">
+            <label class="property-label">Placeholder</label>
+            <input type="text" class="property-input" name="placeholder" value="{{ field.placeholder }}">
+        </div>
+        
+        <div class="property-group">
+            <label class="property-label">Widget Type</label>
+            <select class="property-input" name="widget_type">
+                {% for value, label in widget_choices %}
+                <option value="{{ value }}" {% if field.widget_type == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="property-group">
+            <label class="property-label">
+                <input type="checkbox" name="is_required" {% if field.is_required %}checked{% endif %}> 
+                Required
+            </label>
+        </div>
+        
+        <div class="property-group">
+            <label class="property-label">
+                <input type="checkbox" name="is_readonly" {% if field.is_readonly %}checked{% endif %}> 
+                Read-only
+            </label>
+        </div>
+    </form>
+</div>

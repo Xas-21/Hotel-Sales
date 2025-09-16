@@ -1,0 +1,30 @@
+<div class="section-properties">
+    <h6><i class="bi bi-gear"></i> Section Properties</h6>
+    <form hx-post="{% url 'form_composer:update_section' section.id %}" 
+          hx-trigger="change delay:1s"
+          hx-swap="none">
+        {% csrf_token %}
+        
+        <div class="property-group">
+            <label class="property-label">Name</label>
+            <input type="text" class="property-input" name="name" value="{{ section.name }}">
+        </div>
+        
+        <div class="property-group">
+            <label class="property-label">Description</label>
+            <textarea class="property-input" name="description" rows="3">{{ section.description }}</textarea>
+        </div>
+        
+        <div class="property-group">
+            <label class="property-label">
+                <input type="checkbox" name="is_collapsed" {% if section.is_collapsed %}checked{% endif %}> 
+                Collapsed by default
+            </label>
+        </div>
+        
+        <div class="property-group">
+            <label class="property-label">CSS Classes</label>
+            <input type="text" class="property-input" name="css_classes" value="{{ section.css_classes }}">
+        </div>
+    </form>
+</div>
