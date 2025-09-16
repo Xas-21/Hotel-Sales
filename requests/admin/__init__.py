@@ -9,8 +9,7 @@ from django.http import HttpResponse
 import csv
 from requests.models import (
     Request, CancelledRequest, RoomEntry, Transportation, EventAgenda, SeriesGroupEntry, SeriesRoomEntry,
-    RoomType, RoomOccupancy, CancellationReason, SystemFieldRequirement, SystemFormLayout,
-    RequestFieldRequirement, RequestFormLayout, DynamicModel, DynamicField, DynamicModelMigration, DynamicFieldValue,
+    RoomType, RoomOccupancy, CancellationReason,
     AccommodationRequest, EventOnlyRequest, EventWithRoomsRequest, SeriesGroupRequest
 )
 from hotel_sales.admin.mixins import ConfigEnforcedAdminMixin
@@ -998,24 +997,5 @@ class RequestAdmin(BaseRequestAdmin):
     inlines = [RoomEntryInline, TransportationInline, EventAgendaInline, SeriesGroupEntryInline]
 
 
-# Import configuration admin classes  
-from .configuration_admin import DynamicModelAdmin, DynamicFieldAdmin, DynamicModelMigrationAdmin
-
-# @admin.register(DynamicFieldValue)  # Removed from admin panel - use Configuration dashboard instead
-class DynamicFieldValueAdmin(admin.ModelAdmin):
-    list_display = ['field', 'content_type', 'object_id', 'get_value_display', 'created_at']
-    list_filter = ['field__field_type', 'content_type', 'created_at']
-    search_fields = ['field__name', 'field__display_name', 'value_text']
-    readonly_fields = ['created_at', 'updated_at']
-    raw_id_fields = ['field']
-    
-    def get_value_display(self, obj):
-        """Display the field value in a readable format"""
-        value = obj.get_value()
-        if value is None:
-            return "None"
-        elif isinstance(value, str) and len(value) > 50:
-            return f"{value[:47]}..."
-        else:
-            return str(value)
-    get_value_display.short_description = "Value"
+# Configuration admin classes removed as part of migration to Form Composer system
+# The new Form Composer system provides the configuration interface

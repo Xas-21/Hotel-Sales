@@ -6,7 +6,7 @@ with Django admin interfaces.
 """
 
 from django.contrib import admin
-from requests.services.config_enforcement import ConfigEnforcementService
+from form_composer.services import ConfigEnforcementV2
 import logging
 
 logger = logging.getLogger(__name__)
@@ -27,8 +27,8 @@ class ConfigEnforcedAdminMixin:
             form_type = self.get_config_form_type(obj)
             
             # Get layout configuration
-            layout = ConfigEnforcementService.get_layout(form_type)
-            field_configs = ConfigEnforcementService.get_field_configs(form_type)
+            layout = ConfigEnforcementV2.get_layout(form_type)
+            field_configs = ConfigEnforcementV2.get_field_configs(form_type)
             
             # PRIORITIZE original fieldsets over dynamic configuration
             # Only use dynamic config if layout exists AND is explicitly enabled
@@ -114,7 +114,7 @@ class ConfigEnforcedAdminMixin:
         Get the form type for configuration lookup.
         Override in subclasses for custom form type logic.
         """
-        return ConfigEnforcementService.map_form_type(self.model)
+        return ConfigEnforcementV2.map_form_type(self.model)
     
     def get_original_fieldsets(self, request, obj=None):
         """
@@ -231,66 +231,6 @@ class ConfigEnforcedAdminMixin:
             logger.debug(f"Skipping dynamic field processing for excluded model: {self.model.__name__}")
             return
         
-        # Then save dynamic field values
-        try:
-            from requests.services.admin_form_injector import AdminFormInjector
-            from requests.models import DynamicFieldValue, DynamicField
-            from django.contrib.contenttypes.models import ContentType
-            
-            custom_field_configs = AdminFormInjector.get_custom_fields_for_model(self.model)
-            content_type = ContentType.objects.get_for_model(self.model)
-            
-            for field_config in custom_field_configs:
-                field_name = field_config['name']
-                field_type = field_config['field_type']
-                storage = field_config.get('storage', 'value_store')
-                
-                # Skip fields that are stored in model fields (core overrides)
-                if storage == 'model_field':
-                    continue
-                
-                # Check both cleaned_data and FILES for file fields
-                field_value_data = None
-                if field_name in form.cleaned_data:
-                    field_value_data = form.cleaned_data[field_name]
-                elif field_type in ['file', 'image'] and field_name in request.FILES:
-                    field_value_data = request.FILES[field_name]
-                
-                if field_value_data is not None:
-                    # For new core fields, use the dynamic_field_id if available
-                    if field_config.get('dynamic_field_id'):
-                        dynamic_field = DynamicField.objects.get(
-                            id=field_config['dynamic_field_id'], 
-                            is_active=True
-                        )
-                    else:
-                        # For regular custom fields, find by name
-                        dynamic_field = DynamicField.objects.get(name=field_name, is_active=True)
-                    
-                    # Update or create the field value
-                    field_value, created = DynamicFieldValue.objects.update_or_create(
-                        content_type=content_type,
-                        object_id=obj.pk,
-                        field=dynamic_field,
-                        defaults={}
-                    )
-                    
-                    # Handle different field types properly
-                    if field_type == 'multiple_choice':
-                        # Serialize list data as JSON
-                        if isinstance(field_value_data, list):
-                            field_value.set_value(field_value_data)
-                        else:
-                            field_value.set_value([field_value_data] if field_value_data else [])
-                    elif field_type in ['file', 'image']:
-                        # Handle file uploads
-                        field_value.set_value(field_value_data)
-                    else:
-                        # Standard field types
-                        field_value.set_value(field_value_data)
-                    
-                    field_value.save()
-                    logger.debug(f"Saved dynamic field value for {field_name}")
-                    
-        except Exception as e:
-            logger.error(f"Error saving dynamic field values for {obj}: {e}")
+        # Dynamic field processing has been removed as part of migration to Form Composer system
+        # The new Form Composer system handles field storage differently
+        logger.debug(f"Dynamic field processing removed - using Form Composer system instead")
