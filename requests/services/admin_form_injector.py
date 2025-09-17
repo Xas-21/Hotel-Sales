@@ -270,8 +270,13 @@ class AdminFormInjector:
         if (field_config.get('choices') and field_config['choices'] not in ['{}', '', None]
             and field_type not in ['boolean', 'BooleanField']):
             try:
-                # Parse choices (assuming JSON format)
-                choices_data = json.loads(field_config['choices'])
+                # Parse choices - handle both dict and JSON string formats
+                if isinstance(field_config['choices'], dict):
+                    # Already a dict, use directly
+                    choices_data = field_config['choices']
+                else:
+                    # JSON string, parse it
+                    choices_data = json.loads(field_config['choices'])
                 formatted_choices = []
                 
                 if isinstance(choices_data, dict) and choices_data:  # Non-empty dict
