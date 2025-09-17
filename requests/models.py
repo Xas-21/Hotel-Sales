@@ -206,6 +206,16 @@ class Request(models.Model):
         ('Actual', 'Actual'),  # Status when paid requests reach arrival date
     ]
     
+    # Display choices exclude 'Cancelled' for dropdown (handled via button)
+    DISPLAY_STATUS_CHOICES = [
+        ('Draft', 'Draft'),
+        ('Confirmed', 'Confirmed'),
+        ('Pending', 'Pending'),
+        ('Paid', 'Paid'),
+        ('Partially Paid', 'Partially Paid'),
+        ('Actual', 'Actual'),
+    ]
+    
     MEAL_PLAN_CHOICES = [
         ('RO', 'Room Only'),
         ('BB', 'Bed & Breakfast'),

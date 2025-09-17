@@ -5,9 +5,12 @@ from django.contrib import admin
 from django.contrib.admin import widgets as admin_widgets
 from django import forms
 from django.utils.html import format_html
-from django.urls import reverse
+from django.urls import reverse, path
 from django.db import models
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect
+from django.template.response import TemplateResponse
+from django.contrib import messages
 import csv
 from requests.models import (
     Request, CancelledRequest, RoomEntry, Transportation, EventAgenda, SeriesGroupEntry, SeriesRoomEntry,
@@ -100,8 +103,22 @@ class SeriesGroupEntryInline(admin.TabularInline):
             return 0
         return 1
 
+# Custom form to exclude 'Cancelled' from status choices
+class RequestAdminForm(forms.ModelForm):
+    class Meta:
+        model = Request
+        fields = '__all__'
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Use DISPLAY_STATUS_CHOICES for status field (excludes 'Cancelled')
+        if 'status' in self.fields:
+            self.fields['status'].choices = Request.DISPLAY_STATUS_CHOICES
+
 # Base admin class for shared functionality
 class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
+    form = RequestAdminForm
+    change_form_template = 'admin/requests/change_form.html'
     list_display = ['confirmation_number', 'account', 'request_type', 'meal_plan', 'status', 'check_in_date', 'check_out_date', 'nights', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
     list_filter = ['request_type', 'meal_plan', 'status', 'created_at', 'check_in_date']
     search_fields = ['confirmation_number', 'account__name', 'account__contact_person']
@@ -294,6 +311,72 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
         
         return response
     export_selected_requests.short_description = "Export selected requests to CSV"
+    
+    def get_urls(self):
+        """Add custom URL for cancellation"""
+        urls = super().get_urls()
+        custom_urls = [
+            path('<path:object_id>/cancel/', 
+                 self.admin_site.admin_view(self.cancel_request_view), 
+                 name='requests_request_cancel'),
+        ]
+        return custom_urls + urls
+    
+    def cancel_request_view(self, request, object_id):
+        """Handle request cancellation with popup form"""
+        obj = get_object_or_404(self.model, pk=object_id)
+        
+        if request.method == 'POST':
+            # Get cancellation reason from form
+            cancellation_reason_fixed_id = request.POST.get('cancellation_reason_fixed')
+            cancellation_reason_text = request.POST.get('cancellation_reason', '')
+            
+            # Update the request status to Cancelled
+            obj.status = 'Cancelled'
+            
+            # Set cancellation reason
+            if cancellation_reason_fixed_id:
+                from requests.models import CancellationReason
+                obj.cancellation_reason_fixed_id = cancellation_reason_fixed_id
+            obj.cancellation_reason = cancellation_reason_text
+            
+            obj.save()
+            
+            messages.success(request, f'Request {obj.confirmation_number} has been cancelled.')
+            
+            # Return JSON response for AJAX requests
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True})
+            
+            # Redirect back to change page
+            return redirect('admin:requests_request_change', obj.pk)
+        
+        # GET request - show cancellation form
+        from requests.models import CancellationReason
+        cancellation_reasons = CancellationReason.objects.filter(active=True).order_by('sort_order')
+        
+        context = {
+            'title': f'Cancel Request: {obj.confirmation_number}',
+            'object': obj,
+            'cancellation_reasons': cancellation_reasons,
+            'opts': self.model._meta,
+            'has_view_permission': self.has_view_permission(request, obj),
+            'has_change_permission': self.has_change_permission(request, obj),
+        }
+        
+        return TemplateResponse(request, 'admin/requests/request_cancel.html', context)
+    
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        """Override to add cancel button to change form"""
+        extra_context = extra_context or {}
+        obj = self.get_object(request, object_id)
+        
+        # Add flag to show cancel button if request is not already cancelled
+        if obj and obj.status != 'Cancelled':
+            extra_context['show_cancel_button'] = True
+            extra_context['cancel_url'] = reverse('admin:requests_request_cancel', args=[obj.pk])
+        
+        return super().change_view(request, object_id, form_url, extra_context)
 
 
 # Specialized admin classes for proxy models
