@@ -266,7 +266,9 @@ class AdminFormInjector:
         
         # Add choice field options - check if field has choices regardless of field_type
         # (CharField with choices should become ChoiceField)
-        if field_config.get('choices') and field_config['choices'] not in ['{}', '', None]:
+        # Exclude boolean fields from choice field conversion to keep them as checkboxes
+        if (field_config.get('choices') and field_config['choices'] not in ['{}', '', None]
+            and field_type not in ['boolean', 'BooleanField']):
             try:
                 # Parse choices (assuming JSON format)
                 choices_data = json.loads(field_config['choices'])
