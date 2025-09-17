@@ -67,48 +67,123 @@
 
         <!-- NEW ANALYTICS SECTIONS - Added above existing dashboard -->
         
-        <!-- Analytics Section 0: Request Segments (Travel Agent, Company, Government) -->
-        <div class="dashboard-section mb-4" data-section="request-segments">
+        <!-- Analytics Section 0: Visual Charts & Graphs Overview -->
+        <div class="dashboard-section mb-4" data-section="charts-overview">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>Request Segments</h5>
+                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>System Overview - Charts & Graphs</h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-12">
-                            <h6>Requests by Account Type</h6>
-                            <div class="table-responsive">
-                                <table class="table table-sm">
-                                    <thead>
-                                        <tr><th>Segment</th><th>Count</th><th>%</th></tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for item in request_segments %}
-                                        <tr>
-                                            <td>
-                                                <span class="badge bg-{% if item.account__account_type == 'Travel Agency' %}primary{% elif item.account__account_type == 'Company' %}success{% elif item.account__account_type == 'Government' %}warning{% else %}secondary{% endif %}">
-                                                    {{ item.account__account_type }}
-                                                </span>
-                                            </td>
-                                            <td>{{ item.count }}</td>
-                                            <td>{% widthratio item.count total_requests 100 %}%</td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                        <!-- Bar Charts Section -->
+                        <div class="col-md-6">
+                            <div class="text-center mb-3">
+                                <h6><i class="fas fa-chart-bar me-2"></i>Bar Charts</h6>
                             </div>
-                            <div class="mt-3">
-                                <div class="row text-center">
+                            
+                            <!-- Request Segments Bar Chart -->
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-2">Request Segments</h6>
+                                <div class="chart-container" style="height: 200px;">
                                     {% for item in request_segments %}
-                                    <div class="col-md-4">
-                                        <div class="card bg-{% if item.account__account_type == 'Travel Agency' %}primary{% elif item.account__account_type == 'Company' %}success{% elif item.account__account_type == 'Government' %}warning{% else %}secondary{% endif %} text-white">
-                                            <div class="card-body">
-                                                <h4>{{ item.count }}</h4>
-                                                <p class="mb-0">{{ item.account__account_type }}</p>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="me-2" style="width: 100px; font-size: 12px;">{{ item.account__account_type }}</div>
+                                        <div class="flex-grow-1">
+                                            <div class="progress" style="height: 25px;">
+                                                <div class="progress-bar bg-{% if item.account__account_type == 'Travel Agency' %}primary{% elif item.account__account_type == 'Company' %}success{% elif item.account__account_type == 'Government' %}warning{% else %}secondary{% endif %}" 
+                                                     style="width: {% if total_requests > 0 %}{% widthratio item.count total_requests 100 %}%{% else %}0%{% endif %}">
+                                                    <span class="text-white fw-bold">{{ item.count }}</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                     {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Agreement Status Bar Chart -->
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-2">Agreement Status</h6>
+                                <div class="chart-container" style="height: 150px;">
+                                    {% for item in agreement_status_breakdown %}
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="me-2" style="width: 80px; font-size: 12px;">{{ item.status }}</div>
+                                        <div class="flex-grow-1">
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar bg-{% if item.status == 'Signed' %}success{% elif item.status == 'Draft' %}warning{% elif item.status == 'Sent' %}info{% else %}secondary{% endif %}" 
+                                                     style="width: {% if total_agreements > 0 %}{% widthratio item.count total_agreements 100 %}%{% else %}0%{% endif %}">
+                                                    <span class="text-white">{{ item.count }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pie Charts Section -->
+                        <div class="col-md-6">
+                            <div class="text-center mb-3">
+                                <h6><i class="fas fa-chart-pie me-2"></i>Pie Charts</h6>
+                            </div>
+                            
+                            <!-- Request Status Pie Chart -->
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-2">Request Status Distribution</h6>
+                                <div class="text-center">
+                                    <div class="pie-chart-legend">
+                                        {% for item in request_status_distribution %}
+                                        <div class="d-inline-block me-3 mb-2">
+                                            <span class="badge bg-{% if item.status == 'Confirmed' %}success{% elif item.status == 'Paid' %}primary{% elif item.status == 'Cancelled' %}danger{% else %}warning{% endif %}" style="width: 50px;">
+                                                {% if total_requests > 0 %}{% widthratio item.count total_requests 100 %}%{% else %}0%{% endif %}
+                                            </span>
+                                            <br>
+                                            <small>{{ item.status }} ({{ item.count }})</small>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sales Calls Potential Pie Chart -->
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-2">Sales Call Potential</h6>
+                                <div class="text-center">
+                                    <div class="pie-chart-legend">
+                                        {% for item in sales_calls_by_potential %}
+                                        <div class="d-inline-block me-3 mb-2">
+                                            <span class="badge bg-{% if item.business_potential == 'High' %}success{% elif item.business_potential == 'Medium' %}warning{% else %}secondary{% endif %}" style="width: 50px;">
+                                                {{ item.count }}
+                                            </span>
+                                            <br>
+                                            <small>{{ item.business_potential }}</small>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Accounts Summary -->
+                            <div class="mb-3">
+                                <h6 class="text-muted mb-2">System Summary</h6>
+                                <div class="row text-center">
+                                    <div class="col-6 mb-2">
+                                        <div class="card bg-primary text-white">
+                                            <div class="card-body py-2">
+                                                <h4 class="mb-0">{{ total_accounts }}</h4>
+                                                <small>Accounts</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6 mb-2">
+                                        <div class="card bg-info text-white">
+                                            <div class="card-body py-2">
+                                                <h4 class="mb-0">{{ total_requests }}</h4>
+                                                <small>Requests</small>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
