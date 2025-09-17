@@ -22,11 +22,15 @@ class ConfigEnforcedAdminMixin:
     and applies field requirements from SystemFieldRequirement.
     """
     
-    def formfield_for_dbfield(self, db_field, **kwargs):
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
         """Override to apply correct widget based on DynamicField configuration"""
-        # First check if we have a configuration for this field
+        # First get the default form field from parent
+        formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+        
+        # Then check if we have a configuration for this field that should override
         try:
             from requests.models import DynamicSection, DynamicField
+            from django.forms import DateField, TimeField, DateTimeField, IntegerField, DecimalField, EmailField, URLField
             
             # Try to get the field configuration
             model_name = self.model.__name__
@@ -47,30 +51,72 @@ class ConfigEnforcedAdminMixin:
                 ).first()
                 
                 if field_config:
-                    # Apply widget based on field_type configuration
-                    if field_config.field_type == 'DateField':
-                        kwargs['widget'] = admin.widgets.AdminDateWidget
-                    elif field_config.field_type == 'TimeField':
-                        kwargs['widget'] = admin.widgets.AdminTimeWidget
-                    elif field_config.field_type == 'DateTimeField':
-                        kwargs['widget'] = admin.widgets.AdminSplitDateTime
-                    elif field_config.field_type == 'TextField':
-                        kwargs['widget'] = forms.Textarea(attrs={'rows': 3, 'cols': 60})
-                    elif field_config.field_type == 'CharField':
-                        if db_field.name == 'confirmation_number':
-                            # Keep confirmation number as text input
-                            kwargs['widget'] = forms.TextInput(attrs={'size': 40})
-                    elif field_config.field_type == 'BooleanField':
-                        kwargs['widget'] = forms.CheckboxInput
+                    # Log for debugging
+                    logger.info(f"Applying widget for {db_field.name}: {field_config.field_type}")
                     
-                    # Apply required setting
-                    if hasattr(field_config, 'required'):
-                        kwargs['required'] = field_config.required
+                    # Apply widget based on field_type configuration
+                    # Only override if configuration specifies a different type
+                    if field_config.field_type == 'DateField':
+                        # Return a DateField with the admin widget
+                        return DateField(
+                            widget=admin.widgets.AdminDateWidget,
+                            required=field_config.required if hasattr(field_config, 'required') else True,
+                            label=formfield.label if formfield else db_field.verbose_name,
+                            help_text=formfield.help_text if formfield else db_field.help_text
+                        )
+                    elif field_config.field_type == 'TimeField':
+                        return TimeField(
+                            widget=admin.widgets.AdminTimeWidget,
+                            required=field_config.required if hasattr(field_config, 'required') else True,
+                            label=formfield.label if formfield else db_field.verbose_name,
+                            help_text=formfield.help_text if formfield else db_field.help_text
+                        )
+                    elif field_config.field_type == 'DateTimeField':
+                        return DateTimeField(
+                            widget=admin.widgets.AdminSplitDateTime,
+                            required=field_config.required if hasattr(field_config, 'required') else True,
+                            label=formfield.label if formfield else db_field.verbose_name,
+                            help_text=formfield.help_text if formfield else db_field.help_text
+                        )
+                    elif field_config.field_type == 'TextField' and formfield:
+                        # For TextField, just update the widget
+                        formfield.widget = forms.Textarea(attrs={'rows': 3, 'cols': 60})
+                        if hasattr(field_config, 'required'):
+                            formfield.required = field_config.required
+                        return formfield
+                    elif field_config.field_type == 'IntegerField':
+                        return IntegerField(
+                            required=field_config.required if hasattr(field_config, 'required') else True,
+                            label=formfield.label if formfield else db_field.verbose_name,
+                            help_text=formfield.help_text if formfield else db_field.help_text
+                        )
+                    elif field_config.field_type == 'DecimalField':
+                        return DecimalField(
+                            required=field_config.required if hasattr(field_config, 'required') else True,
+                            label=formfield.label if formfield else db_field.verbose_name,
+                            help_text=formfield.help_text if formfield else db_field.help_text
+                        )
+                    elif field_config.field_type == 'EmailField':
+                        return EmailField(
+                            required=field_config.required if hasattr(field_config, 'required') else True,
+                            label=formfield.label if formfield else db_field.verbose_name,
+                            help_text=formfield.help_text if formfield else db_field.help_text
+                        )
+                    elif field_config.field_type == 'URLField':
+                        return URLField(
+                            required=field_config.required if hasattr(field_config, 'required') else True,
+                            label=formfield.label if formfield else db_field.verbose_name,
+                            help_text=formfield.help_text if formfield else db_field.help_text
+                        )
+                    
+                    # For other fields, update the required setting if needed
+                    if formfield and hasattr(field_config, 'required'):
+                        formfield.required = field_config.required
         except Exception as e:
-            logger.debug(f"Could not apply field configuration for {db_field.name}: {e}")
+            logger.error(f"Error applying field configuration for {db_field.name}: {e}")
         
-        # Call parent implementation
-        return super().formfield_for_dbfield(db_field, **kwargs)
+        # Return the formfield (either modified or original)
+        return formfield
     
     def get_fieldsets(self, request, obj=None):
         """Generate dynamic fieldsets from configuration - with fallback to original fieldsets"""

@@ -493,6 +493,13 @@ class EventOnlyRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     ordering = ['-created_at']
     actions = ['export_selected_requests']
     
+    # Ensure date widgets are properly applied
+    formfield_overrides = {
+        models.DateField: {'widget': admin_widgets.AdminDateWidget},
+        models.DateTimeField: {'widget': admin_widgets.AdminSplitDateTime},
+        models.TimeField: {'widget': admin_widgets.AdminTimeWidget},
+    }
+    
     # Display methods for statistics - copied from AccommodationRequestAdmin
     def get_adr_display(self, obj):
         """Display ADR (Average Daily Rate) calculation"""
@@ -837,6 +844,13 @@ class SeriesGroupRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
                       'get_event_total_display', 'get_statistics_summary']
     ordering = ['-created_at']
     actions = ['export_selected_requests']
+    
+    # Ensure date widgets are properly applied
+    formfield_overrides = {
+        models.DateField: {'widget': admin_widgets.AdminDateWidget},
+        models.DateTimeField: {'widget': admin_widgets.AdminSplitDateTime},
+        models.TimeField: {'widget': admin_widgets.AdminTimeWidget},
+    }
     
     # Display methods for statistics - copied from AccommodationRequestAdmin
     def get_adr_display(self, obj):
