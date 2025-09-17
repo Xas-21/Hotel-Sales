@@ -6,6 +6,8 @@ with Django admin interfaces.
 """
 
 from django.contrib import admin
+from django import forms
+from django.forms import widgets
 from requests.services.config_enforcement import ConfigEnforcementService
 import logging
 
@@ -19,6 +21,56 @@ class ConfigEnforcedAdminMixin:
     Dynamically generates fieldsets based on SystemFormLayout configurations
     and applies field requirements from SystemFieldRequirement.
     """
+    
+    def formfield_for_dbfield(self, db_field, **kwargs):
+        """Override to apply correct widget based on DynamicField configuration"""
+        # First check if we have a configuration for this field
+        try:
+            from requests.models import DynamicSection, DynamicField
+            
+            # Try to get the field configuration
+            model_name = self.model.__name__
+            app_label = self.model._meta.app_label
+            source_model = f"{app_label}.{model_name}"
+            
+            # Try to find the section for this model
+            section = DynamicSection.objects.filter(
+                source_model=source_model, 
+                is_core_section=True
+            ).first()
+            
+            if section:
+                # Check if we have a field configuration
+                field_config = DynamicField.objects.filter(
+                    section=section,
+                    name=db_field.name
+                ).first()
+                
+                if field_config:
+                    # Apply widget based on field_type configuration
+                    if field_config.field_type == 'DateField':
+                        kwargs['widget'] = admin.widgets.AdminDateWidget
+                    elif field_config.field_type == 'TimeField':
+                        kwargs['widget'] = admin.widgets.AdminTimeWidget
+                    elif field_config.field_type == 'DateTimeField':
+                        kwargs['widget'] = admin.widgets.AdminSplitDateTime
+                    elif field_config.field_type == 'TextField':
+                        kwargs['widget'] = forms.Textarea(attrs={'rows': 3, 'cols': 60})
+                    elif field_config.field_type == 'CharField':
+                        if db_field.name == 'confirmation_number':
+                            # Keep confirmation number as text input
+                            kwargs['widget'] = forms.TextInput(attrs={'size': 40})
+                    elif field_config.field_type == 'BooleanField':
+                        kwargs['widget'] = forms.CheckboxInput
+                    
+                    # Apply required setting
+                    if hasattr(field_config, 'required'):
+                        kwargs['required'] = field_config.required
+        except Exception as e:
+            logger.debug(f"Could not apply field configuration for {db_field.name}: {e}")
+        
+        # Call parent implementation
+        return super().formfield_for_dbfield(db_field, **kwargs)
     
     def get_fieldsets(self, request, obj=None):
         """Generate dynamic fieldsets from configuration - with fallback to original fieldsets"""
