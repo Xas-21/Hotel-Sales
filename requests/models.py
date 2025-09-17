@@ -203,6 +203,7 @@ class Request(models.Model):
         ('Pending', 'Pending'),
         ('Paid', 'Paid'),
         ('Partially Paid', 'Partially Paid'),
+        ('Actual', 'Actual'),  # Status when paid requests reach arrival date
     ]
     
     MEAL_PLAN_CHOICES = [
@@ -364,6 +365,39 @@ class Request(models.Model):
         if self.total_room_nights and self.total_room_nights > 0:
             return self.total_cost / Decimal(str(self.total_room_nights))
         return Decimal('0.00')
+    
+    def check_and_update_to_actual(self):
+        """
+        Check if a paid request should be transitioned to 'Actual' status
+        when the arrival date (check-in or event start) has arrived.
+        Returns True if status was updated, False otherwise.
+        """
+        if self.status != 'Paid':
+            return False
+        
+        # Determine the arrival date based on request type
+        arrival_date = None
+        if self.request_type in ['Group Accommodation', 'Individual Accommodation', 'Event with Rooms', 'Series Group']:
+            arrival_date = self.check_in_date
+        elif self.request_type == 'Event without Rooms':
+            arrival_date = self.event_start_date
+        
+        # Check if arrival date has passed
+        if arrival_date and arrival_date <= timezone.localdate():
+            self.status = 'Actual'
+            self.save(update_fields=['status'])
+            return True
+        
+        return False
+    
+    def get_display_paid_amount(self):
+        """
+        Get the amount to display as paid based on status.
+        For 'Paid' or 'Actual' status, show confirmed_paid_amount instead of paid_amount.
+        """
+        if self.status in ['Paid', 'Actual'] and self.confirmed_paid_amount:
+            return self.confirmed_paid_amount
+        return self.paid_amount
 
 
 class CancelledRequest(Request):
