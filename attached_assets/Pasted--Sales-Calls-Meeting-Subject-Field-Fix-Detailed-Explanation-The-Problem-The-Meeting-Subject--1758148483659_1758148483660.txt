@@ -1,0 +1,97 @@
+ Sales Calls Meeting Subject Field Fix - Detailed Explanation
+❌ The Problem:
+The "Meeting Subject" field in the sales calls form had a choice validation issue:
+Error Message: Select a valid choice. renewal_discussion is not one of the available choices.
+Root Cause: When users added new choices/options to the "meeting subject" field in the configuration dashboard, those new choices weren't being properly synchronized with the form validation
+User Experience: Users couldn't save sales calls with newly added meeting subject options
+🔍 Root Cause Analysis:
+The issue was in the choice field synchronization between:
+Configuration Dashboard (where users add new choices)
+Admin Form Validation (where Django validates the selected choice)
+The Problem Chain:
+User adds new choice "renewal_discussion" in configuration dashboard
+The choice gets saved to the DynamicField.choices field
+But the form validation still uses the old SalesCall.MEETING_SUBJECT choices
+When user selects "renewal_discussion" and saves, Django validation fails because it's not in the model's choice list
+✅ How We Fixed It:
+Step 1: Created a Management Command
+File: requests/management/commands/fix_choice_fields.py
+
+from django.core.management.base import BaseCommand
+from requests.models import DynamicField, DynamicSection
+from sales_calls.models import SalesCall
+import json
+
+class Command(BaseCommand):
+    help = 'Fix choice field configurations and sales calls boolean fields'
+
+    def handle(self, *args, **options):
+        # 1. Fix sales calls boolean fields
+        self.stdout.write(self.style.WARNING('1. Fixing Sales Calls Boolean Fields:'))
+        sales_call_boolean_fields = DynamicField.objects.filter(
+            name__in=['follow_up_required', 'follow_up_completed']
+        )
+        for field in sales_call_boolean_fields:
+            if field.field_type != 'boolean':
+                field.field_type = 'boolean'
+                field.save()
+                self.stdout.write(f"✓ Fixed {field.name} field type to boolean")
+
+        # 2. Fix meeting subject choices synchronization
+        self.stdout.write(self.style.WARNING('\n2. Fixing Meeting Subject Choices:'))
+        meeting_subject_field = DynamicField.objects.filter(
+            name='meeting_subject'
+        ).first()
+
+        if meeting_subject_field:
+            # Get current choices from the SalesCall model
+            current_choices = dict(SalesCall.MEETING_SUBJECT)
+            # Get choices from DynamicField
+            dynamic_choices = meeting_subject_field.choices
+
+            # If they don't match, update the DynamicField
+            if dynamic_choices != current_choices:
+                meeting_subject_field.choices = current_choices
+                meeting_subject_field.save()
+                self.stdout.write("✓ Updated meeting_subject choices to include all model choices")
+            else:
+                self.stdout.write("✓ meeting_subject choices are already synchronized")
+
+Step 2: Fixed the Admin Form Injector
+File: requests/services/admin_form_injector.py
+# Removed the problematic mapping
+FIELD_TYPE_MAPPING = {
+    # 'CharField': ChoiceField,  # REMOVED THIS LINE
+    # ... other mappings
+}
+
+# Added smart logic to determine field type:
+if field_type in ['char', 'CharField'] and field_config.get('choices'):
+    field_class = ChoiceField  # Only use ChoiceField if it's a char field WITH choices
+else:
+    field_class = cls.FIELD_TYPE_MAPPING.get(field_type, CharField)  # Default to CharField
+
+# Also fixed max_length parameter handling:
+if field_type in ['char', 'CharField', 'text', 'TextField', 'slug'] and not field_config.get('choices'):
+    kwargs['max_length'] = field_config.get('max_length', 255)  # Only add max_length to non-choice fields
+
+Step 3: Fixed JSON Parsing Issues
+File: requests/services/admin_form_injector.py
+# Handle both string and dictionary formats
+choices_data = field_config['choices']
+if isinstance(choices_data, str):
+    choices_data = json.loads(choices_data)
+elif not isinstance(choices_data, (dict, list)):
+    choices_data = {}
+
+Step 4: Fixed Configuration Dashboard
+File: requests/configuration_views.py
+
+# Handle both string and dictionary formats
+if field.choices and field.choices != '{}':
+    if isinstance(field.choices, str):
+        choices_obj = json.loads(field.choices)
+    elif isinstance(field.choices, dict):
+        choices_obj = field.choices
+    else:
+        choices_obj = {}
