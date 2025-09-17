@@ -305,9 +305,12 @@ class Request(models.Model):
             raise ValidationError({'paid_amount': 'Paid amount cannot be negative.'})
     
     def save(self, *args, **kwargs):
-        # Set default confirmation number if empty to avoid unique constraint violations
+        # Set unique default confirmation number if empty to avoid constraint violations
         if not self.confirmation_number:
-            self.confirmation_number = '-'
+            import time
+            # Generate a unique confirmation number using timestamp
+            # Format: PENDING-timestamp to ensure uniqueness
+            self.confirmation_number = f"PENDING-{int(time.time() * 1000000)}"
         
         # Auto-calculate nights if both dates are provided
         if self.check_in_date and self.check_out_date:
