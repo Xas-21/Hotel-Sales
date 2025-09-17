@@ -65,6 +65,176 @@
             </div>
         </div>
 
+        <!-- NEW ANALYTICS SECTIONS - Added above existing dashboard -->
+        
+        <!-- Analytics Section 1: Request Type & Status Distribution -->
+        <div class="dashboard-section mb-4" data-section="request-analytics">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Request Type & Status Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Request Status Breakdown</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr><th>Status</th><th>Count</th><th>%</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in request_status_distribution %}
+                                        <tr>
+                                            <td><span class="badge bg-{% if item.status == 'Confirmed' %}success{% elif item.status == 'Paid' %}primary{% elif item.status == 'Cancelled' %}danger{% else %}warning{% endif %}">{{ item.status }}</span></td>
+                                            <td>{{ item.count }}</td>
+                                            <td>{% widthratio item.count total_requests 100 %}%</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Request Type Breakdown</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr><th>Type</th><th>Count</th><th>%</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in request_types %}
+                                        <tr>
+                                            <td>{{ item.request_type }}</td>
+                                            <td>{{ item.count }}</td>
+                                            <td>{% widthratio item.count total_requests 100 %}%</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Section 2: Agreements Analytics -->
+        <div class="dashboard-section mb-4" data-section="agreement-analytics">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-file-contract me-2"></i>Agreements Analytics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Agreement Status Distribution</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr><th>Status</th><th>Count</th><th>%</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in agreement_status_breakdown %}
+                                        <tr>
+                                            <td><span class="badge bg-{% if item.status == 'Signed' %}success{% elif item.status == 'Draft' %}warning{% elif item.status == 'Sent' %}info{% else %}secondary{% endif %}">{{ item.status }}</span></td>
+                                            <td>{{ item.count }}</td>
+                                            <td>{% widthratio item.count total_agreements 100 %}%</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Agreement Rate Types</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr><th>Rate Type</th><th>Count</th><th>%</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in agreement_rate_type_breakdown %}
+                                        <tr>
+                                            <td>{{ item.rate_type }}</td>
+                                            <td>{{ item.count }}</td>
+                                            <td>{% widthratio item.count total_agreements 100 %}%</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Section 3: Sales Calls Analytics -->
+        <div class="dashboard-section mb-4" data-section="sales-analytics">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-phone me-2"></i>Sales Calls Analytics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6>Business Potential</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr><th>Potential</th><th>Count</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in sales_calls_by_potential %}
+                                        <tr>
+                                            <td><span class="badge bg-{% if item.business_potential == 'High' %}success{% elif item.business_potential == 'Medium' %}warning{% else %}secondary{% endif %}">{{ item.business_potential }}</span></td>
+                                            <td>{{ item.count }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Meeting Subjects</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr><th>Subject</th><th>Count</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in sales_calls_by_subject %}
+                                        <tr>
+                                            <td>{{ item.meeting_subject }}</td>
+                                            <td>{{ item.count }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Follow-up Status</h6>
+                            <div class="d-flex justify-content-around text-center">
+                                <div>
+                                    <h4 class="text-primary">{{ follow_up_stats.required }}</h4>
+                                    <small>Required</small>
+                                </div>
+                                <div>
+                                    <h4 class="text-success">{{ follow_up_stats.completed }}</h4>
+                                    <small>Completed</small>
+                                </div>
+                                <div>
+                                    <h4 class="text-warning">{{ follow_up_stats.pending }}</h4>
+                                    <small>Pending</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Dashboard organized into 4 main draggable sections -->
         <div id="full-dashboard-container">
         

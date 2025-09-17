@@ -14,11 +14,16 @@ class AdminModelDetector:
     """Detects and analyzes existing admin models to create Core Sections"""
     
     def __init__(self):
-        self.core_models = [
-            'accounts.Account',
-            'agreements.Agreement', 
-            'sales_calls.SalesCall',
-            'requests.Request'
+        # Target apps to include in configuration system
+        self.target_apps = ['accounts', 'requests', 'agreements', 'sales_calls', 'auth']
+        
+        # Exclude internal configuration models to avoid clutter/recursion
+        self.excluded_models = [
+            'requests.DynamicSection',
+            'requests.DynamicModel', 
+            'requests.DynamicField',
+            'requests.DynamicFieldValue',
+            'requests.DynamicModelMigration'
         ]
     
     def get_registered_admin_models(self) -> Dict[str, Any]:
@@ -33,8 +38,8 @@ class AdminModelDetector:
             model_name = model._meta.object_name  # Use object_name for proper capitalization
             full_name = f"{app_label}.{model_name}"
             
-            # Only process our exact core models
-            if self._is_core_model(full_name):
+            # Only process models from target apps (excluding internal config models)
+            if self._should_include_model(full_name):
                 admin_models[full_name] = {
                     'model': model,
                     'admin_class': admin_class,
@@ -48,9 +53,13 @@ class AdminModelDetector:
         
         return admin_models
     
-    def _is_core_model(self, full_name: str) -> bool:
-        """Check if this is exactly one of our core models"""
-        return full_name in self.core_models
+    def _should_include_model(self, full_name: str) -> bool:
+        """Check if this model should be included in configuration system"""
+        app_label = full_name.split('.')[0]
+        
+        # Include if from target apps and not in excluded list
+        return (app_label in self.target_apps and 
+                full_name not in self.excluded_models)
     
     def _extract_model_fields(self, model) -> List[Dict[str, Any]]:
         """Extract field information from Django model, filtering out non-editable fields"""
@@ -189,14 +198,34 @@ class AdminModelDetector:
             )
     
     def _get_section_order(self, full_name: str) -> int:
-        """Get display order for core sections"""
-        order_map = {
-            'accounts.account': 10,
-            'requests.request': 20, 
-            'agreements.agreement': 30,
-            'sales_calls.salescall': 40
+        """Get display order for core sections with app-based ordering"""
+        app_label = full_name.split('.')[0].lower()
+        model_name = full_name.split('.')[1].lower()
+        
+        # App-based base ordering
+        app_order_map = {
+            'accounts': 10,
+            'requests': 20,
+            'agreements': 30,
+            'sales_calls': 40,
+            'auth': 90
         }
-        return order_map.get(full_name.lower(), 100)
+        
+        # Specific model adjustments within apps
+        model_adjustments = {
+            'requests.request': 0,
+            'requests.accommodationrequest': 1,
+            'requests.eventonlyrequest': 2,
+            'requests.eventwithRoomsrequest': 3,
+            'requests.seriesgrouprequest': 4,
+            'auth.user': 1,
+            'auth.group': 2
+        }
+        
+        base_order = app_order_map.get(app_label, 100)
+        adjustment = model_adjustments.get(full_name.lower(), 0)
+        
+        return base_order + adjustment
     
     def sync_core_sections(self) -> Dict[str, Any]:
         """Synchronize core sections with current admin models"""

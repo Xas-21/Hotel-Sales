@@ -64,6 +64,37 @@ def dashboard_view(request):
     request_types = Request.objects.values('request_type').annotate(
         count=Count('id')).order_by('-count')
     
+    # Enhanced Analytics Data for new dashboard sections
+    
+    # Request Status Distribution Analytics
+    request_status_distribution = Request.objects.values('status').annotate(
+        count=Count('id')).order_by('-count')
+    
+    # Request Type with Status breakdown
+    request_type_status = Request.objects.values('request_type', 'status').annotate(
+        count=Count('id')).order_by('-count')
+    
+    # Agreements Analytics by Status and Type
+    agreement_status_breakdown = Agreement.objects.values('status').annotate(
+        count=Count('id')).order_by('-count')
+    
+    agreement_rate_type_breakdown = Agreement.objects.values('rate_type').annotate(
+        count=Count('id')).order_by('-count')
+    
+    # Sales Calls Analytics by Business Potential and Subject
+    sales_calls_by_potential = SalesCall.objects.values('business_potential').annotate(
+        count=Count('id')).order_by('-count')
+    
+    sales_calls_by_subject = SalesCall.objects.values('meeting_subject').annotate(
+        count=Count('id')).order_by('-count')
+    
+    # Follow-up Status Analytics
+    follow_up_stats = {
+        'required': SalesCall.objects.filter(follow_up_required=True).count(),
+        'completed': SalesCall.objects.filter(follow_up_completed=True).count(),
+        'pending': SalesCall.objects.filter(follow_up_required=True, follow_up_completed=False).count()
+    }
+    
     # Recent activity
     recent_requests = Request.objects.order_by('-created_at')[:5]
     recent_sales_calls = SalesCall.objects.order_by('-visit_date')[:5]
@@ -155,6 +186,15 @@ def dashboard_view(request):
         'imminent_arrivals': normalized_arrivals,
         'today': today,
         'tomorrow': tomorrow,
+        
+        # New Analytics Section Data
+        'request_status_distribution': request_status_distribution,
+        'request_type_status': request_type_status,
+        'agreement_status_breakdown': agreement_status_breakdown,
+        'agreement_rate_type_breakdown': agreement_rate_type_breakdown,
+        'sales_calls_by_potential': sales_calls_by_potential,
+        'sales_calls_by_subject': sales_calls_by_subject,
+        'follow_up_stats': follow_up_stats,
     }
     
     
