@@ -57,10 +57,10 @@ class EventAgendaInline(admin.TabularInline):
     model = EventAgenda
     extra = 0
     fields = [
-        'event_date', 'meeting_room_name', 'start_time', 'end_time', 
+        'event_date', 'meeting_room_name', 'style', 'start_time', 'end_time', 
         'coffee_break_time', 'lunch_time', 'dinner_time',
         'rate_per_person', 'total_persons', 'rental_fees_per_day',
-        'packages', 'style', 'agenda_details'
+        'packages', 'agenda_details'
     ]
     verbose_name = "Event Agenda Entry"
     verbose_name_plural = "Event Agenda & Costs"
