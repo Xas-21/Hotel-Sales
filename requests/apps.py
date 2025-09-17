@@ -22,3 +22,14 @@ class RequestsConfig(AppConfig):
         except Exception as e:
             import logging
             logging.getLogger(__name__).warning(f"Failed to register admin injection: {e}")
+        
+        # Synchronize model fields to Configuration Dashboard on startup
+        try:
+            from requests.services.field_sync_service import FieldSyncService
+            import sys
+            # Only sync on server startup, not during migrations
+            if 'runserver' in sys.argv or 'migrate' not in sys.argv:
+                FieldSyncService.ensure_sync_on_startup()
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to sync fields on startup: {e}")
