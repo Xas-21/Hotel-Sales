@@ -498,8 +498,29 @@ class EventAgenda(models.Model):
         ('two_coffee_meal', '2 Coffee Break and lunch or dinner'),
     ]
     
+    ROOM_CHOICES = [
+        ('All Halls', 'All Halls'),
+        ('IKMA', 'IKMA'),
+        ('HEGRA', 'HEGRA'),
+        ('DADAN', 'DADAN'),
+        ('AL JADIDA', 'AL JADIDA'),
+        ('Board Room', 'Board Room'),
+        ('Al Badiya', 'Al Badiya'),
+        ('La Palma', 'La Palma'),
+    ]
+    
+    STYLE_CHOICES = [
+        ('Classroom', 'Classroom'),
+        ('Theatre', 'Theatre'),
+        ('U Shape', 'U Shape'),
+        ('Board', 'Board'),
+        ('Banquet', 'Banquet'),
+        ('Reception', 'Reception'),
+    ]
+    
     request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name='event_agendas')
     event_date = models.DateField(db_index=True)
+    meeting_room_name = models.CharField(max_length=20, choices=ROOM_CHOICES, default='All Halls', help_text="Meeting room for the event")
     start_time = models.TimeField()
     end_time = models.TimeField()
     coffee_break_time = models.TimeField(null=True, blank=True)
@@ -510,6 +531,7 @@ class EventAgenda(models.Model):
     # Enhanced financial fields
     rental_fees_per_day = models.DecimalField(max_digits=8, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(Decimal('0.00'))], help_text="Daily rental fees for venue")
     packages = models.CharField(max_length=20, choices=PACKAGE_CHOICES, blank=True, help_text="Package selection for catering")
+    style = models.CharField(max_length=15, choices=STYLE_CHOICES, default='Classroom', help_text="Room setup style")
     rate_per_person = models.DecimalField(max_digits=8, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(Decimal('0.00'))], help_text="Rate per person for selected package")
     total_persons = models.PositiveIntegerField(default=0, help_text="Total number of attendees")
     
