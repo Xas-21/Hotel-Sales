@@ -524,48 +524,9 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <!-- Recent Accounts Section (2x2 Layout) -->
+                        <!-- Recent Requests Section (Top) -->
                         <div class="row mb-4">
                             <div class="col-12">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h6 class="mb-0">Recent Accounts</h6>
-                                    </div>
-                                    <div class="card-body">
-                                        {% if recent_accounts %}
-                                            <div class="row">
-                                                {% for account in recent_accounts %}
-                                                <div class="col-md-6 mb-3">
-                                                    <div class="border rounded p-3 h-100 d-flex justify-content-between align-items-center">
-                                                        <div>
-                                                            <a href="/admin/accounts/account/{{ account.id }}/change/" class="company-link">
-                                                                <strong>{{ account.name }}</strong>
-                                                            </a><br>
-                                                            <small class="text-muted">{{ account.account_type }}</small><br>
-                                                            <small class="text-info">{{ account.city|default:"No city" }}</small>
-                                                        </div>
-                                                        <div>
-                                                            <a href="/admin/accounts/account/{{ account.id }}/change/" class="btn btn-sm btn-outline-primary">View</a>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                {% if forloop.counter == 2 %}
-                                                </div><div class="row">
-                                                {% endif %}
-                                                {% endfor %}
-                                            </div>
-                                        {% else %}
-                                            <p class="text-muted">No recent accounts found.</p>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Other Recent Activities (Requests, Sales Calls, Agreements) -->
-                        <div class="row">
-                            <!-- Recent Requests -->
-                            <div class="col-md-4">
                                 <div class="card">
                                     <div class="card-header">
                                         <h6 class="mb-0">Recent Requests</h6>
@@ -578,12 +539,12 @@
                                                     <div>
                                                         <a href="/admin/accounts/account/{{ request.account.id }}/change/" class="company-link">
                                                             <strong>{{ request.account.name }}</strong>
-                                                        </a><br>
-                                                        <small class="text-muted">{{ request.request_type }}</small>
-                                                        <br><small class="text-info">{{ request.check_in_date|default:"No check-in date" }}</small>
+                                                        </a>
+                                                        <small class="text-muted ms-2">{{ request.request_type }}</small>
+                                                        <small class="text-info ms-2">{{ request.check_in_date|default:"No check-in date" }}</small>
                                                     </div>
-                                                    <div class="text-end">
-                                                        <select class="form-select form-select-sm mb-1 status-dropdown" 
+                                                    <div class="d-flex align-items-center">
+                                                        <select class="form-select form-select-sm me-2 status-dropdown" 
                                                                 data-type="request" 
                                                                 data-id="{{ request.id }}"
                                                                 data-current-status="{{ request.status }}">
@@ -606,6 +567,40 @@
                                             </div>
                                         {% else %}
                                             <p class="text-muted">No recent requests found.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Other Recent Activities (Accounts, Sales Calls, Agreements) -->
+                        <div class="row">
+                            <!-- Recent Accounts -->
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Recent Accounts</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if recent_accounts %}
+                                            <div class="list-group list-group-flush">
+                                                {% for account in recent_accounts %}
+                                                <div class="list-group-item d-flex justify-content-between align-items-center p-2">
+                                                    <div>
+                                                        <a href="/admin/accounts/account/{{ account.id }}/change/" class="company-link">
+                                                            <strong>{{ account.name }}</strong>
+                                                        </a><br>
+                                                        <small class="text-muted">{{ account.account_type }}</small>
+                                                        <br><small class="text-info">{{ account.city|default:"No city" }}</small>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <a href="/admin/accounts/account/{{ account.id }}/change/" class="btn btn-sm btn-outline-primary">View</a>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <p class="text-muted">No recent accounts found.</p>
                                         {% endif %}
                                     </div>
                                 </div>
