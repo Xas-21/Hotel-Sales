@@ -986,6 +986,10 @@ class RequestAdmin(BaseRequestAdmin):
 # Import configuration admin classes  
 from .configuration_admin import DynamicModelAdmin, DynamicFieldAdmin, DynamicModelMigrationAdmin
 
+# Apply emergency fix for date fields
+from .admin_fix import patch_all_admin_forms
+patch_all_admin_forms()
+
 # @admin.register(DynamicFieldValue)  # Removed from admin panel - use Configuration dashboard instead
 class DynamicFieldValueAdmin(admin.ModelAdmin):
     list_display = ['field', 'content_type', 'object_id', 'get_value_display', 'created_at']
