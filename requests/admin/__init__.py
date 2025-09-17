@@ -299,7 +299,7 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
 
 # Specialized admin classes for proxy models
 @admin.register(AccommodationRequest)
-class AccommodationRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
+class AccommodationRequestAdmin(BaseRequestAdmin):
     """Admin for Accommodation-only requests - Room + Transport + Documents & Notes + Calculations"""
     inlines = [RoomEntryInline, TransportationInline]
     
@@ -484,7 +484,7 @@ class AccommodationRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
 
 
 @admin.register(EventOnlyRequest)  
-class EventOnlyRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
+class EventOnlyRequestAdmin(BaseRequestAdmin):
     """Admin for Event-only requests - Events + Transport + Documents & Notes + Calculations"""
     inlines = [EventAgendaInline, TransportationInline]
     
@@ -662,7 +662,7 @@ class EventOnlyRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
 
 
 @admin.register(EventWithRoomsRequest)
-class EventWithRoomsRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
+class EventWithRoomsRequestAdmin(BaseRequestAdmin):
     """Admin for Events with accommodation - Events + Room + Transport + Documents & Notes + Calculations"""
     inlines = [EventAgendaInline, RoomEntryInline, TransportationInline]
     
@@ -842,7 +842,7 @@ class EventWithRoomsRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
 
 
 @admin.register(SeriesGroupRequest)
-class SeriesGroupRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
+class SeriesGroupRequestAdmin(BaseRequestAdmin):
     """Admin for Series Group requests - Series Details + Transport + Documents & Notes + Calculations"""
     inlines = [SeriesGroupEntryInline, TransportationInline]
     
