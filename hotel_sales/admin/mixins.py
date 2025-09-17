@@ -67,7 +67,7 @@ class ConfigEnforcedAdminMixin:
                     
                     # Apply widget based on field_type configuration
                     # Only override if configuration specifies a different type
-                    if field_config.field_type == 'DateField':
+                    if field_config.field_type in ['date', 'DateField']:
                         # Return a DateField with the admin widget
                         return DateField(
                             widget=admin.widgets.AdminDateWidget,

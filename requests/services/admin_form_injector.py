@@ -45,6 +45,7 @@ class AdminFormInjector:
         
         # Date/Time fields
         'date': DateField,
+        'DateField': DateField,  # Support both lowercase and capitalized
         'datetime': DateTimeField,
         'time': TimeField,
         
@@ -232,9 +233,11 @@ class AdminFormInjector:
             kwargs['widget'] = forms.Textarea(attrs={'rows': 3})
         
         # Use proper admin widgets for date/time fields to ensure calendar pickers
-        if field_type == 'date':
+        if field_type in ['date', 'DateField']:
             from django.contrib import admin
             kwargs['widget'] = admin.widgets.AdminDateWidget()
+            # Remove max_length for date fields if it exists
+            kwargs.pop('max_length', None)
         elif field_type == 'datetime':
             from django.contrib import admin
             kwargs['widget'] = admin.widgets.AdminSplitDateTime()
