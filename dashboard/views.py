@@ -66,6 +66,10 @@ def dashboard_view(request):
     
     # Enhanced Analytics Data for new dashboard sections
     
+    # Request Segments Analytics (Travel Agent, Company, Government)
+    request_segments = Request.objects.select_related('account').values('account__account_type').annotate(
+        count=Count('id')).order_by('-count')
+    
     # Request Status Distribution Analytics
     request_status_distribution = Request.objects.values('status').annotate(
         count=Count('id')).order_by('-count')
@@ -188,6 +192,7 @@ def dashboard_view(request):
         'tomorrow': tomorrow,
         
         # New Analytics Section Data
+        'request_segments': request_segments,
         'request_status_distribution': request_status_distribution,
         'request_type_status': request_type_status,
         'agreement_status_breakdown': agreement_status_breakdown,

@@ -67,6 +67,56 @@
 
         <!-- NEW ANALYTICS SECTIONS - Added above existing dashboard -->
         
+        <!-- Analytics Section 0: Request Segments (Travel Agent, Company, Government) -->
+        <div class="dashboard-section mb-4" data-section="request-segments">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>Request Segments</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-12">
+                            <h6>Requests by Account Type</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr><th>Segment</th><th>Count</th><th>%</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in request_segments %}
+                                        <tr>
+                                            <td>
+                                                <span class="badge bg-{% if item.account__account_type == 'Travel Agency' %}primary{% elif item.account__account_type == 'Company' %}success{% elif item.account__account_type == 'Government' %}warning{% else %}secondary{% endif %}">
+                                                    {{ item.account__account_type }}
+                                                </span>
+                                            </td>
+                                            <td>{{ item.count }}</td>
+                                            <td>{% widthratio item.count total_requests 100 %}%</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="mt-3">
+                                <div class="row text-center">
+                                    {% for item in request_segments %}
+                                    <div class="col-md-4">
+                                        <div class="card bg-{% if item.account__account_type == 'Travel Agency' %}primary{% elif item.account__account_type == 'Company' %}success{% elif item.account__account_type == 'Government' %}warning{% else %}secondary{% endif %} text-white">
+                                            <div class="card-body">
+                                                <h4>{{ item.count }}</h4>
+                                                <p class="mb-0">{{ item.account__account_type }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <!-- Analytics Section 1: Request Type & Status Distribution -->
         <div class="dashboard-section mb-4" data-section="request-analytics">
             <div class="card">
