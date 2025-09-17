@@ -25,11 +25,13 @@ class ConfigEnforcedAdminMixin:
     @property
     def media(self):
         """
-        Ensure date/time widgets JavaScript is always included
+        Ensure date/time widgets JavaScript is always included with proper dependencies
         """
         from django.forms import Media
-        extra = Media(js=['admin/js/admin/DateTimeShortcuts.js'])
-        return super().media + extra
+        # Include core.js first (defines quickElement), then DateTimeShortcuts.js
+        extra = Media(js=['admin/js/core.js', 'admin/js/admin/DateTimeShortcuts.js'])
+        base_media = super().media if hasattr(super(), 'media') else Media()
+        return base_media + extra
     
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         """Override to apply correct widget based on DynamicField configuration"""

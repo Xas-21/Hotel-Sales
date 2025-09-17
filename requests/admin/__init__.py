@@ -102,8 +102,6 @@ class SeriesGroupEntryInline(admin.TabularInline):
 
 # Base admin class for shared functionality
 class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
-    class Media:
-        js = ('admin/js/admin/DateTimeShortcuts.js',)
     list_display = ['confirmation_number', 'account', 'request_type', 'meal_plan', 'status', 'check_in_date', 'check_out_date', 'nights', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
     list_filter = ['request_type', 'meal_plan', 'status', 'created_at', 'check_in_date']
     search_fields = ['confirmation_number', 'account__name', 'account__contact_person']
@@ -978,17 +976,10 @@ class SeriesGroupRequestAdmin(BaseRequestAdmin):
 class RequestAdmin(BaseRequestAdmin):
     """Original unified request admin (for backward compatibility)"""
     inlines = [RoomEntryInline, TransportationInline, EventAgendaInline, SeriesGroupEntryInline]
-    
-    class Media:
-        js = ('admin/js/admin/DateTimeShortcuts.js',)
 
 
 # Import configuration admin classes  
 from .configuration_admin import DynamicModelAdmin, DynamicFieldAdmin, DynamicModelMigrationAdmin
-
-# Apply emergency fix for date fields
-from .admin_fix import patch_all_admin_forms
-patch_all_admin_forms()
 
 # @admin.register(DynamicFieldValue)  # Removed from admin panel - use Configuration dashboard instead
 class DynamicFieldValueAdmin(admin.ModelAdmin):
