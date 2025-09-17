@@ -407,11 +407,15 @@
                         <div class="col-md-2">
                             <select class="form-select form-select-sm" id="edit-type-${fieldId}" onchange="toggleChoiceOptions(${fieldId})">
                                 <option value="CharField" ${currentType === 'CharField' ? 'selected' : ''}>Text</option>
-                                <option value="EmailField" ${currentType === 'EmailField' ? 'selected' : ''}>Email</option>
+                                <option value="TextField" ${currentType === 'TextField' ? 'selected' : ''}>Textarea</option>
                                 <option value="IntegerField" ${currentType === 'IntegerField' ? 'selected' : ''}>Number</option>
-                                <option value="BooleanField" ${currentType === 'BooleanField' ? 'selected' : ''}>Boolean</option>
+                                <option value="DecimalField" ${currentType === 'DecimalField' ? 'selected' : ''}>Decimal</option>
                                 <option value="DateField" ${currentType === 'DateField' ? 'selected' : ''}>Date</option>
-                                <option value="ChoiceField" ${currentType === 'ChoiceField' ? 'selected' : ''}>Choice</option>
+                                <option value="DateTimeField" ${currentType === 'DateTimeField' ? 'selected' : ''}>Date & Time</option>
+                                <option value="BooleanField" ${currentType === 'BooleanField' ? 'selected' : ''}>Checkbox</option>
+                                <option value="EmailField" ${currentType === 'EmailField' ? 'selected' : ''}>Email</option>
+                                <option value="URLField" ${currentType === 'URLField' ? 'selected' : ''}>URL</option>
+                                <option value="ChoiceField" ${currentType === 'ChoiceField' ? 'selected' : ''}>Choice/Dropdown</option>
                             </select>
                         </div>
                         <div class="col-md-2">
