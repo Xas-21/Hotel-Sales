@@ -294,6 +294,17 @@ class ConfigEnforcedAdminMixin:
                                     new_field.label = existing_field.label
                                 new_field.help_text = getattr(existing_field, 'help_text', '')
                                 new_field.required = field_config.get('required', existing_field.required)
+                                
+                                # If this is a choice field with dynamic choices, ensure the initial value is valid
+                                if hasattr(new_field, 'choices') and form_self.instance and hasattr(form_self.instance, field_name):
+                                    current_value = getattr(form_self.instance, field_name)
+                                    if current_value:
+                                        # Get the valid choices from new field
+                                        valid_choices = [choice[0] for choice in new_field.choices if choice[0]]
+                                        # If current value not in new choices, add it to preserve data integrity
+                                        if current_value not in valid_choices:
+                                            # Add the current value as a valid choice to avoid validation errors
+                                            new_field.choices = list(new_field.choices) + [(current_value, current_value)]
                             
                             # Replace the field
                             form_self.fields[field_name] = new_field
