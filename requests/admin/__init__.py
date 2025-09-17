@@ -303,9 +303,6 @@ class AccommodationRequestAdmin(BaseRequestAdmin):
     """Admin for Accommodation-only requests - Room + Transport + Documents & Notes + Calculations"""
     inlines = [RoomEntryInline, TransportationInline]
     
-    class Media:
-        js = ('admin/js/admin/DateTimeShortcuts.js',)
-    
     # Complete admin configuration matching BaseRequestAdmin
     list_display = ['confirmation_number', 'account', 'meal_plan', 'status', 'check_in_date', 'check_out_date', 'nights', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
     list_filter = ['meal_plan', 'status', 'created_at', 'check_in_date']
@@ -424,13 +421,7 @@ class AccommodationRequestAdmin(BaseRequestAdmin):
         
         return response
     export_selected_requests.short_description = "Export selected accommodation requests to CSV"
-    
-    # Ensure date widgets are properly applied
-    formfield_overrides = {
-        models.DateField: {'widget': admin.widgets.AdminDateWidget},
-        models.DateTimeField: {'widget': admin.widgets.AdminSplitDateTime},
-        models.TimeField: {'widget': admin.widgets.AdminTimeWidget},
-    }
+
     
     def get_fieldsets(self, request, obj=None):
         """Complete fieldsets for accommodation requests - hide request_type"""
@@ -488,9 +479,6 @@ class EventOnlyRequestAdmin(BaseRequestAdmin):
     """Admin for Event-only requests - Events + Transport + Documents & Notes + Calculations"""
     inlines = [EventAgendaInline, TransportationInline]
     
-    class Media:
-        js = ('admin/js/admin/DateTimeShortcuts.js',)
-    
     # Complete admin configuration matching AccommodationRequestAdmin
     list_display = ['confirmation_number', 'account', 'status', 'request_received_date', 'total_cost', 'created_at']
     list_filter = ['status', 'request_received_date', 'created_at']
@@ -500,13 +488,7 @@ class EventOnlyRequestAdmin(BaseRequestAdmin):
                       'get_event_total_display', 'get_statistics_summary']
     ordering = ['-created_at']
     actions = ['export_selected_requests']
-    
-    # Ensure date widgets are properly applied
-    formfield_overrides = {
-        models.DateField: {'widget': admin_widgets.AdminDateWidget},
-        models.DateTimeField: {'widget': admin_widgets.AdminSplitDateTime},
-        models.TimeField: {'widget': admin_widgets.AdminTimeWidget},
-    }
+
     
     # Display methods for statistics - copied from AccommodationRequestAdmin
     def get_adr_display(self, obj):
@@ -606,13 +588,7 @@ class EventOnlyRequestAdmin(BaseRequestAdmin):
         
         return response
     export_selected_requests.short_description = "Export selected event-only requests to CSV"
-    
-    # Ensure date widgets are properly applied
-    formfield_overrides = {
-        models.DateField: {'widget': admin.widgets.AdminDateWidget},
-        models.DateTimeField: {'widget': admin.widgets.AdminSplitDateTime},
-        models.TimeField: {'widget': admin.widgets.AdminTimeWidget},
-    }
+
     
     def get_fieldsets(self, request, obj=None):
         """Complete fieldsets for event-only requests - hide request_type"""
@@ -665,9 +641,6 @@ class EventOnlyRequestAdmin(BaseRequestAdmin):
 class EventWithRoomsRequestAdmin(BaseRequestAdmin):
     """Admin for Events with accommodation - Events + Room + Transport + Documents & Notes + Calculations"""
     inlines = [EventAgendaInline, RoomEntryInline, TransportationInline]
-    
-    class Media:
-        js = ('admin/js/admin/DateTimeShortcuts.js',)
     
     # Complete admin configuration matching AccommodationRequestAdmin
     list_display = ['confirmation_number', 'account', 'meal_plan', 'status', 'check_in_date', 'check_out_date', 'nights', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
@@ -782,13 +755,7 @@ class EventWithRoomsRequestAdmin(BaseRequestAdmin):
         
         return response
     export_selected_requests.short_description = "Export selected event-with-rooms requests to CSV"
-    
-    # Ensure date widgets are properly applied
-    formfield_overrides = {
-        models.DateField: {'widget': admin.widgets.AdminDateWidget},
-        models.DateTimeField: {'widget': admin.widgets.AdminSplitDateTime},
-        models.TimeField: {'widget': admin.widgets.AdminTimeWidget},
-    }
+
     
     def get_fieldsets(self, request, obj=None):
         """Complete fieldsets for events with accommodation - hide request_type"""
@@ -846,9 +813,6 @@ class SeriesGroupRequestAdmin(BaseRequestAdmin):
     """Admin for Series Group requests - Series Details + Transport + Documents & Notes + Calculations"""
     inlines = [SeriesGroupEntryInline, TransportationInline]
     
-    class Media:
-        js = ('admin/js/admin/DateTimeShortcuts.js',)
-    
     # Complete admin configuration matching AccommodationRequestAdmin
     list_display = ['confirmation_number', 'account', 'status', 'request_received_date', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
     list_filter = ['status', 'request_received_date', 'created_at']
@@ -858,13 +822,7 @@ class SeriesGroupRequestAdmin(BaseRequestAdmin):
                       'get_event_total_display', 'get_statistics_summary']
     ordering = ['-created_at']
     actions = ['export_selected_requests']
-    
-    # Ensure date widgets are properly applied
-    formfield_overrides = {
-        models.DateField: {'widget': admin_widgets.AdminDateWidget},
-        models.DateTimeField: {'widget': admin_widgets.AdminSplitDateTime},
-        models.TimeField: {'widget': admin_widgets.AdminTimeWidget},
-    }
+
     
     # Display methods for statistics - copied from AccommodationRequestAdmin
     def get_adr_display(self, obj):
@@ -966,13 +924,7 @@ class SeriesGroupRequestAdmin(BaseRequestAdmin):
         
         return response
     export_selected_requests.short_description = "Export selected series group requests to CSV"
-    
-    # Ensure date widgets are properly applied
-    formfield_overrides = {
-        models.DateField: {'widget': admin.widgets.AdminDateWidget},
-        models.DateTimeField: {'widget': admin.widgets.AdminSplitDateTime},
-        models.TimeField: {'widget': admin.widgets.AdminTimeWidget},
-    }
+
     
     def get_fieldsets(self, request, obj=None):
         """Complete fieldsets for series group requests - hide request_type"""
