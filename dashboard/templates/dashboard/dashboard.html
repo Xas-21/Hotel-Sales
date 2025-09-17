@@ -524,6 +524,45 @@
                         </div>
                     </div>
                     <div class="card-body">
+                        <!-- Recent Accounts Section (2x2 Layout) -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Recent Accounts</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if recent_accounts %}
+                                            <div class="row">
+                                                {% for account in recent_accounts %}
+                                                <div class="col-md-6 mb-3">
+                                                    <div class="border rounded p-3 h-100 d-flex justify-content-between align-items-center">
+                                                        <div>
+                                                            <a href="/admin/accounts/account/{{ account.id }}/change/" class="company-link">
+                                                                <strong>{{ account.name }}</strong>
+                                                            </a><br>
+                                                            <small class="text-muted">{{ account.account_type }}</small><br>
+                                                            <small class="text-info">{{ account.city|default:"No city" }}</small>
+                                                        </div>
+                                                        <div>
+                                                            <a href="/admin/accounts/account/{{ account.id }}/change/" class="btn btn-sm btn-outline-primary">View</a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% if forloop.counter == 2 %}
+                                                </div><div class="row">
+                                                {% endif %}
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <p class="text-muted">No recent accounts found.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Other Recent Activities (Requests, Sales Calls, Agreements) -->
                         <div class="row">
                             <!-- Recent Requests -->
                             <div class="col-md-4">
@@ -555,7 +594,12 @@
                                                             <option value="Paid" {% if request.status == 'Paid' %}selected{% endif %}>Paid</option>
                                                             <option value="Partially Paid" {% if request.status == 'Partially Paid' %}selected{% endif %}>Partially Paid</option>
                                                         </select>
-                                                        <a href="/admin/requests/request/{{ request.id }}/change/" class="btn btn-sm btn-outline-primary">View</a>
+                                                        <div class="btn-group" role="group">
+                                                            <a href="/admin/requests/request/{{ request.id }}/change/" class="btn btn-sm btn-outline-primary">View</a>
+                                                            {% if request.status != 'Cancelled' %}
+                                                            <a href="/admin/requests/request/{{ request.id }}/cancel/" class="btn btn-sm btn-outline-danger">Cancel</a>
+                                                            {% endif %}
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 {% endfor %}

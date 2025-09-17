@@ -103,6 +103,7 @@ def dashboard_view(request):
     recent_requests = Request.objects.order_by('-created_at')[:5]
     recent_sales_calls = SalesCall.objects.order_by('-visit_date')[:5]
     recent_agreements = Agreement.objects.order_by('-created_at')[:5]
+    recent_accounts = Account.objects.order_by('-created_at')[:4]  # Get 4 recent accounts for 2x2 layout
     
     # Alerts
     approaching_deadlines = Agreement.objects.filter(
@@ -185,6 +186,7 @@ def dashboard_view(request):
         'recent_requests': recent_requests,
         'recent_sales_calls': recent_sales_calls,
         'recent_agreements': recent_agreements,
+        'recent_accounts': recent_accounts,
         'approaching_deadlines': approaching_deadlines,
         'overdue_followups': overdue_followups,
         'imminent_arrivals': normalized_arrivals,
