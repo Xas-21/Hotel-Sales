@@ -247,8 +247,9 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
                 summary.append(f"ADR: ${adr:.2f}")
             
             payment_status = "Unpaid"
-            if obj.paid_amount > 0:
-                payment_pct = (obj.paid_amount / obj.total_cost) * 100 if obj.total_cost > 0 else 0
+            display_paid_amount = obj.get_display_paid_amount()
+            if display_paid_amount and display_paid_amount > 0:
+                payment_pct = (display_paid_amount / obj.total_cost) * 100 if obj.total_cost > 0 else 0
                 if payment_pct >= 100:
                     payment_status = "Fully Paid"
                 else:
@@ -285,7 +286,7 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
                 sanitize_csv_value(req.get_meal_plan_display()),
                 sanitize_csv_value(req.total_rooms),
                 sanitize_csv_value(f"{req.total_cost:.2f}" if req.total_cost else '0.00'),
-                sanitize_csv_value(f"{req.paid_amount:.2f}" if req.paid_amount else '0.00'),
+                sanitize_csv_value(f"{req.get_display_paid_amount():.2f}" if req.get_display_paid_amount() else '0.00'),
                 sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
                 sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
                 sanitize_csv_value(req.notes)
@@ -358,8 +359,9 @@ class AccommodationRequestAdmin(BaseRequestAdmin):
                 summary.append(f"ADR: ${adr:.2f}")
             
             payment_status = "Unpaid"
-            if obj.paid_amount > 0:
-                payment_pct = (obj.paid_amount / obj.total_cost) * 100 if obj.total_cost > 0 else 0
+            display_paid_amount = obj.get_display_paid_amount()
+            if display_paid_amount and display_paid_amount > 0:
+                payment_pct = (display_paid_amount / obj.total_cost) * 100 if obj.total_cost > 0 else 0
                 if payment_pct >= 100:
                     payment_status = "Fully Paid"
                 else:
@@ -411,7 +413,7 @@ class AccommodationRequestAdmin(BaseRequestAdmin):
                 sanitize_csv_value(req.get_meal_plan_display()),
                 sanitize_csv_value(req.total_rooms),
                 sanitize_csv_value(f"{req.total_cost:.2f}" if req.total_cost else '0.00'),
-                sanitize_csv_value(f"{req.paid_amount:.2f}" if req.paid_amount else '0.00'),
+                sanitize_csv_value(f"{req.get_display_paid_amount():.2f}" if req.get_display_paid_amount() else '0.00'),
                 sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
                 sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
                 sanitize_csv_value(req.notes)
@@ -535,8 +537,9 @@ class EventOnlyRequestAdmin(BaseRequestAdmin):
                 summary.append(f"ADR: ${adr:.2f}")
             
             payment_status = "Unpaid"
-            if obj.paid_amount > 0:
-                payment_pct = (obj.paid_amount / obj.total_cost) * 100 if obj.total_cost > 0 else 0
+            display_paid_amount = obj.get_display_paid_amount()
+            if display_paid_amount and display_paid_amount > 0:
+                payment_pct = (display_paid_amount / obj.total_cost) * 100 if obj.total_cost > 0 else 0
                 if payment_pct >= 100:
                     payment_status = "Fully Paid"
                 else:
@@ -578,7 +581,7 @@ class EventOnlyRequestAdmin(BaseRequestAdmin):
                 sanitize_csv_value(req.get_status_display()),
                 sanitize_csv_value(req.request_received_date.strftime('%Y-%m-%d') if req.request_received_date else ''),
                 sanitize_csv_value(f"{req.total_cost:.2f}" if req.total_cost else '0.00'),
-                sanitize_csv_value(f"{req.paid_amount:.2f}" if req.paid_amount else '0.00'),
+                sanitize_csv_value(f"{req.get_display_paid_amount():.2f}" if req.get_display_paid_amount() else '0.00'),
                 sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
                 sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
                 sanitize_csv_value(req.notes)
@@ -697,8 +700,9 @@ class EventWithRoomsRequestAdmin(BaseRequestAdmin):
                 summary.append(f"ADR: ${adr:.2f}")
             
             payment_status = "Unpaid"
-            if obj.paid_amount > 0:
-                payment_pct = (obj.paid_amount / obj.total_cost) * 100 if obj.total_cost > 0 else 0
+            display_paid_amount = obj.get_display_paid_amount()
+            if display_paid_amount and display_paid_amount > 0:
+                payment_pct = (display_paid_amount / obj.total_cost) * 100 if obj.total_cost > 0 else 0
                 if payment_pct >= 100:
                     payment_status = "Fully Paid"
                 else:
@@ -745,7 +749,7 @@ class EventWithRoomsRequestAdmin(BaseRequestAdmin):
                 sanitize_csv_value(req.get_meal_plan_display()),
                 sanitize_csv_value(req.total_rooms),
                 sanitize_csv_value(f"{req.total_cost:.2f}" if req.total_cost else '0.00'),
-                sanitize_csv_value(f"{req.paid_amount:.2f}" if req.paid_amount else '0.00'),
+                sanitize_csv_value(f"{req.get_display_paid_amount():.2f}" if req.get_display_paid_amount() else '0.00'),
                 sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
                 sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
                 sanitize_csv_value(req.notes)
@@ -869,8 +873,9 @@ class SeriesGroupRequestAdmin(BaseRequestAdmin):
                 summary.append(f"ADR: ${adr:.2f}")
             
             payment_status = "Unpaid"
-            if obj.paid_amount > 0:
-                payment_pct = (obj.paid_amount / obj.total_cost) * 100 if obj.total_cost > 0 else 0
+            display_paid_amount = obj.get_display_paid_amount()
+            if display_paid_amount and display_paid_amount > 0:
+                payment_pct = (display_paid_amount / obj.total_cost) * 100 if obj.total_cost > 0 else 0
                 if payment_pct >= 100:
                     payment_status = "Fully Paid"
                 else:
@@ -914,7 +919,7 @@ class SeriesGroupRequestAdmin(BaseRequestAdmin):
                 sanitize_csv_value(req.total_rooms),
                 sanitize_csv_value(req.total_room_nights),
                 sanitize_csv_value(f"{req.total_cost:.2f}" if req.total_cost else '0.00'),
-                sanitize_csv_value(f"{req.paid_amount:.2f}" if req.paid_amount else '0.00'),
+                sanitize_csv_value(f"{req.get_display_paid_amount():.2f}" if req.get_display_paid_amount() else '0.00'),
                 sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
                 sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
                 sanitize_csv_value(req.notes)
