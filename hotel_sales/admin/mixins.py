@@ -284,30 +284,42 @@ class ConfigEnforcedAdminMixin:
                         
                         # Override existing model field choices (for non-relation fields only)
                         if field_name in form_self.fields:
-                            # Replace the field completely with custom choices
-                            new_field = AdminFormInjector.create_form_field(field_config)
+                            existing_field = form_self.fields[field_name]
                             
-                            # Preserve existing field attributes if not overridden
-                            existing_field = form_self.fields.get(field_name)
-                            if existing_field:
-                                if not field_config.get('display_name'):
-                                    new_field.label = existing_field.label
-                                new_field.help_text = getattr(existing_field, 'help_text', '')
-                                new_field.required = field_config.get('required', existing_field.required)
+                            # Get dynamic choices from configuration
+                            if field_config.get('choices'):
+                                # Parse choices (handle both dict and JSON string formats)
+                                if isinstance(field_config['choices'], dict):
+                                    dynamic_choices = list(field_config['choices'].items())
+                                else:
+                                    try:
+                                        import json
+                                        choices_data = json.loads(field_config['choices'])
+                                        dynamic_choices = list(choices_data.items()) if isinstance(choices_data, dict) else []
+                                    except (json.JSONDecodeError, ValueError):
+                                        dynamic_choices = []
                                 
-                                # If this is a choice field with dynamic choices, ensure the initial value is valid
-                                if hasattr(new_field, 'choices') and form_self.instance and hasattr(form_self.instance, field_name):
-                                    current_value = getattr(form_self.instance, field_name)
-                                    if current_value:
-                                        # Get the valid choices from new field
-                                        valid_choices = [choice[0] for choice in new_field.choices if choice[0]]
-                                        # If current value not in new choices, add it to preserve data integrity
-                                        if current_value not in valid_choices:
-                                            # Add the current value as a valid choice to avoid validation errors
-                                            new_field.choices = list(new_field.choices) + [(current_value, current_value)]
-                            
-                            # Replace the field
-                            form_self.fields[field_name] = new_field
+                                if dynamic_choices and hasattr(existing_field, 'choices'):
+                                    # Update the existing field's choices directly
+                                    existing_field.choices = dynamic_choices
+                                    
+                                    # Also update widget choices if it has them
+                                    if hasattr(existing_field.widget, 'choices'):
+                                        existing_field.widget.choices = dynamic_choices
+                                    
+                                    # If this field has a current value, ensure it's in the choices
+                                    if form_self.instance and hasattr(form_self.instance, field_name):
+                                        current_value = getattr(form_self.instance, field_name)
+                                        if current_value:
+                                            valid_choices = [str(choice[0]) for choice in dynamic_choices]
+                                            # If current value not in new choices, add it to preserve data integrity
+                                            if str(current_value) not in valid_choices:
+                                                # Add the current value as a valid choice to avoid validation errors
+                                                existing_field.choices = list(dynamic_choices) + [(current_value, current_value)]
+                                                if hasattr(existing_field.widget, 'choices'):
+                                                    existing_field.widget.choices = existing_field.choices
+                                    
+                                    logger.debug(f"Updated choices for field {field_name} with {len(dynamic_choices)} dynamic choices")
                             
                     elif field_config.get('is_core_create', False):
                         # Add new core field (doesn't exist in model)
