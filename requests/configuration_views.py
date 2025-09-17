@@ -159,7 +159,11 @@ def section_fields(request, section_id):
                 choices_obj = {}
                 try:
                     if field.choices and field.choices != '{}':
-                        choices_obj = json.loads(field.choices)
+                        # Handle both dict and JSON string formats
+                        if isinstance(field.choices, dict):
+                            choices_obj = field.choices
+                        else:
+                            choices_obj = json.loads(field.choices)
                 except (json.JSONDecodeError, ValueError):
                     choices_obj = {}
                     
@@ -188,7 +192,11 @@ def section_fields(request, section_id):
         choices_obj = {}
         try:
             if field.choices and field.choices != '{}':
-                choices_obj = json.loads(field.choices)
+                # Handle both dict and JSON string formats
+                if isinstance(field.choices, dict):
+                    choices_obj = field.choices
+                else:
+                    choices_obj = json.loads(field.choices)
         except (json.JSONDecodeError, ValueError):
             choices_obj = {}
             
