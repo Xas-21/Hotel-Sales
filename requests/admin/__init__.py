@@ -102,6 +102,8 @@ class SeriesGroupEntryInline(admin.TabularInline):
 
 # Base admin class for shared functionality
 class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
+    class Media:
+        js = ('admin/js/admin/DateTimeShortcuts.js',)
     list_display = ['confirmation_number', 'account', 'request_type', 'meal_plan', 'status', 'check_in_date', 'check_out_date', 'nights', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
     list_filter = ['request_type', 'meal_plan', 'status', 'created_at', 'check_in_date']
     search_fields = ['confirmation_number', 'account__name', 'account__contact_person']
@@ -301,6 +303,9 @@ class AccommodationRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     """Admin for Accommodation-only requests - Room + Transport + Documents & Notes + Calculations"""
     inlines = [RoomEntryInline, TransportationInline]
     
+    class Media:
+        js = ('admin/js/admin/DateTimeShortcuts.js',)
+    
     # Complete admin configuration matching BaseRequestAdmin
     list_display = ['confirmation_number', 'account', 'meal_plan', 'status', 'check_in_date', 'check_out_date', 'nights', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
     list_filter = ['meal_plan', 'status', 'created_at', 'check_in_date']
@@ -483,6 +488,9 @@ class EventOnlyRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     """Admin for Event-only requests - Events + Transport + Documents & Notes + Calculations"""
     inlines = [EventAgendaInline, TransportationInline]
     
+    class Media:
+        js = ('admin/js/admin/DateTimeShortcuts.js',)
+    
     # Complete admin configuration matching AccommodationRequestAdmin
     list_display = ['confirmation_number', 'account', 'status', 'request_received_date', 'total_cost', 'created_at']
     list_filter = ['status', 'request_received_date', 'created_at']
@@ -657,6 +665,9 @@ class EventOnlyRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
 class EventWithRoomsRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     """Admin for Events with accommodation - Events + Room + Transport + Documents & Notes + Calculations"""
     inlines = [EventAgendaInline, RoomEntryInline, TransportationInline]
+    
+    class Media:
+        js = ('admin/js/admin/DateTimeShortcuts.js',)
     
     # Complete admin configuration matching AccommodationRequestAdmin
     list_display = ['confirmation_number', 'account', 'meal_plan', 'status', 'check_in_date', 'check_out_date', 'nights', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
@@ -835,6 +846,9 @@ class SeriesGroupRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     """Admin for Series Group requests - Series Details + Transport + Documents & Notes + Calculations"""
     inlines = [SeriesGroupEntryInline, TransportationInline]
     
+    class Media:
+        js = ('admin/js/admin/DateTimeShortcuts.js',)
+    
     # Complete admin configuration matching AccommodationRequestAdmin
     list_display = ['confirmation_number', 'account', 'status', 'request_received_date', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
     list_filter = ['status', 'request_received_date', 'created_at']
@@ -1012,6 +1026,9 @@ class SeriesGroupRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
 class RequestAdmin(BaseRequestAdmin):
     """Original unified request admin (for backward compatibility)"""
     inlines = [RoomEntryInline, TransportationInline, EventAgendaInline, SeriesGroupEntryInline]
+    
+    class Media:
+        js = ('admin/js/admin/DateTimeShortcuts.js',)
 
 
 # Import configuration admin classes  

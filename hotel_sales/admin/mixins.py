@@ -22,6 +22,15 @@ class ConfigEnforcedAdminMixin:
     and applies field requirements from SystemFieldRequirement.
     """
     
+    @property
+    def media(self):
+        """
+        Ensure date/time widgets JavaScript is always included
+        """
+        from django.forms import Media
+        extra = Media(js=['admin/js/admin/DateTimeShortcuts.js'])
+        return super().media + extra
+    
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         """Override to apply correct widget based on DynamicField configuration"""
         # First get the default form field from parent
