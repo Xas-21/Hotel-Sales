@@ -6,6 +6,7 @@
     <title>Hotel Sales Request Management System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .card-hover {
             transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
@@ -84,40 +85,16 @@
                             <!-- Request Segments Bar Chart -->
                             <div class="mb-4">
                                 <h6 class="text-muted mb-2">Request Segments</h6>
-                                <div class="chart-container" style="height: 200px;">
-                                    {% for item in request_segments %}
-                                    <div class="d-flex align-items-center mb-2">
-                                        <div class="me-2" style="width: 100px; font-size: 12px;">{{ item.account__account_type }}</div>
-                                        <div class="flex-grow-1">
-                                            <div class="progress" style="height: 25px;">
-                                                <div class="progress-bar bg-{% if item.account__account_type == 'Travel Agency' %}primary{% elif item.account__account_type == 'Company' %}success{% elif item.account__account_type == 'Government' %}warning{% else %}secondary{% endif %}" 
-                                                     style="width: {% if total_requests > 0 %}{% widthratio item.count total_requests 100 %}%{% else %}0%{% endif %}">
-                                                    <span class="text-white fw-bold">{{ item.count }}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {% endfor %}
+                                <div style="height: 200px;">
+                                    <canvas id="requestSegmentsChart"></canvas>
                                 </div>
                             </div>
 
                             <!-- Agreement Status Bar Chart -->
                             <div class="mb-4">
                                 <h6 class="text-muted mb-2">Agreement Status</h6>
-                                <div class="chart-container" style="height: 150px;">
-                                    {% for item in agreement_status_breakdown %}
-                                    <div class="d-flex align-items-center mb-2">
-                                        <div class="me-2" style="width: 80px; font-size: 12px;">{{ item.status }}</div>
-                                        <div class="flex-grow-1">
-                                            <div class="progress" style="height: 20px;">
-                                                <div class="progress-bar bg-{% if item.status == 'Signed' %}success{% elif item.status == 'Draft' %}warning{% elif item.status == 'Sent' %}info{% else %}secondary{% endif %}" 
-                                                     style="width: {% if total_agreements > 0 %}{% widthratio item.count total_agreements 100 %}%{% else %}0%{% endif %}">
-                                                    <span class="text-white">{{ item.count }}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {% endfor %}
+                                <div style="height: 150px;">
+                                    <canvas id="agreementStatusChart"></canvas>
                                 </div>
                             </div>
                         </div>
@@ -131,57 +108,55 @@
                             <!-- Request Status Pie Chart -->
                             <div class="mb-4">
                                 <h6 class="text-muted mb-2">Request Status Distribution</h6>
-                                <div class="text-center">
-                                    <div class="pie-chart-legend">
-                                        {% for item in request_status_distribution %}
-                                        <div class="d-inline-block me-3 mb-2">
-                                            <span class="badge bg-{% if item.status == 'Confirmed' %}success{% elif item.status == 'Paid' %}primary{% elif item.status == 'Cancelled' %}danger{% else %}warning{% endif %}" style="width: 50px;">
-                                                {% if total_requests > 0 %}{% widthratio item.count total_requests 100 %}%{% else %}0%{% endif %}
-                                            </span>
-                                            <br>
-                                            <small>{{ item.status }} ({{ item.count }})</small>
-                                        </div>
-                                        {% endfor %}
-                                    </div>
+                                <div style="height: 200px;">
+                                    <canvas id="requestStatusPieChart"></canvas>
                                 </div>
                             </div>
 
                             <!-- Sales Calls Potential Pie Chart -->
                             <div class="mb-4">
                                 <h6 class="text-muted mb-2">Sales Call Potential</h6>
-                                <div class="text-center">
-                                    <div class="pie-chart-legend">
-                                        {% for item in sales_calls_by_potential %}
-                                        <div class="d-inline-block me-3 mb-2">
-                                            <span class="badge bg-{% if item.business_potential == 'High' %}success{% elif item.business_potential == 'Medium' %}warning{% else %}secondary{% endif %}" style="width: 50px;">
-                                                {{ item.count }}
-                                            </span>
-                                            <br>
-                                            <small>{{ item.business_potential }}</small>
-                                        </div>
-                                        {% endfor %}
-                                    </div>
+                                <div style="height: 150px;">
+                                    <canvas id="salesCallPotentialChart"></canvas>
                                 </div>
                             </div>
-
-                            <!-- Accounts Summary -->
-                            <div class="mb-3">
-                                <h6 class="text-muted mb-2">System Summary</h6>
-                                <div class="row text-center">
-                                    <div class="col-6 mb-2">
-                                        <div class="card bg-primary text-white">
-                                            <div class="card-body py-2">
-                                                <h4 class="mb-0">{{ total_accounts }}</h4>
-                                                <small>Accounts</small>
-                                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- System Summary -->
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6 class="text-muted mb-2">System Summary</h6>
+                            <div class="row text-center">
+                                <div class="col-md-3 mb-2">
+                                    <div class="card bg-primary text-white">
+                                        <div class="card-body py-3">
+                                            <h4 class="mb-0">{{ total_accounts }}</h4>
+                                            <small>Accounts</small>
                                         </div>
                                     </div>
-                                    <div class="col-6 mb-2">
-                                        <div class="card bg-info text-white">
-                                            <div class="card-body py-2">
-                                                <h4 class="mb-0">{{ total_requests }}</h4>
-                                                <small>Requests</small>
-                                            </div>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <div class="card bg-info text-white">
+                                        <div class="card-body py-3">
+                                            <h4 class="mb-0">{{ total_requests }}</h4>
+                                            <small>Requests</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <div class="card bg-success text-white">
+                                        <div class="card-body py-3">
+                                            <h4 class="mb-0">{{ total_agreements }}</h4>
+                                            <small>Agreements</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <div class="card bg-warning text-white">
+                                        <div class="card-body py-3">
+                                            <h4 class="mb-0">{{ follow_up_stats.required }}</h4>
+                                            <small>Follow-ups</small>
                                         </div>
                                     </div>
                                 </div>
@@ -1269,6 +1244,128 @@
                 }
             }, 5000);
         }
+    </script>
+    
+    <!-- Chart.js Configuration and Initialization -->
+    <script>
+        // Chart.js Configuration
+        Chart.defaults.responsive = true;
+        Chart.defaults.maintainAspectRatio = false;
+
+        // Request Segments Bar Chart
+        const requestSegmentsCtx = document.getElementById('requestSegmentsChart').getContext('2d');
+        new Chart(requestSegmentsCtx, {
+            type: 'bar',
+            data: {
+                labels: [{% for item in request_segments %}'{{ item.account__account_type }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [{
+                    data: [{% for item in request_segments %}{{ item.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    backgroundColor: [
+                        {% for item in request_segments %}
+                        {% if item.account__account_type == 'Travel Agency' %}'#0d6efd'
+                        {% elif item.account__account_type == 'Company' %}'#198754'
+                        {% elif item.account__account_type == 'Government' %}'#ffc107'
+                        {% else %}'#6c757d'{% endif %}{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ]
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { beginAtZero: true }
+                }
+            }
+        });
+
+        // Agreement Status Bar Chart
+        const agreementStatusCtx = document.getElementById('agreementStatusChart').getContext('2d');
+        new Chart(agreementStatusCtx, {
+            type: 'bar',
+            data: {
+                labels: [{% for item in agreement_status_breakdown %}'{{ item.status }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [{
+                    data: [{% for item in agreement_status_breakdown %}{{ item.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    backgroundColor: [
+                        {% for item in agreement_status_breakdown %}
+                        {% if item.status == 'Signed' %}'#198754'
+                        {% elif item.status == 'Draft' %}'#ffc107'
+                        {% elif item.status == 'Sent' %}'#0dcaf0'
+                        {% else %}'#6c757d'{% endif %}{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ]
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { beginAtZero: true }
+                }
+            }
+        });
+
+        // Request Status Pie Chart
+        const requestStatusPieCtx = document.getElementById('requestStatusPieChart').getContext('2d');
+        new Chart(requestStatusPieCtx, {
+            type: 'pie',
+            data: {
+                labels: [{% for item in request_status_distribution %}'{{ item.status }} ({{ item.count }})'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [{
+                    data: [{% for item in request_status_distribution %}{{ item.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    backgroundColor: [
+                        {% for item in request_status_distribution %}
+                        {% if item.status == 'Confirmed' %}'#198754'
+                        {% elif item.status == 'Paid' %}'#0d6efd'
+                        {% elif item.status == 'Cancelled' %}'#dc3545'
+                        {% elif item.status == 'Draft' %}'#ffc107'
+                        {% else %}'#6c757d'{% endif %}{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ]
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { fontSize: 12 }
+                    }
+                }
+            }
+        });
+
+        // Sales Call Potential Pie Chart
+        const salesCallPotentialCtx = document.getElementById('salesCallPotentialChart').getContext('2d');
+        new Chart(salesCallPotentialCtx, {
+            type: 'pie',
+            data: {
+                labels: [{% for item in sales_calls_by_potential %}'{{ item.business_potential }} ({{ item.count }})'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [{
+                    data: [{% for item in sales_calls_by_potential %}{{ item.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    backgroundColor: [
+                        {% for item in sales_calls_by_potential %}
+                        {% if item.business_potential == 'High' %}'#198754'
+                        {% elif item.business_potential == 'Medium' %}'#ffc107'
+                        {% elif item.business_potential == 'Low' %}'#6c757d'
+                        {% else %}'#0dcaf0'{% endif %}{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ]
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { fontSize: 12 }
+                    }
+                }
+            }
+        });
     </script>
 </body>
 </html>
