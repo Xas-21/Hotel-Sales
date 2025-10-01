@@ -1,17 +1,24 @@
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
-.venv/
-.env
-.env.*
-.venv*/
-*.log
-staticfiles/
-media/
-db.sqlite3
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+
+# Django
+/staticfiles/
+/media/
+/db.sqlite3
+*.sqlite3
+
+# OS / IDE
 .DS_Store
 Thumbs.db
-.local/
-.idea/
 .vscode/
-*.egg-info/
+.idea/
+.env
+*.log
+
+# Node (if any)
+node_modules/
