@@ -23,19 +23,6 @@ class RequestsConfig(AppConfig):
             import logging
             logging.getLogger(__name__).warning(f"Failed to register admin injection: {e}")
         
-        # Avoid database access during app initialization in production.
-        # Gate the optional field sync behind DEBUG or explicit opt-in env var.
-        try:
-            from django.conf import settings
-            import os, sys
-            run_sync = (
-                (bool(getattr(settings, 'DEBUG', False)) and ('runserver' in sys.argv)) or
-                (os.getenv('ENABLE_FIELD_SYNC_ON_STARTUP', 'False').lower() == 'true')
-            )
-
-            if run_sync:
-                from requests.services.field_sync_service import FieldSyncService
-                FieldSyncService.ensure_sync_on_startup()
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"Skipped field sync on startup: {e}")
+        # Disable field sync during startup to avoid database access issues
+        # This can be re-enabled later if needed
+        pass

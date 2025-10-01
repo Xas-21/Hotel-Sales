@@ -3,6 +3,13 @@
 
 {% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
 
+{% block extrahead %}
+    {{ block.super }}
+    <link rel="stylesheet" type="text/css" href="{% static 'admin/css/admin_layout_fix.css' %}">
+    <!-- Include Persistent Navigation -->
+    {% include 'components/topnav.html' %}
+{% endblock %}
+
 {% block branding %}
 <h1 id="site-name">
     <a href="{% url 'admin:index' %}">
