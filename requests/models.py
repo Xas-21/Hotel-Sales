@@ -304,23 +304,6 @@ class Request(models.Model):
         if self.paid_amount < 0:
             raise ValidationError({'paid_amount': 'Paid amount cannot be negative.'})
     
-    def save(self, *args, **kwargs):
-        # Set unique default confirmation number if empty to avoid constraint violations
-        if not self.confirmation_number:
-            import time
-            # Generate a unique confirmation number using timestamp
-            # Format: PENDING-timestamp to ensure uniqueness
-            self.confirmation_number = f"PENDING-{int(time.time() * 1000000)}"
-        
-        # Auto-calculate nights if both dates are provided
-        if self.check_in_date and self.check_out_date:
-            check_in = cast(date, self.check_in_date)
-            check_out = cast(date, self.check_out_date)
-            self.nights = (check_out - check_in).days
-        
-        # Call clean method for validation
-        self.clean()
-        super().save(*args, **kwargs)
     
     def get_room_total(self):
         """Calculate total room cost from all room entries"""
@@ -385,11 +368,11 @@ class Request(models.Model):
     
     def check_and_update_to_actual(self):
         """
-        Check if a paid request should be transitioned to 'Actual' status
+        Check if a paid or confirmed request should be transitioned to 'Actual' status
         when the arrival date (check-in or event start) has arrived.
         Returns True if status was updated, False otherwise.
         """
-        if self.status != 'Paid':
+        if self.status not in ['Paid', 'Confirmed']:
             return False
         
         # Determine the arrival date based on request type
@@ -410,11 +393,55 @@ class Request(models.Model):
     def get_display_paid_amount(self):
         """
         Get the amount to display as paid based on status.
-        For 'Paid' or 'Actual' status, show confirmed_paid_amount instead of paid_amount.
+        For 'Paid' or 'Actual' status, show total_cost instead of paid_amount.
         """
-        if self.status in ['Paid', 'Actual'] and self.confirmed_paid_amount:
-            return self.confirmed_paid_amount
+        if self.status in ['Paid', 'Actual']:
+            return self.total_cost
         return self.paid_amount
+    
+    def set_default_deadlines(self):
+        """
+        Set default payment deadlines for all request types based on business rules.
+        This ensures the alert system works for all request types.
+        """
+        from datetime import timedelta
+        
+        today = timezone.localdate()
+        
+        # Set offer acceptance deadline (7 days from today for all request types)
+        if not self.offer_acceptance_deadline:
+            self.offer_acceptance_deadline = today + timedelta(days=7)
+        
+        # Set deposit deadline (14 days from today for all request types)
+        if not self.deposit_deadline:
+            self.deposit_deadline = today + timedelta(days=14)
+        
+        # Set full payment deadline based on check-in date or 30 days from today
+        if not self.full_payment_deadline:
+            if self.check_in_date:
+                # Full payment due 7 days before check-in
+                self.full_payment_deadline = self.check_in_date - timedelta(days=7)
+            else:
+                # Default to 30 days from today if no check-in date
+                self.full_payment_deadline = today + timedelta(days=30)
+    
+    def save(self, *args, **kwargs):
+        # Set unique default confirmation number if empty to avoid constraint violations
+        if not self.confirmation_number:
+            import time
+            # Generate a unique confirmation number using timestamp
+            # Format: PENDING-timestamp to ensure uniqueness
+            self.confirmation_number = f"PENDING-{int(time.time() * 1000000)}"
+        
+        # Auto-calculate nights if both dates are provided
+        if self.check_in_date and self.check_out_date:
+            check_in = cast(date, self.check_in_date)
+            check_out = cast(date, self.check_out_date)
+            self.nights = (check_out - check_in).days
+        
+        # Call clean method for validation
+        self.clean()
+        super().save(*args, **kwargs)
 
 
 class CancelledRequest(Request):

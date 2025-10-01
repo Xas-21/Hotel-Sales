@@ -102,22 +102,42 @@ class SalesCallAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     get_next_steps_summary.short_description = "Next Steps Summary"
     
     def export_selected_sales_calls(self, request, queryset):
-        """Export selected sales calls to CSV file with security safeguards"""
+        """Export selected sales calls to CSV file with security safeguards and comprehensive details"""
         response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
         response['Content-Disposition'] = 'attachment; filename="sales_calls_export.csv"'
         
         writer = csv.writer(response)
-        # Write CSV header
+        # Write CSV header with comprehensive sales call information
         writer.writerow([
-            'Account', 'Meeting Subject', 'Visit Date', 'City', 'Address',
-            'Business Potential', 'Next Steps', 'Detailed Notes',
-            'Follow-up Required', 'Follow-up Date', 'Follow-up Completed', 'Created Date'
+            'Account Name', 'Account Type', 'Contact Person', 'Meeting Subject', 'Visit Date', 
+            'City', 'Address', 'Business Potential', 'Next Steps', 'Detailed Notes',
+            'Follow-up Required', 'Follow-up Date', 'Follow-up Completed', 'Follow-up Status',
+            'Created Date', 'Updated Date'
         ])
+        
+        total_visits = 0
+        follow_up_required_count = 0
+        follow_up_completed_count = 0
+        follow_up_overdue_count = 0
         
         # Write sales call data with sanitization and proper display values
         for call in queryset.order_by('-visit_date'):
+            follow_up_status = "Not Required"
+            if call.follow_up_required:
+                follow_up_required_count += 1
+                if call.follow_up_completed:
+                    follow_up_status = "Completed"
+                    follow_up_completed_count += 1
+                elif call.is_follow_up_overdue():
+                    follow_up_status = "Overdue"
+                    follow_up_overdue_count += 1
+                else:
+                    follow_up_status = "Pending"
+            
             writer.writerow([
                 sanitize_csv_value(call.account.name if call.account else ''),
+                sanitize_csv_value(call.account.account_type if call.account else ''),
+                sanitize_csv_value(call.account.contact_person if call.account else ''),
                 sanitize_csv_value(call.get_meeting_subject_display()),
                 sanitize_csv_value(call.visit_date.strftime('%Y-%m-%d') if call.visit_date else ''),
                 sanitize_csv_value(call.city),
@@ -128,8 +148,21 @@ class SalesCallAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
                 sanitize_csv_value('Yes' if call.follow_up_required else 'No'),
                 sanitize_csv_value(call.follow_up_date.strftime('%Y-%m-%d') if call.follow_up_date else ''),
                 sanitize_csv_value('Yes' if call.follow_up_completed else 'No'),
-                sanitize_csv_value(call.created_at.strftime('%Y-%m-%d %H:%M') if call.created_at else '')
+                sanitize_csv_value(follow_up_status),
+                sanitize_csv_value(call.created_at.strftime('%Y-%m-%d %H:%M') if call.created_at else ''),
+                sanitize_csv_value(call.updated_at.strftime('%Y-%m-%d %H:%M') if call.updated_at else '')
             ])
+            
+            total_visits += 1
+        
+        # Add summary rows
+        writer.writerow([])  # Empty row
+        writer.writerow(['SUMMARY'])
+        writer.writerow(['Total Visit Count', total_visits])
+        writer.writerow(['Follow-up Required', follow_up_required_count])
+        writer.writerow(['Follow-up Completed', follow_up_completed_count])
+        writer.writerow(['Follow-up Overdue', follow_up_overdue_count])
+        writer.writerow(['Follow-up Pending', follow_up_required_count - follow_up_completed_count - follow_up_overdue_count])
         
         return response
     export_selected_sales_calls.short_description = "Export selected sales calls to CSV"

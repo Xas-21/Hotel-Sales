@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hotel Sales Request Management System</title>
+    <title>Hotel Sales Request Management System1</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -67,6 +67,350 @@
         </div>
 
         <!-- NEW ANALYTICS SECTIONS - Added above existing dashboard -->
+        
+        <!-- COMPREHENSIVE BOOKING ANALYTICS DASHBOARD -->
+        <div class="dashboard-section mb-4" data-section="booking-analytics">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Comprehensive Booking Analytics Dashboard</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Comprehensive Date Range Selector -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Date Range Selector</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <!-- Predefined Periods -->
+                                        <div class="col-md-8">
+                                            <h6 class="mb-3">Quick Select Periods</h6>
+                                            <div class="btn-group flex-wrap" role="group">
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'this_month' %}active{% endif %}" data-period="this_month">This Month</button>
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'last_month' %}active{% endif %}" data-period="last_month">Last Month</button>
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'last_3_months' %}active{% endif %}" data-period="last_3_months">Last 3 Months</button>
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'last_6_months' %}active{% endif %}" data-period="last_6_months">Last 6 Months</button>
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'this_year' %}active{% endif %}" data-period="this_year">This Year</button>
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'next_year' %}active{% endif %}" data-period="next_year">Next Year</button>
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'last_year' %}active{% endif %}" data-period="last_year">Last Year</button>
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'last_2_years' %}active{% endif %}" data-period="last_2_years">Last 2 Years</button>
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'qtd' %}active{% endif %}" data-period="qtd">QTD</button>
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'ytd' %}active{% endif %}" data-period="ytd">YTD</button>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Custom Date Range -->
+                                        <div class="col-md-4">
+                                            <h6 class="mb-3">Custom Range</h6>
+                                            <div class="row">
+                                                <div class="col-6">
+                                                    <label for="custom-start-date" class="form-label small">Start Date</label>
+                                                    <input type="date" class="form-control form-control-sm" id="custom-start-date" 
+                                                           value="{{ date_range.start_date|date:'Y-m-d' }}">
+                                                </div>
+                                                <div class="col-6">
+                                                    <label for="custom-end-date" class="form-label small">End Date</label>
+                                                    <input type="date" class="form-control form-control-sm" id="custom-end-date" 
+                                                           value="{{ date_range.end_date|date:'Y-m-d' }}">
+                                                </div>
+                                            </div>
+                                            <button type="button" class="btn btn-primary btn-sm mt-2 w-100" id="apply-custom-range">
+                                                <i class="fas fa-search me-1"></i>Apply Custom Range
+                                            </button>
+                                            {% if date_range.is_custom_range %}
+                                            <div class="mt-2">
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check me-1"></i>Custom Range Active
+                                                </span>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Current Selection Display -->
+                                    <div class="row mt-3">
+                                        <div class="col-12">
+                                            <div class="alert alert-info mb-0">
+                                                <div class="row">
+                                                    <div class="col-md-4">
+                                                        <strong>Current Period:</strong><br>
+                                                        <small>{{ current_period_name }}</small>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <strong>Previous Period (MoM):</strong><br>
+                                                        <small>{{ mom_period_name }}</small>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <strong>Same Period Last Year (YoY):</strong><br>
+                                                        <small>{{ yoy_period_name }}</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- KPI Summary Cards -->
+                    <div class="row mb-4">
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h4 class="mb-0">{{ analytics_kpis.total_bookings }}</h4>
+                                            <p class="mb-0">Total Bookings</p>
+                                            <small class="d-flex align-items-center mt-1">
+                                                {% if analytics_kpis.mom_bookings_change >= 0 %}
+                                                    <i class="fas fa-arrow-up text-success me-1"></i>
+                                                    <span class="text-success">+{{ analytics_kpis.mom_bookings_change_pct|floatformat:1 }}% MoM</span>
+                                                {% else %}
+                                                    <i class="fas fa-arrow-down text-danger me-1"></i>
+                                                    <span class="text-danger">{{ analytics_kpis.mom_bookings_change_pct|floatformat:1 }}% MoM</span>
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                        <i class="fas fa-calendar-check fa-2x opacity-50"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h4 class="mb-0">${{ analytics_kpis.total_revenue|floatformat:0 }}</h4>
+                                            <p class="mb-0">Total Revenue</p>
+                                            <small class="d-flex align-items-center mt-1">
+                                                {% if analytics_kpis.mom_revenue_change >= 0 %}
+                                                    <i class="fas fa-arrow-up text-success me-1"></i>
+                                                    <span class="text-success">+{{ analytics_kpis.mom_revenue_change_pct|floatformat:1 }}% MoM</span>
+                                                {% else %}
+                                                    <i class="fas fa-arrow-down text-danger me-1"></i>
+                                                    <span class="text-danger">{{ analytics_kpis.mom_revenue_change_pct|floatformat:1 }}% MoM</span>
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                        <i class="fas fa-dollar-sign fa-2x opacity-50"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h4 class="mb-0">${{ analytics_kpis.avg_booking_value|floatformat:0 }}</h4>
+                                            <p class="mb-0">Avg Booking Value</p>
+                                            <small class="d-flex align-items-center mt-1">
+                                                <i class="fas fa-chart-line text-info me-1"></i>
+                                                <span class="text-info">Current Period</span>
+                                            </small>
+                                        </div>
+                                        <i class="fas fa-calculator fa-2x opacity-50"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h4 class="mb-0">{{ analytics_kpis.occupancy_rate|floatformat:1 }}%</h4>
+                                            <p class="mb-0">Occupancy Rate</p>
+                                            <small class="d-flex align-items-center mt-1">
+                                                <i class="fas fa-bed text-warning me-1"></i>
+                                                <span class="text-warning">Current Period</span>
+                                            </small>
+                                        </div>
+                                        <i class="fas fa-bed fa-2x opacity-50"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Main Charts Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">Revenue Trend</h6>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button type="button" class="btn btn-outline-secondary {% if view_type == 'month' %}active{% elif not view_type %}active{% endif %}" data-view="month">Month</button>
+                                            <button type="button" class="btn btn-outline-secondary {% if view_type == 'week' %}active{% endif %}" data-view="week">Week</button>
+                                            <button type="button" class="btn btn-outline-secondary {% if view_type == 'day' %}active{% endif %}" data-view="day">Day</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div style="height: 300px;">
+                                        <canvas id="revenueTrendChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">Bookings Over Time</h6>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button type="button" class="btn btn-outline-secondary {% if view_type == 'month' %}active{% elif not view_type %}active{% endif %}" data-view="month">Month</button>
+                                            <button type="button" class="btn btn-outline-secondary {% if view_type == 'week' %}active{% endif %}" data-view="week">Week</button>
+                                            <button type="button" class="btn btn-outline-secondary {% if view_type == 'day' %}active{% endif %}" data-view="day">Day</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div style="height: 300px;">
+                                        <canvas id="bookingsTrendChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Trend Charts Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Request Status Trends</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div style="height: 300px;">
+                                        <canvas id="requestStatusTrendChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Rooms Booked Trends</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div style="height: 300px;">
+                                        <canvas id="roomsTrendChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Secondary Analysis Section -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Performance by Account Type</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div style="height: 300px;">
+                                        <canvas id="accountTypeChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">Performance by Account Profile</h6>
+                                        <div class="d-flex gap-2 align-items-center">
+                                            <input type="date" id="propStart" class="form-control form-control-sm" style="width: 150px;">
+                                            <input type="date" id="propEnd" class="form-control form-control-sm" style="width: 150px;">
+                                            <input type="text" id="propAccount" class="form-control form-control-sm" placeholder="Search account" style="width: 200px;">
+                                            <button id="propApply" class="btn btn-sm btn-outline-primary">Apply</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive" style="height: 300px; overflow-y: auto;">
+                                        <table class="table table-sm" id="propertyPerformanceTable">
+                                            <thead class="sticky-top bg-light">
+                                                <tr>
+                                                    <th>Account Name</th>
+                                                    <th>Bookings</th>
+                                                    <th>Revenue</th>
+                                                    <th>Avg Value</th>
+                                                    <th>MoM %</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="propertyPerformanceBody">
+                                                {% for property_name, data in property_breakdown.items %}
+                                                <tr>
+                                                    <td>
+                                                        <strong>{{ property_name }}</strong>
+                                                        <br><small class="text-muted">{{ data.account_type }}</small>
+                                                    </td>
+                                                    <td>{{ data.bookings }}</td>
+                                                    <td>${{ data.revenue|floatformat:0 }}</td>
+                                                    <td>${{ data.avg_value|floatformat:0 }}</td>
+                                                    <td><span class="badge bg-success">+5.2%</span></td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Forecast Section -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Future Forecast</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="text-center">
+                                                <h4 class="text-primary">{{ forecast_data.predicted_bookings }}</h4>
+                                                <p class="mb-0">Predicted Bookings</p>
+                                                <small class="text-muted">Next Month</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="text-center">
+                                                <h4 class="text-success">${{ forecast_data.predicted_revenue|floatformat:0 }}</h4>
+                                                <p class="mb-0">Predicted Revenue</p>
+                                                <small class="text-muted">Next Month</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="text-center">
+                                                <h4 class="text-info">{{ forecast_data.confidence_level }}%</h4>
+                                                <p class="mb-0">Confidence Level</p>
+                                                <small class="text-muted">Forecast Accuracy</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         
         <!-- Analytics Section 0: Visual Charts & Graphs Overview -->
         <div class="dashboard-section mb-4" data-section="charts-overview">
@@ -185,7 +529,7 @@
                                     <tbody>
                                         {% for item in request_status_distribution %}
                                         <tr>
-                                            <td><span class="badge bg-{% if item.status == 'Confirmed' %}success{% elif item.status == 'Paid' %}primary{% elif item.status == 'Cancelled' %}danger{% else %}warning{% endif %}">{{ item.status }}</span></td>
+                                            <td><span class="badge bg-{% if item.status == 'Confirmed' %}success{% elif item.status == 'Paid' %}primary{% elif item.status == 'Actual' %}success{% elif item.status == 'Cancelled' %}danger{% else %}warning{% endif %}">{{ item.status }}</span></td>
                                             <td>{{ item.count }}</td>
                                             <td>{% widthratio item.count total_requests 100 %}%</td>
                                         </tr>
@@ -533,7 +877,7 @@
                                     </div>
                                     <div class="card-body">
                                         {% if recent_requests %}
-                                            <div class="list-group list-group-flush">
+                                            <div class="list-group list-group-flush" style="max-height: 420px; overflow-y: auto;">
                                                 {% for request in recent_requests %}
                                                 <div class="list-group-item d-flex justify-content-between align-items-center p-2">
                                                     <div>
@@ -554,6 +898,7 @@
                                                             <option value="Pending" {% if request.status == 'Pending' %}selected{% endif %}>Pending</option>
                                                             <option value="Paid" {% if request.status == 'Paid' %}selected{% endif %}>Paid</option>
                                                             <option value="Partially Paid" {% if request.status == 'Partially Paid' %}selected{% endif %}>Partially Paid</option>
+                                                            <option value="Actual" {% if request.status == 'Actual' %}selected{% endif %}>Actual</option>
                                                         </select>
                                                         <div class="btn-group" role="group">
                                                             <a href="/admin/requests/request/{{ request.id }}/change/" class="btn btn-sm btn-outline-primary">View</a>
@@ -583,7 +928,7 @@
                                     </div>
                                     <div class="card-body">
                                         {% if recent_accounts %}
-                                            <div class="list-group list-group-flush">
+                                            <div class="list-group list-group-flush" style="max-height: 360px; overflow-y: auto;">
                                                 {% for account in recent_accounts %}
                                                 <div class="list-group-item d-flex justify-content-between align-items-center p-2">
                                                     <div>
@@ -614,7 +959,7 @@
                                     </div>
                                     <div class="card-body">
                                         {% if recent_sales_calls %}
-                                            <div class="list-group list-group-flush">
+                                            <div class="list-group list-group-flush" style="max-height: 360px; overflow-y: auto;">
                                                 {% for call in recent_sales_calls %}
                                                 <div class="list-group-item d-flex justify-content-between align-items-center p-2">
                                                     <div>
@@ -646,7 +991,7 @@
                                     </div>
                                     <div class="card-body">
                                         {% if recent_agreements %}
-                                            <div class="list-group list-group-flush">
+                                            <div class="list-group list-group-flush" style="max-height: 360px; overflow-y: auto;">
                                                 {% for agreement in recent_agreements %}
                                                 <div class="list-group-item d-flex justify-content-between align-items-center p-2">
                                                     <div>
@@ -1361,6 +1706,7 @@
                         {% for item in request_status_distribution %}
                         {% if item.status == 'Confirmed' %}'#198754'
                         {% elif item.status == 'Paid' %}'#0d6efd'
+                        {% elif item.status == 'Actual' %}'#198754'
                         {% elif item.status == 'Cancelled' %}'#dc3545'
                         {% elif item.status == 'Draft' %}'#ffc107'
                         {% else %}'#6c757d'{% endif %}{% if not forloop.last %},{% endif %}
@@ -1404,6 +1750,382 @@
                     }
                 }
             }
+        });
+    </script>
+    
+    <!-- Analytics Dashboard Charts -->
+    <script>
+        // Revenue Trend Chart
+        const revenueTrendCtx = document.getElementById('revenueTrendChart').getContext('2d');
+        new Chart(revenueTrendCtx, {
+            type: 'line',
+            data: {
+                labels: [{% for label in trend_labels %}'{{ label }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [{
+                    label: 'Revenue',
+                    data: [{% for value in revenue_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                            stepSize: 1,
+                            callback: function(value) { return '$' + value.toLocaleString(); }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Bookings Trend Chart
+        const bookingsTrendCtx = document.getElementById('bookingsTrendChart').getContext('2d');
+        new Chart(bookingsTrendCtx, {
+            type: 'bar',
+            data: {
+                labels: [{% for label in trend_labels %}'{{ label }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [{
+                    label: 'Bookings',
+                    data: [{% for value in bookings_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    backgroundColor: '#198754',
+                    borderColor: '#198754',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0, stepSize: 1 }
+                    }
+                }
+            }
+        });
+
+        // Request Status Trends Chart
+        const requestStatusTrendCtx = document.getElementById('requestStatusTrendChart').getContext('2d');
+        new Chart(requestStatusTrendCtx, {
+            type: 'bar',
+            data: {
+                labels: [{% for label in trend_labels %}'{{ label }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [
+                    {
+                        label: 'Draft',
+                        data: [{% for value in draft_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: '#6c757d',
+                        borderColor: '#6c757d',
+                        borderWidth: 0,
+                        maxBarThickness: 18
+                    },
+                    {
+                        label: 'Pending',
+                        data: [{% for value in pending_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: '#ffc107',
+                        borderColor: '#ffc107',
+                        borderWidth: 0,
+                        maxBarThickness: 18
+                    },
+                    {
+                        label: 'Partially Paid',
+                        data: [{% for value in partially_paid_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: '#0d6efd',
+                        borderColor: '#0d6efd',
+                        borderWidth: 0,
+                        maxBarThickness: 18
+                    },
+                    {
+                        label: 'Paid',
+                        data: [{% for value in paid_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: '#20c997',
+                        borderColor: '#20c997',
+                        borderWidth: 0,
+                        maxBarThickness: 18
+                    },
+                    {
+                        label: 'Confirmed',
+                        data: [{% for value in confirmed_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: '#198754',
+                        borderColor: '#198754',
+                        borderWidth: 0,
+                        maxBarThickness: 18
+                    },
+                    {
+                        label: 'Actual',
+                        data: [{% for value in actual_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: '#808000',
+                        borderColor: '#808000',
+                        borderWidth: 0,
+                        maxBarThickness: 18
+                    },
+                    {
+                        label: 'Cancelled',
+                        data: [{% for value in cancelled_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: '#dc3545',
+                        borderColor: '#dc3545',
+                        borderWidth: 0,
+                        maxBarThickness: 18
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    tooltip: {
+                        mode: 'nearest',
+                        intersect: true,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label || '';
+                                const value = context.parsed.y ?? context.parsed;
+                                return `${label}: ${value}`;
+                            }
+                        }
+                    }
+                },
+                interaction: { mode: 'nearest', intersect: true },
+                scales: {
+                    x: {
+                        stacked: false,
+                        grid: { display: false }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0, stepSize: 1 }
+                    }
+                }
+            }
+        });
+
+        // Rooms Booked Trend Chart
+        const roomsTrendCtx = document.getElementById('roomsTrendChart').getContext('2d');
+        new Chart(roomsTrendCtx, {
+            type: 'line',
+            data: {
+                labels: [{% for label in trend_labels %}'{{ label }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [{
+                    label: 'Rooms Booked',
+                    data: [{% for value in rooms_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    borderColor: '#198754',
+                    backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0, stepSize: 1 }
+                    }
+                }
+            }
+        });
+
+        // Account Type Chart
+        const accountTypeCtx = document.getElementById('accountTypeChart').getContext('2d');
+        new Chart(accountTypeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: [{% for account_type, data in account_type_breakdown.items %}'{{ account_type }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [{
+                    data: [{% for account_type, data in account_type_breakdown.items %}{{ data.bookings }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    backgroundColor: [
+                        '#0d6efd',
+                        '#198754', 
+                        '#ffc107',
+                        '#dc3545',
+                        '#6c757d'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { fontSize: 12 }
+                    }
+                }
+            }
+        });
+
+        // Independent filter for Performance by Account Profile
+        function renderPropertyTable(rows) {
+            const tbody = document.getElementById('propertyPerformanceBody');
+            if (!tbody) return;
+            tbody.innerHTML = rows.map(r => `
+                <tr>
+                    <td><strong>${r.account_name}</strong><br><small class="text-muted">${r.account_type || ''}</small></td>
+                    <td>${r.bookings}</td>
+                    <td>$${Math.round(r.revenue).toLocaleString()}</td>
+                    <td>$${Math.round(r.avg_value).toLocaleString()}</td>
+                    <td><span class="badge bg-success">+5.2%</span></td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadPropertyPerformance() {
+            const s = document.getElementById('propStart').value;
+            const e = document.getElementById('propEnd').value;
+            const a = document.getElementById('propAccount').value;
+            const params = new URLSearchParams();
+            if (s) params.append('start_date', s);
+            if (e) params.append('end_date', e);
+            if (a) params.append('account', a);
+            const resp = await fetch(`/api/property-performance/?${params.toString()}`);
+            const data = await resp.json();
+            renderPropertyTable(data.results || []);
+        }
+
+        const applyBtn = document.getElementById('propApply');
+        if (applyBtn) {
+            applyBtn.addEventListener('click', loadPropertyPerformance);
+        }
+
+        // Period selector functionality
+        document.querySelectorAll('[data-period]').forEach(button => {
+            button.addEventListener('click', function() {
+                const period = this.getAttribute('data-period');
+                
+                // Remove active class from all buttons
+                document.querySelectorAll('[data-period]').forEach(btn => btn.classList.remove('active'));
+                // Add active class to clicked button
+                this.classList.add('active');
+                
+                // Reload page with new period parameter
+                const url = new URL(window.location);
+                url.searchParams.set('period', period);
+                url.searchParams.delete('start_date');
+                url.searchParams.delete('end_date');
+                // Preserve view parameter if it exists
+                const currentView = url.searchParams.get('view');
+                if (currentView) {
+                    url.searchParams.set('view', currentView);
+                }
+                window.location.href = url.toString();
+            });
+        });
+
+        // Custom date range functionality
+        document.getElementById('apply-custom-range').addEventListener('click', function() {
+            const startDate = document.getElementById('custom-start-date').value;
+            const endDate = document.getElementById('custom-end-date').value;
+            
+            if (!startDate || !endDate) {
+                showNotification('Please select both start and end dates', 'error');
+                return;
+            }
+            
+            if (new Date(startDate) > new Date(endDate)) {
+                showNotification('Start date must be before end date', 'error');
+                return;
+            }
+            
+            // Allow future dates for bookings analysis
+            const today = new Date();
+            const twoYearsFromNow = new Date();
+            twoYearsFromNow.setFullYear(twoYearsFromNow.getFullYear() + 2);
+            
+            if (new Date(endDate) > twoYearsFromNow) {
+                showNotification('End date cannot be more than 2 years in the future', 'error');
+                return;
+            }
+            
+            // Remove active class from all period buttons
+            document.querySelectorAll('[data-period]').forEach(btn => btn.classList.remove('active'));
+            
+            // Reload page with custom date parameters
+            const url = new URL(window.location);
+            url.searchParams.set('start_date', startDate);
+            url.searchParams.set('end_date', endDate);
+            url.searchParams.delete('period');
+            // Preserve view parameter if it exists
+            const currentView = url.searchParams.get('view');
+            if (currentView) {
+                url.searchParams.set('view', currentView);
+            }
+            window.location.href = url.toString();
+        });
+
+        // Set max date for end date to 2 years in the future to allow future bookings
+        const twoYearsFromNow = new Date();
+        twoYearsFromNow.setFullYear(twoYearsFromNow.getFullYear() + 2);
+        document.getElementById('custom-end-date').setAttribute('max', twoYearsFromNow.toISOString().split('T')[0]);
+        
+        // Set min date for start date to 5 years ago
+        const fiveYearsAgo = new Date();
+        fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
+        document.getElementById('custom-start-date').setAttribute('min', fiveYearsAgo.toISOString().split('T')[0]);
+
+        // Function to ensure view parameter consistency
+        function ensureViewParameter() {
+            const url = new URL(window.location);
+            const currentView = url.searchParams.get('view');
+            
+            // If no view parameter, default to month
+            if (!currentView) {
+                url.searchParams.set('view', 'month');
+                window.history.replaceState({}, '', url.toString());
+                return 'month';
+            }
+            return currentView;
+        }
+        
+        // Set correct active state on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentView = ensureViewParameter();
+            
+            // Remove all active classes
+            document.querySelectorAll('[data-view]').forEach(btn => btn.classList.remove('active'));
+            
+            // Add active class to buttons matching current view
+            document.querySelectorAll(`[data-view="${currentView}"]`).forEach(btn => btn.classList.add('active'));
+        });
+
+        // Chart view selector functionality
+        document.querySelectorAll('[data-view]').forEach(button => {
+            button.addEventListener('click', function() {
+                const viewType = this.getAttribute('data-view');
+                
+                // Remove active class from all view buttons across all charts
+                document.querySelectorAll('[data-view]').forEach(btn => btn.classList.remove('active'));
+                // Add active class to all buttons with the same view type
+                document.querySelectorAll(`[data-view="${viewType}"]`).forEach(btn => btn.classList.add('active'));
+                
+                // Show loading notification
+                showNotification(`Switching to ${viewType} view...`, 'info');
+                
+                // Reload page with new view parameter, preserving all other parameters
+                const url = new URL(window.location);
+                url.searchParams.set('view', viewType);
+                window.location.href = url.toString();
+            });
         });
     </script>
 </body>

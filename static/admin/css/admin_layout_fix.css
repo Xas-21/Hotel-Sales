@@ -1,0 +1,114 @@
+/* Admin Layout Fix - Ensure proper sizing and layout */
+
+/* Ensure admin interface takes full width and proper height */
+body.admin {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    min-height: 100vh !important;
+}
+
+/* Fix admin header and navigation */
+#header {
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+#user-tools {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+}
+
+#user-tools a {
+    font-size: 12px !important;
+    padding: 2px 6px !important;
+}
+
+/* Ensure breadcrumbs display properly */
+.breadcrumbs {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 10px 20px !important;
+}
+
+/* Fix content area */
+#content {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    box-sizing: border-box !important;
+}
+
+/* Ensure forms display properly */
+.form-row {
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* Fix table layouts */
+.results {
+    width: 100% !important;
+    overflow-x: auto !important;
+}
+
+/* Ensure proper icon sizing */
+.admin-icon {
+    width: 16px !important;
+    height: 16px !important;
+    display: inline-block !important;
+}
+
+/* Fix any potential viewport issues */
+html {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Ensure proper font sizing */
+body {
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+}
+
+/* Fix button sizing */
+.button, input[type="submit"], input[type="button"] {
+    font-size: 13px !important;
+    padding: 8px 12px !important;
+    line-height: 1.4 !important;
+}
+
+/* Ensure proper spacing */
+.module {
+    margin-bottom: 20px !important;
+}
+
+/* Fix any potential overflow issues */
+.admin-container {
+    width: 100% !important;
+    max-width: none !important;
+    overflow-x: hidden !important;
+}
+
+/* Responsive fixes */
+@media (max-width: 768px) {
+    #content {
+        padding: 10px !important;
+    }
+    
+    .breadcrumbs {
+        padding: 10px !important;
+        font-size: 12px !important;
+    }
+    
+    #user-tools {
+        font-size: 11px !important;
+    }
+    
+    #user-tools a {
+        font-size: 11px !important;
+        padding: 1px 4px !important;
+    }
+}
+
+

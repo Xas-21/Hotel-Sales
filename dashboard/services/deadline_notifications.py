@@ -15,7 +15,7 @@ from django.urls import reverse
 from django.db.models import Q
 
 from dashboard.models import Notification
-from requests.models import Request, EventAgenda, SeriesGroupEntry
+from requests.models import Request as BookingRequest, EventAgenda, SeriesGroupEntry
 from agreements.models import Agreement
 import logging
 
@@ -88,11 +88,11 @@ def create_notification_if_absent(user, obj, title, message, notification_type, 
 def generate_for_requests_payments():
     """Generate notifications for request payment deadlines."""
     today = timezone.localdate()
-    window_end = today + timedelta(days=3)
+    window_end = today + timedelta(days=5)
     created_count = 0
     
-    # Get requests with payment deadlines in the next 3 days
-    requests_with_deadlines = Request.objects.filter(
+    # Get requests with payment deadlines in the next 5 days
+    requests_with_deadlines = BookingRequest.objects.filter(
         Q(deposit_deadline__range=[today, window_end]) |
         Q(full_payment_deadline__range=[today, window_end]),
         status__in=['Pending', 'Confirmed', 'Partially Paid']  # Only actionable statuses
@@ -144,11 +144,11 @@ def generate_for_requests_payments():
 def generate_for_requests_offers():
     """Generate notifications for offer acceptance deadlines."""
     today = timezone.localdate()
-    window_end = today + timedelta(days=3)
+    window_end = today + timedelta(days=5)
     created_count = 0
     
-    # Get requests with offer acceptance deadlines in the next 3 days
-    requests_with_offers = Request.objects.filter(
+    # Get requests with offer acceptance deadlines in the next 5 days
+    requests_with_offers = BookingRequest.objects.filter(
         offer_acceptance_deadline__range=[today, window_end],
         status__in=['Pending', 'Sent']  # Only actionable statuses
     ).select_related('account')
@@ -178,14 +178,14 @@ def generate_for_requests_offers():
 def generate_for_group_checkins():
     """Generate notifications for group information sheet reminders."""
     today = timezone.localdate()
-    window_end = today + timedelta(days=3)
+    window_end = today + timedelta(days=5)
     created_count = 0
     
-    # Get requests with check-in dates in the next 3 days
-    # Include any confirmed request that might need info sheets
-    group_requests = Request.objects.filter(
+    # Get requests with check-in dates in the next 5 days
+    # Include only confirmed/paid requests that need info sheets (NOT Partially Paid)
+    group_requests = BookingRequest.objects.filter(
         check_in_date__range=[today, window_end],
-        status__in=['Confirmed', 'Partially Paid', 'Paid']  # Only confirmed requests
+        status__in=['Confirmed', 'Paid']  # Only confirmed/paid requests (exclude Partially Paid)
     ).select_related('account')
     
     for request in group_requests:
@@ -213,10 +213,10 @@ def generate_for_group_checkins():
 def generate_for_agreements():
     """Generate notifications for agreement return deadlines and renewal reminders."""
     today = timezone.localdate()
-    window_end = today + timedelta(days=3)
+    window_end = today + timedelta(days=5)
     created_count = 0
     
-    # Get agreements with return deadlines in the next 3 days
+    # Get agreements with return deadlines in the next 5 days
     agreements_with_deadlines = Agreement.objects.filter(
         return_deadline__range=[today, window_end],
         status__in=['Draft', 'Sent']  # Only actionable statuses
@@ -240,7 +240,7 @@ def generate_for_agreements():
             if create_notification_if_absent(user, agreement, title, message, 'agreement', priority, link_url, 'View Agreement'):
                 created_count += 1
     
-    # Get agreements expiring/renewal in the next 3 days
+    # Get agreements expiring/renewal in the next 5 days
     agreements_expiring = Agreement.objects.filter(
         end_date__range=[today, window_end],
         status='Signed'  # Only signed agreements need renewal
@@ -271,13 +271,13 @@ def generate_for_agreements():
 def generate_for_event_beo_reminders():
     """Generate BEO (Banquet Event Order) reminders for event requests."""
     today = timezone.localdate()
-    window_end = today + timedelta(days=3)
+    window_end = today + timedelta(days=5)
     created_count = 0
     
-    # Get event agendas with event dates in the next 3 days
+    # Get event agendas with event dates in the next 5 days
     event_agendas = EventAgenda.objects.filter(
         event_date__range=[today, window_end],
-        request__status__in=['Confirmed', 'Partially Paid', 'Paid']  # Only confirmed events
+        request__status__in=['Confirmed', 'Paid']  # Only confirmed/paid events (exclude Partially Paid)
     ).select_related('request', 'request__account')
     
     for agenda in event_agendas:
@@ -305,10 +305,10 @@ def generate_for_event_beo_reminders():
 def generate_for_series_group_arrivals():
     """Generate arrival alerts for series group entries."""
     today = timezone.localdate()
-    window_end = today + timedelta(days=3)
+    window_end = today + timedelta(days=5)
     created_count = 0
     
-    # Get series group entries with arrival dates in the next 3 days
+    # Get series group entries with arrival dates in the next 5 days
     series_entries = SeriesGroupEntry.objects.filter(
         arrival_date__range=[today, window_end],
         request__status__in=['Confirmed', 'Partially Paid', 'Paid']  # Only confirmed series
@@ -339,14 +339,14 @@ def generate_for_series_group_arrivals():
 def generate_for_event_with_rooms():
     """Generate alerts for Event with Rooms requests (both check-in and event start dates)."""
     today = timezone.localdate()
-    window_end = today + timedelta(days=3)
+    window_end = today + timedelta(days=5)
     created_count = 0
     
-    # Get Event with Rooms requests with check-in dates in the next 3 days
-    event_room_requests = Request.objects.filter(
+    # Get Event with Rooms requests with check-in dates in the next 5 days
+    event_room_requests = BookingRequest.objects.filter(
         request_type='Event with Rooms',
         check_in_date__range=[today, window_end],
-        status__in=['Confirmed', 'Partially Paid', 'Paid']  # Only confirmed events
+        status__in=['Confirmed', 'Paid']  # Only confirmed/paid events (exclude Partially Paid)
     ).select_related('account')
     
     for request in event_room_requests:
@@ -372,7 +372,7 @@ def generate_for_event_with_rooms():
     event_with_rooms_agendas = EventAgenda.objects.filter(
         event_date__range=[today, window_end],
         request__request_type='Event with Rooms',
-        request__status__in=['Confirmed', 'Partially Paid', 'Paid']
+        request__status__in=['Confirmed', 'Paid']  # Only confirmed/paid events (exclude Partially Paid)
     ).select_related('request', 'request__account')
     
     for agenda in event_with_rooms_agendas:

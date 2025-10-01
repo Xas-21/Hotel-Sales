@@ -1,1 +1,1 @@
-# Management commands module
+# Management package for dashboard commands

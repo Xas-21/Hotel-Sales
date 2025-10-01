@@ -16,9 +16,9 @@ def create_user_profile(sender, instance, created, **kwargs):
             admin_group, _ = Group.objects.get_or_create(name='Admin')
             instance.groups.add(admin_group)
         elif instance.is_staff:
-            # Staff users get Staff group
-            staff_group, _ = Group.objects.get_or_create(name='Staff')
-            instance.groups.add(staff_group)
+            # Staff users get Sales Executive group by default
+            sales_executive_group, _ = Group.objects.get_or_create(name='Sales Executive')
+            instance.groups.add(sales_executive_group)
         else:
             # Regular users get Viewer group
             viewer_group, _ = Group.objects.get_or_create(name='Viewer')
@@ -40,3 +40,30 @@ def save_user_profile(sender, instance, **kwargs):
             if instance.profile.display_name != full_name:
                 instance.profile.display_name = full_name
                 instance.profile.save()
+
+
+@receiver(post_save, sender=User)
+def update_user_groups_on_save(sender, instance, **kwargs):
+    """Update user groups when user permissions change"""
+    if instance.is_superuser:
+        # Superusers get Admin group
+        admin_group, _ = Group.objects.get_or_create(name='Admin')
+        if admin_group not in instance.groups.all():
+            instance.groups.add(admin_group)
+    elif instance.is_staff:
+        # Staff users get Sales Executive group (remove Admin group if present)
+        admin_group = Group.objects.filter(name='Admin').first()
+        if admin_group and admin_group in instance.groups.all():
+            instance.groups.remove(admin_group)
+        sales_executive_group, _ = Group.objects.get_or_create(name='Sales Executive')
+        if sales_executive_group not in instance.groups.all():
+            instance.groups.add(sales_executive_group)
+    else:
+        # Regular users get Viewer group (remove Admin/Sales Executive groups if present)
+        for group_name in ['Admin', 'Sales Executive']:
+            group = Group.objects.filter(name=group_name).first()
+            if group and group in instance.groups.all():
+                instance.groups.remove(group)
+        viewer_group, _ = Group.objects.get_or_create(name='Viewer')
+        if viewer_group not in instance.groups.all():
+            instance.groups.add(viewer_group)

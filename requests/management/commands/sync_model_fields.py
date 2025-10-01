@@ -286,10 +286,10 @@ class Command(BaseCommand):
         
         # Request Type choices
         try:
-            from requests.models import Request
+            from requests.models import Request as BookingRequest
             request_type_fields = DynamicField.objects.filter(name='request_type')
             for field in request_type_fields:
-                choices_dict = dict(Request.REQUEST_TYPES)
+                choices_dict = dict(BookingRequest.REQUEST_TYPES)
                 if field.choices != choices_dict:
                     field.choices = choices_dict
                     field.field_type = 'choice'

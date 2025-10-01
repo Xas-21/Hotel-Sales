@@ -10,7 +10,7 @@ from django.dispatch import receiver
 from django.contrib.contenttypes.models import ContentType
 
 from dashboard.models import Notification
-from requests.models import Request
+from requests.models import Request as BookingRequest
 from agreements.models import Agreement
 from dashboard.services.deadline_notifications import generate_for_agreements
 import logging
@@ -18,10 +18,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-@receiver(post_delete, sender=Request)
+@receiver(post_delete, sender=BookingRequest)
 def cleanup_notifications_on_request_delete(sender, instance, **kwargs):
     """Remove all notifications related to a deleted request."""
-    content_type = ContentType.objects.get_for_model(Request)
+    content_type = ContentType.objects.get_for_model(BookingRequest)
     
     deleted_count = Notification.objects.filter(
         content_type=content_type,
@@ -72,7 +72,7 @@ def auto_generate_agreement_notifications(sender, instance, created, **kwargs):
         from dashboard.services.deadline_notifications import get_recipients, create_notification_if_absent
         
         today = timezone.localdate()
-        window_end = today + timedelta(days=3)
+        window_end = today + timedelta(days=5)
         
         # Check if agreement has deadlines within notification window
         agreement_needs_notification = False
@@ -102,13 +102,13 @@ def auto_generate_agreement_notifications(sender, instance, created, **kwargs):
         logger.error(f"Failed to auto-generate notifications for agreement {instance.id}: {e}")
 
 
-@receiver(post_save, sender=Request)
+@receiver(post_save, sender=BookingRequest)
 def cleanup_notifications_on_request_status_change(sender, instance, created, **kwargs):
     """Remove irrelevant notifications when request status changes."""
     if created:
         return  # Skip for new requests
     
-    content_type = ContentType.objects.get_for_model(Request)
+    content_type = ContentType.objects.get_for_model(BookingRequest)
     deleted_count = 0
     
     # Remove payment deadline notifications if request is paid
@@ -186,9 +186,9 @@ def cleanup_all_stale_notifications():
     total_deleted = 0
     
     # Clean up notifications for deleted requests
-    request_ct = ContentType.objects.get_for_model(Request)
+    request_ct = ContentType.objects.get_for_model(BookingRequest)
     stale_request_notifications = Notification.objects.filter(content_type=request_ct).exclude(
-        object_id__in=Request.objects.values_list('id', flat=True)
+        object_id__in=BookingRequest.objects.values_list('id', flat=True)
     )
     count = stale_request_notifications.count()
     if count > 0:
@@ -208,7 +208,7 @@ def cleanup_all_stale_notifications():
         logger.info(f"Cleaned up {count} notifications for deleted agreements")
     
     # Clean up notifications for non-actionable request statuses
-    paid_requests = Request.objects.filter(status__in=['Paid', 'Completed', 'Cancelled'])
+    paid_requests = BookingRequest.objects.filter(status__in=['Paid', 'Completed', 'Cancelled'])
     for request in paid_requests:
         payment_notifications = Notification.objects.filter(
             content_type=request_ct,
@@ -238,7 +238,7 @@ def cleanup_all_stale_notifications():
 
 
 # Request-based automatic notification refresh signals
-@receiver(post_save, sender=Request)
+@receiver(post_save, sender=BookingRequest)
 def auto_generate_request_notifications(sender, instance, created, **kwargs):
     """Auto-generate request notifications when dates change"""
     from django.contrib.contenttypes.models import ContentType
@@ -249,6 +249,9 @@ def auto_generate_request_notifications(sender, instance, created, **kwargs):
         generate_for_event_with_rooms,
         generate_for_group_checkins
     )
+    # ADD: Import status-based notification function
+    from dashboard.api_views import generate_request_status_deadline_notifications, generate_sales_calls_followup_notifications
+    from django.contrib.auth.models import User
     
     try:
         logger.info(f"🔔 SIGNAL DEBUG: Request {instance.id} saved - Type: {instance.request_type}")
@@ -259,7 +262,7 @@ def auto_generate_request_notifications(sender, instance, created, **kwargs):
             old_notifications = Notification.objects.filter(
                 content_type=content_type,
                 object_id=instance.id,
-notification_type__in=['beo', 'arrival', 'event_checkin', 'event_start', 'checkin', 'deadline']
+                notification_type__in=['beo', 'arrival', 'event_checkin', 'event_start', 'checkin', 'deadline']
             )
             deleted_count = old_notifications.count()
             if deleted_count > 0:
@@ -272,6 +275,17 @@ notification_type__in=['beo', 'arrival', 'event_checkin', 'event_start', 'checki
         created_count += generate_for_series_group_arrivals()  
         created_count += generate_for_event_with_rooms()
         created_count += generate_for_group_checkins()
+        
+        # ADD: Generate status-based deadline notifications for all staff users
+        staff_users = User.objects.filter(is_staff=True, is_active=True)
+        for user in staff_users:
+            status_notifications = generate_request_status_deadline_notifications(user)
+            sales_calls_notifications = generate_sales_calls_followup_notifications(user)
+            created_count += status_notifications + sales_calls_notifications
+            if status_notifications > 0:
+                logger.info(f"Generated {status_notifications} status-based notifications for user {user.username}")
+            if sales_calls_notifications > 0:
+                logger.info(f"Generated {sales_calls_notifications} sales calls notifications for user {user.username}")
         
         logger.info(f"Generated {created_count} deadline notifications for request {instance.id}")
     except Exception as e:

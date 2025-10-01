@@ -8,7 +8,7 @@ transition requests to 'Actual' status when appropriate.
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from requests.models import Request
+from requests.models import Request as BookingRequest
 import logging
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ class Command(BaseCommand):
         updated_count = 0
         
         # Get all requests with 'Paid' status
-        paid_requests = Request.objects.filter(status='Paid')
+        paid_requests = BookingRequest.objects.filter(status='Paid')
         
         self.stdout.write(f"Checking {paid_requests.count()} paid requests for status updates...")
         

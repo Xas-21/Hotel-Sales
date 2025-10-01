@@ -90,13 +90,14 @@ class UserProfile(models.Model):
         if user.is_superuser:
             return "Admin"
         
-        # Define role priority (highest to lowest)
+        # Define role priority (highest to lowest) with new role names
         role_priority = {
             'Admin': 1,
-            'Manager': 2,
-            'Sales': 3,
-            'Staff': 4,
-            'Viewer': 5
+            'Director': 2,
+            'Sales Manager': 3,
+            'Sales Executive': 4,
+            'Sales Coordinator': 5,
+            'Viewer': 6
         }
         
         user_groups = list(user.groups.values_list('name', flat=True))

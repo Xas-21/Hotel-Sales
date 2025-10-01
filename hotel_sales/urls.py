@@ -6,7 +6,8 @@ from django.views.generic import RedirectView
 from dashboard.views import (
     dashboard_view, api_request_chart_data, api_status_chart_data, 
     health_check, api_health_check, calendar_view, api_calendar_events,
-    api_update_request_status, api_update_agreement_status, logout_view
+    api_update_request_status, api_update_agreement_status, logout_view,
+    api_deadline_alerts, api_generate_notifications, api_property_performance
 )
 from dashboard.api_views import (
     get_notifications, get_unread_count, mark_notification_read, 
@@ -14,7 +15,7 @@ from dashboard.api_views import (
 )
 
 # Configure admin site headers
-admin.site.site_header = "Hotel Sales Request Management System"
+admin.site.site_header = "Hotel Sales Management System"
 admin.site.site_title = "Hotel Sales Admin"
 admin.site.index_title = "Welcome to Hotel Sales Management"
 
@@ -28,9 +29,12 @@ urlpatterns = [
     path('calendar/', calendar_view, name='calendar'),
     path('api/request-chart-data/', api_request_chart_data, name='api_request_chart_data'),
     path('api/status-chart-data/', api_status_chart_data, name='api_status_chart_data'),
+    path('api/property-performance/', api_property_performance, name='api_property_performance'),
     path('api/calendar/events/', api_calendar_events, name='api_calendar_events'),
     path('api/update-request-status/', api_update_request_status, name='api_update_request_status'),
     path('api/update-agreement-status/', api_update_agreement_status, name='api_update_agreement_status'),
+    path('api/deadline-alerts/', api_deadline_alerts, name='api_deadline_alerts'),
+    path('api/generate-notifications/', api_generate_notifications, name='api_generate_notifications'),
     
     # Notification API endpoints
     path('api/notifications/', get_notifications, name='api_notifications'),

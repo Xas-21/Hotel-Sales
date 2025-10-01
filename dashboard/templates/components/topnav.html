@@ -67,12 +67,42 @@
             <!-- User Profile -->
             <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-user me-1"></i>{{ request.user.get_full_name|default:request.user.username }}
+                    <i class="fas fa-user me-1"></i>{% if user.is_authenticated %}{{ user.get_full_name|default:user.username }}{% else %}Guest{% endif %}
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item" href="{% url 'admin:auth_user_change' request.user.id %}"><i class="fas fa-user-edit me-2"></i>Profile</a></li>
+                    {% if user.is_authenticated %}
+                    <!-- User Info Header -->
+                    <li class="dropdown-header">
+                        <div class="d-flex flex-column">
+                            <strong>{{ user.get_full_name|default:user.username }}</strong>
+                            <small class="text-muted">{{ user.email }}</small>
+                            {% if user.profile.role_label == "Admin" %}
+                                <small class="text-danger">Admin</small>
+                            {% elif user.profile.role_label == "Director" %}
+                                <small class="text-dark fw-bold">Director</small>
+                            {% elif user.profile.role_label == "Sales Manager" %}
+                                <small class="text-warning">Sales Manager</small>
+                            {% elif user.profile.role_label == "Sales Executive" %}
+                                <small class="text-info">Sales Executive</small>
+                            {% elif user.profile.role_label == "Sales Coordinator" %}
+                                <small class="text-success">Sales Coordinator</small>
+                            {% elif user.is_superuser %}
+                                <small class="text-danger">Superuser</small>
+                            {% elif user.is_staff %}
+                                <small class="text-primary">Staff</small>
+                            {% else %}
+                                <small class="text-secondary">User</small>
+                            {% endif %}
+                        </div>
+                    </li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="{% url 'admin:logout' %}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                    
+                    <!-- Action Items -->
+                    <li><a class="dropdown-item" href="{% url 'admin:auth_user_change' user.id %}"><i class="fas fa-user-edit me-2"></i>Edit Profile</a></li>
+                    <li><a class="dropdown-item" href="{% url 'admin:auth_user_change' user.id %}"><i class="fas fa-cog me-2"></i>Account Settings</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{% url 'logout' %}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                    {% endif %}
                 </ul>
             </li>
         </ul>

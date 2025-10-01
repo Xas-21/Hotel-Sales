@@ -136,6 +136,11 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
         models.TimeField: {'widget': admin.widgets.AdminTimeWidget},
     }
     
+    def get_fieldsets(self, request, obj=None):
+        """Override to ensure Financial Summary section is always shown"""
+        # Always use original fieldsets to ensure Financial Summary section is visible
+        return self.get_original_fieldsets(request, obj)
+    
     def get_config_form_type(self, obj=None):
         """Get the form type for configuration lookup based on request type"""
         if obj and hasattr(obj, 'request_type'):
@@ -278,36 +283,69 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     get_statistics_summary.short_description = "Statistics Summary"
     
     def export_selected_requests(self, request, queryset):
-        """Export selected requests to CSV file with security safeguards"""
+        """Export selected requests to CSV file with security safeguards and comprehensive details"""
         response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
         response['Content-Disposition'] = 'attachment; filename="requests_export.csv"'
         
         writer = csv.writer(response)
-        # Write CSV header with key request information
+        # Write CSV header with comprehensive request information
         writer.writerow([
-            'Confirmation Number', 'Account Name', 'Request Type', 'Status', 'Check-In Date', 
-            'Check-Out Date', 'Nights', 'Meal Plan', 'Total Rooms', 'Total Cost', 
-            'Paid Amount', 'Deposit Amount', 'Created Date', 'Notes'
+            'Confirmation Number', 'Account Name', 'Account Type', 'Contact Person', 'Request Type', 'Status', 
+            'Request Received Date', 'Check-In Date', 'Check-Out Date', 'Nights', 'Meal Plan', 
+            'Total Rooms', 'Total Room Nights', 'Total Cost', 'Paid Amount', 'Deposit Amount', 
+            'Offer Acceptance Deadline', 'Deposit Deadline', 'Full Payment Deadline',
+            'ADR (Average Daily Rate)', 'Created Date', 'Updated Date', 'Notes'
         ])
+        
+        total_requests = 0
+        total_revenue = 0
+        total_rooms = 0
+        total_room_nights = 0
         
         # Write request data with sanitization and proper display values
         for req in queryset.order_by('confirmation_number'):
+            adr = req.get_adr()
+            paid_amount = req.get_display_paid_amount()
+            
             writer.writerow([
                 sanitize_csv_value(req.confirmation_number),
                 sanitize_csv_value(req.account.name if req.account else 'No Account'),
+                sanitize_csv_value(req.account.account_type if req.account else ''),
+                sanitize_csv_value(req.account.contact_person if req.account else ''),
                 sanitize_csv_value(req.get_request_type_display()),
                 sanitize_csv_value(req.get_status_display()),
+                sanitize_csv_value(req.request_received_date.strftime('%Y-%m-%d') if req.request_received_date else ''),
                 sanitize_csv_value(req.check_in_date.strftime('%Y-%m-%d') if req.check_in_date else ''),
                 sanitize_csv_value(req.check_out_date.strftime('%Y-%m-%d') if req.check_out_date else ''),
                 sanitize_csv_value(req.nights),
                 sanitize_csv_value(req.get_meal_plan_display()),
                 sanitize_csv_value(req.total_rooms),
+                sanitize_csv_value(req.total_room_nights),
                 sanitize_csv_value(f"{req.total_cost:.2f}" if req.total_cost else '0.00'),
-                sanitize_csv_value(f"{req.get_display_paid_amount():.2f}" if req.get_display_paid_amount() else '0.00'),
+                sanitize_csv_value(f"{paid_amount:.2f}" if paid_amount else '0.00'),
                 sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
+                sanitize_csv_value(req.offer_acceptance_deadline.strftime('%Y-%m-%d') if req.offer_acceptance_deadline else ''),
+                sanitize_csv_value(req.deposit_deadline.strftime('%Y-%m-%d') if req.deposit_deadline else ''),
+                sanitize_csv_value(req.full_payment_deadline.strftime('%Y-%m-%d') if req.full_payment_deadline else ''),
+                sanitize_csv_value(f"{adr:.2f}" if adr else '0.00'),
                 sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
+                sanitize_csv_value(req.updated_at.strftime('%Y-%m-%d %H:%M') if req.updated_at else ''),
                 sanitize_csv_value(req.notes)
             ])
+            
+            # Calculate totals
+            total_requests += 1
+            total_revenue += float(req.total_cost or 0)
+            total_rooms += req.total_rooms or 0
+            total_room_nights += req.total_room_nights or 0
+        
+        # Add summary rows
+        writer.writerow([])  # Empty row
+        writer.writerow(['SUMMARY'])
+        writer.writerow(['Total Requests Count', total_requests])
+        writer.writerow(['Total Revenue', f"{total_revenue:.2f}"])
+        writer.writerow(['Total Rooms Booked', total_rooms])
+        writer.writerow(['Total Room Nights', total_room_nights])
         
         return response
     export_selected_requests.short_description = "Export selected requests to CSV"
@@ -469,7 +507,7 @@ class AccommodationRequestAdmin(BaseRequestAdmin):
             form.instance.update_financial_totals()
     
     def export_selected_requests(self, request, queryset):
-        """Export selected requests to CSV file with security safeguards"""
+        """Export selected accommodation requests to CSV file with security safeguards and comprehensive details"""
         import csv
         from django.http import HttpResponse
         # sanitize_csv_value is defined in this same file
@@ -479,28 +517,61 @@ class AccommodationRequestAdmin(BaseRequestAdmin):
         
         writer = csv.writer(response)
         writer.writerow([
-            'Confirmation Number', 'Account Name', 'Request Type', 'Status', 'Check-In Date', 
-            'Check-Out Date', 'Nights', 'Meal Plan', 'Total Rooms', 'Total Cost', 
-            'Paid Amount', 'Deposit Amount', 'Created Date', 'Notes'
+            'Confirmation Number', 'Account Name', 'Account Type', 'Contact Person', 'Request Type', 'Status', 
+            'Request Received Date', 'Check-In Date', 'Check-Out Date', 'Nights', 'Meal Plan', 
+            'Total Rooms', 'Total Room Nights', 'Total Cost', 'Paid Amount', 'Deposit Amount', 
+            'Offer Acceptance Deadline', 'Deposit Deadline', 'Full Payment Deadline',
+            'ADR (Average Daily Rate)', 'Created Date', 'Updated Date', 'Notes'
         ])
         
+        total_requests = 0
+        total_revenue = 0
+        total_rooms = 0
+        total_room_nights = 0
+        
         for req in queryset.order_by('confirmation_number'):
+            adr = req.get_adr()
+            paid_amount = req.get_display_paid_amount()
+            
             writer.writerow([
                 sanitize_csv_value(req.confirmation_number),
                 sanitize_csv_value(req.account.name if req.account else 'No Account'),
+                sanitize_csv_value(req.account.account_type if req.account else ''),
+                sanitize_csv_value(req.account.contact_person if req.account else ''),
                 sanitize_csv_value(req.get_request_type_display()),
                 sanitize_csv_value(req.get_status_display()),
+                sanitize_csv_value(req.request_received_date.strftime('%Y-%m-%d') if req.request_received_date else ''),
                 sanitize_csv_value(req.check_in_date.strftime('%Y-%m-%d') if req.check_in_date else ''),
                 sanitize_csv_value(req.check_out_date.strftime('%Y-%m-%d') if req.check_out_date else ''),
                 sanitize_csv_value(req.nights),
                 sanitize_csv_value(req.get_meal_plan_display()),
                 sanitize_csv_value(req.total_rooms),
+                sanitize_csv_value(req.total_room_nights),
                 sanitize_csv_value(f"{req.total_cost:.2f}" if req.total_cost else '0.00'),
-                sanitize_csv_value(f"{req.get_display_paid_amount():.2f}" if req.get_display_paid_amount() else '0.00'),
+                sanitize_csv_value(f"{paid_amount:.2f}" if paid_amount else '0.00'),
                 sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
+                sanitize_csv_value(req.offer_acceptance_deadline.strftime('%Y-%m-%d') if req.offer_acceptance_deadline else ''),
+                sanitize_csv_value(req.deposit_deadline.strftime('%Y-%m-%d') if req.deposit_deadline else ''),
+                sanitize_csv_value(req.full_payment_deadline.strftime('%Y-%m-%d') if req.full_payment_deadline else ''),
+                sanitize_csv_value(f"{adr:.2f}" if adr else '0.00'),
                 sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
+                sanitize_csv_value(req.updated_at.strftime('%Y-%m-%d %H:%M') if req.updated_at else ''),
                 sanitize_csv_value(req.notes)
             ])
+            
+            # Calculate totals
+            total_requests += 1
+            total_revenue += float(req.total_cost or 0)
+            total_rooms += req.total_rooms or 0
+            total_room_nights += req.total_room_nights or 0
+        
+        # Add summary rows
+        writer.writerow([])  # Empty row
+        writer.writerow(['SUMMARY'])
+        writer.writerow(['Total Requests Count', total_requests])
+        writer.writerow(['Total Revenue', f"{total_revenue:.2f}"])
+        writer.writerow(['Total Rooms Booked', total_rooms])
+        writer.writerow(['Total Room Nights', total_room_nights])
         
         return response
     export_selected_requests.short_description = "Export selected accommodation requests to CSV"

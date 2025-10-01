@@ -13,7 +13,7 @@ import json
 
 from .models import Notification
 from agreements.models import Agreement
-from requests.models import Request
+from requests.models import Request as BookingRequest
 
 
 @login_required
@@ -134,11 +134,13 @@ def mark_all_read(request):
 
 
 def generate_deadline_notifications(user):
-    """Generate notifications for approaching agreement deadlines"""
+    """Generate notifications for approaching agreement deadlines and request status deadlines"""
     from datetime import timedelta
     
-    # Find agreements with deadlines in the next 7 days
-    upcoming_deadline = timezone.now().date() + timedelta(days=7)
+    notifications_created = 0
+    
+    # Find agreements with deadlines in the next 5 days
+    upcoming_deadline = timezone.now().date() + timedelta(days=5)
     approaching_agreements = Agreement.objects.filter(
         deadline_date__lte=upcoming_deadline,
         deadline_date__gte=timezone.now().date(),
@@ -152,7 +154,6 @@ def generate_deadline_notifications(user):
         ).values_list('object_id', flat=True)
     )
     
-    notifications_created = 0
     for agreement in approaching_agreements:
         days_until = (agreement.deadline_date - timezone.now().date()).days
         
@@ -180,12 +181,136 @@ def generate_deadline_notifications(user):
         )
         notifications_created += 1
     
+    # Generate request status-based deadline notifications
+    notifications_created += generate_request_status_deadline_notifications(user)
+    
+    return notifications_created
+
+
+def generate_request_status_deadline_notifications(user):
+    """Generate notifications for request status-based deadlines"""
+    from datetime import timedelta
+    from django.contrib.contenttypes.models import ContentType
+    
+    notifications_created = 0
+    today = timezone.now().date()
+    alert_date = today + timedelta(days=5)  # Check next 5 days
+    
+    # Get existing notifications for today to avoid duplicates
+    existing_notifications = Notification.objects.filter(
+        user=user,
+        notification_type='deadline',
+        created_at__date=today
+    ).values_list('object_id', flat=True)
+    
+    # Draft status: Alert on offer acceptance deadline
+    draft_requests = BookingRequest.objects.filter(
+        status='Draft',
+        offer_acceptance_deadline__lte=alert_date,
+        offer_acceptance_deadline__gte=today
+    ).exclude(id__in=existing_notifications).select_related('account')
+    
+    for request in draft_requests:
+        days_until = (request.offer_acceptance_deadline - today).days
+        
+        if days_until <= 1:
+            priority = 'urgent'
+            title = f"⚠️ Offer acceptance deadline TODAY: {request.account.name}"
+        elif days_until <= 3:
+            priority = 'high'
+            title = f"⚠️ Offer acceptance deadline in {days_until} days: {request.account.name}"
+        else:
+            priority = 'medium'
+            title = f"Offer acceptance deadline approaching: {request.account.name}"
+        
+        # Create notification
+        Notification.objects.create(
+            user=user,
+            title=title,
+            message=f"Request {request.confirmation_number} with {request.account.name} has offer acceptance deadline on {request.offer_acceptance_deadline.strftime('%B %d, %Y')}. Please follow up on offer acceptance.",
+            notification_type='deadline',
+            priority=priority,
+            link_url=reverse('admin:requests_request_change', args=[request.id]),
+            link_text='View Request',
+            content_type=ContentType.objects.get_for_model(BookingRequest),
+            object_id=request.id
+        )
+        notifications_created += 1
+    
+    # Pending status: Alert on deposit deadline
+    pending_requests = BookingRequest.objects.filter(
+        status='Pending',
+        deposit_deadline__lte=alert_date,
+        deposit_deadline__gte=today
+    ).exclude(id__in=existing_notifications).select_related('account')
+    
+    for request in pending_requests:
+        days_until = (request.deposit_deadline - today).days
+        
+        if days_until <= 1:
+            priority = 'urgent'
+            title = f"⚠️ Deposit deadline TODAY: {request.account.name}"
+        elif days_until <= 3:
+            priority = 'high'
+            title = f"⚠️ Deposit deadline in {days_until} days: {request.account.name}"
+        else:
+            priority = 'medium'
+            title = f"Deposit deadline approaching: {request.account.name}"
+        
+        # Create notification
+        Notification.objects.create(
+            user=user,
+            title=title,
+            message=f"Request {request.confirmation_number} with {request.account.name} has deposit deadline on {request.deposit_deadline.strftime('%B %d, %Y')}. Please follow up on deposit payment.",
+            notification_type='deadline',
+            priority=priority,
+            link_url=reverse('admin:requests_request_change', args=[request.id]),
+            link_text='View Request',
+            content_type=ContentType.objects.get_for_model(BookingRequest),
+            object_id=request.id
+        )
+        notifications_created += 1
+    
+    # Partially Paid status: Alert on full payment deadline
+    partially_paid_requests = BookingRequest.objects.filter(
+        status='Partially Paid',
+        full_payment_deadline__lte=alert_date,
+        full_payment_deadline__gte=today
+    ).exclude(id__in=existing_notifications).select_related('account')
+    
+    for request in partially_paid_requests:
+        days_until = (request.full_payment_deadline - today).days
+        
+        if days_until <= 1:
+            priority = 'urgent'
+            title = f"⚠️ Full payment deadline TODAY: {request.account.name}"
+        elif days_until <= 3:
+            priority = 'high'
+            title = f"⚠️ Full payment deadline in {days_until} days: {request.account.name}"
+        else:
+            priority = 'medium'
+            title = f"Full payment deadline approaching: {request.account.name}"
+        
+        # Create notification
+        Notification.objects.create(
+            user=user,
+            title=title,
+            message=f"Request {request.confirmation_number} with {request.account.name} has full payment deadline on {request.full_payment_deadline.strftime('%B %d, %Y')}. Please follow up on full payment.",
+            notification_type='deadline',
+            priority=priority,
+            link_url=reverse('admin:requests_request_change', args=[request.id]),
+            link_text='View Request',
+            content_type=ContentType.objects.get_for_model(BookingRequest),
+            object_id=request.id
+        )
+        notifications_created += 1
+    
     return notifications_created
 
 
 def generate_payment_notifications(user):
     """Generate notifications for overdue payments"""
-    overdue_requests = Request.objects.filter(
+    overdue_requests = BookingRequest.objects.filter(
         status__in=['Confirmed', 'Partially Paid'],
         check_out_date__lt=timezone.now().date()
     ).exclude(
@@ -217,8 +342,124 @@ def generate_payment_notifications(user):
             priority=priority,
             link_url=reverse('admin:requests_request_change', args=[request_obj.id]),
             link_text='View Request',
-            content_type_id=request_obj._meta.get_field('id').model._meta.get_for_model(Request).id,
+            content_type_id=request_obj._meta.get_field('id').model._meta.get_for_model(BookingRequest).id,
             object_id=request_obj.id
+        )
+        notifications_created += 1
+    
+    return notifications_created
+
+
+def generate_sales_calls_followup_notifications(user):
+    """Generate notifications for sales calls follow-up reminders."""
+    from datetime import timedelta
+    from django.contrib.contenttypes.models import ContentType
+    from sales_calls.models import SalesCall
+    
+    notifications_created = 0
+    today = timezone.now().date()
+    alert_date = today + timedelta(days=5)  # Check next 5 days
+    
+    # Get existing notifications for today to avoid duplicates
+    existing_notifications = Notification.objects.filter(
+        user=user,
+        notification_type='deadline',
+        created_at__date=today
+    ).values_list('object_id', flat=True)
+    
+    # OVERDUE FOLLOW-UPS (urgent)
+    overdue_calls = SalesCall.objects.filter(
+        follow_up_required=True,
+        follow_up_completed=False,
+        follow_up_date__lt=today
+    ).exclude(id__in=existing_notifications).select_related('account')
+    
+    for call in overdue_calls:
+        days_overdue = (today - call.follow_up_date).days
+        
+        title = f"🚨 OVERDUE: Follow-up {days_overdue} days late - {call.account.name}"
+        message = f"Sales call follow-up with {call.account.name} is {days_overdue} days overdue. Please complete follow-up immediately."
+        
+        link_url = f"/admin/sales_calls/salescall/{call.id}/change/"
+        
+        # Create notification
+        Notification.objects.create(
+            user=user,
+            title=title,
+            message=message,
+            notification_type='deadline',
+            priority='urgent',
+            link_url=link_url,
+            link_text='View Sales Call',
+            content_type=ContentType.objects.get_for_model(SalesCall),
+            object_id=call.id
+        )
+        notifications_created += 1
+    
+    # UPCOMING FOLLOW-UPS
+    upcoming_calls = SalesCall.objects.filter(
+        follow_up_required=True,
+        follow_up_completed=False,
+        follow_up_date__range=[today, alert_date]
+    ).exclude(id__in=existing_notifications).select_related('account')
+    
+    for call in upcoming_calls:
+        days_until = (call.follow_up_date - today).days
+        priority = 'urgent' if days_until == 0 else ('high' if days_until <= 3 else 'medium')
+        
+        if days_until == 0:
+            title = f"⚠️ Follow-up due TODAY: {call.account.name}"
+            message = f"Sales call follow-up with {call.account.name} is due today. Please complete follow-up."
+        elif days_until <= 3:
+            title = f"⚠️ Follow-up due in {days_until} days: {call.account.name}"
+            message = f"Sales call follow-up with {call.account.name} is due on {call.follow_up_date.strftime('%B %d, %Y')}. Please prepare follow-up."
+        else:
+            title = f"Follow-up reminder: {call.account.name}"
+            message = f"Sales call follow-up with {call.account.name} is due on {call.follow_up_date.strftime('%B %d, %Y')}. Please prepare follow-up."
+        
+        link_url = f"/admin/sales_calls/salescall/{call.id}/change/"
+        
+        # Create notification
+        Notification.objects.create(
+            user=user,
+            title=title,
+            message=message,
+            notification_type='deadline',
+            priority=priority,
+            link_url=link_url,
+            link_text='View Sales Call',
+            content_type=ContentType.objects.get_for_model(SalesCall),
+            object_id=call.id
+        )
+        notifications_created += 1
+    
+    # HIGH BUSINESS POTENTIAL FOLLOW-UPS (priority)
+    high_potential_calls = SalesCall.objects.filter(
+        follow_up_required=True,
+        follow_up_completed=False,
+        business_potential='High',
+        follow_up_date__range=[today, alert_date]
+    ).exclude(id__in=existing_notifications).select_related('account')
+    
+    for call in high_potential_calls:
+        days_until = (call.follow_up_date - today).days
+        
+        title = f"💎 HIGH POTENTIAL: Follow-up in {days_until} days - {call.account.name}"
+        message = f"High business potential client {call.account.name} has follow-up due on {call.follow_up_date.strftime('%B %d, %Y')}. Priority follow-up required."
+        
+        link_url = f"/admin/sales_calls/salescall/{call.id}/change/"
+        
+        # Create notification
+        Notification.objects.create(
+            user=user,
+            title=title,
+            message=message,
+            notification_type='deadline',
+            priority='high',
+            link_url=link_url,
+            link_text='View Sales Call',
+            content_type=ContentType.objects.get_for_model(SalesCall),
+            object_id=call.id
         )
         notifications_created += 1
     
@@ -232,13 +473,15 @@ def generate_notifications(request):
     try:
         deadline_count = generate_deadline_notifications(request.user)
         payment_count = generate_payment_notifications(request.user)
+        sales_calls_count = generate_sales_calls_followup_notifications(request.user)
         
         return JsonResponse({
             'success': True,
             'generated': {
                 'deadline_notifications': deadline_count,
                 'payment_notifications': payment_count,
-                'total': deadline_count + payment_count
+                'sales_calls_notifications': sales_calls_count,
+                'total': deadline_count + payment_count + sales_calls_count
             }
         })
     except Exception as e:
