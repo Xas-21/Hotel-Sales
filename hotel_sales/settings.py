@@ -26,7 +26,8 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'change-me')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '*').split(',')
+_raw_hosts = os.getenv('DJANGO_ALLOWED_HOSTS', '*')
+ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(',') if h.strip()] or ['*']
 
 # CSRF configuration (env-driven). Include defaults plus any provided in
 # DJANGO_CSRF_TRUSTED_ORIGINS (comma-separated, include scheme like https://)
