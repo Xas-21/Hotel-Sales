@@ -28,12 +28,15 @@ DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '*').split(',')
 
-# CSRF Configuration for Replit
-CSRF_TRUSTED_ORIGINS = [
+# CSRF configuration (env-driven). Include defaults plus any provided in
+# DJANGO_CSRF_TRUSTED_ORIGINS (comma-separated, include scheme like https://)
+_DEFAULT_CSRF_TRUSTED = [
     'https://*.replit.dev',
-    'https://*.replit.co', 
+    'https://*.replit.co',
     'https://*.replit.app',
 ]
+_extra_csrf = [o.strip() for o in os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()]
+CSRF_TRUSTED_ORIGINS = _DEFAULT_CSRF_TRUSTED + _extra_csrf
 
 
 # Application definition
@@ -55,7 +58,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -133,12 +135,14 @@ STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# WhiteNoise compressed manifest storage for production
-STORAGES = {
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
-}
+# Enable WhiteNoise only in production to keep local dev simple
+if not DEBUG:
+    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+    STORAGES = {
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
 
 # Media files (File uploads)
 MEDIA_URL = 'media/'
