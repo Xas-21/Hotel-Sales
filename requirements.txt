@@ -4,5 +4,5 @@ whitenoise==6.7.0
 Pillow==10.4.0
 django-widget-tweaks==1.5.0
 dj-database-url==2.1.0
-psycopg2-binary==2.9.9
+psycopg[binary]==3.2.3
 setuptools>=65.0.0
