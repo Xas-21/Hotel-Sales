@@ -1,47 +1,204 @@
-{% extends "admin/base.html" %}
-{% load i18n static %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hotel Sales Management - Login</title>
+    <link rel="stylesheet" href="{% static 'admin/css/custom_login.css' %}">
+</head>
+<body class="custom-login-page">
+    <div class="login-wrapper">
+        <div class="login-card" role="dialog" aria-labelledby="hsm-login-title">
+            <div class="logo-area" aria-hidden="true">🏨</div>
+            <h1 id="hsm-login-title" class="title">Hotel Sales Management</h1>
+            <div class="subtitle">Professional Enterprise Platform</div>
 
-{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert {% if message.tags == 'error' %}error{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
 
-{% block extrahead %}
-    {{ block.super }}
-    <link rel="stylesheet" type="text/css" href="{% static 'admin/css/login.css' %}">
-{% endblock %}
+            {% if form.non_field_errors %}
+                <div class="alert error">
+                    Username or password is not correct. Please try again.
+                </div>
+            {% endif %}
 
-{% block bodyclass %}{{ block.super }} login{% endblock %}
+            <form action="{{ app_path }}" method="post" class="login-form" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next }}">
 
-{% block usertools %}{% endblock %}
+                <label class="sr-only" for="id_username">Username</label>
+                <input id="id_username" name="username" type="text" placeholder="Enter your username" autocomplete="username" required>
 
-{% block nav-global %}{% endblock %}
+                <div class="password-container">
+                    <label class="sr-only" for="id_password">Password</label>
+                    <input id="id_password" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required>
+                    <button type="button" class="password-toggle" id="passwordToggle" aria-label="Show password">
+                        <span class="eye-icon">👁️</span>
+                    </button>
+                </div>
 
-{% block nav-breadcrumbs %}{% endblock %}
+                <div class="remember-me">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="rememberMe" name="remember_me">
+                        <span class="checkmark"></span>
+                        Remember me
+                    </label>
+                </div>
 
-{% block content %}
-<div id="content-main">
-    <form action="{{ app_path }}" method="post" id="login-form">
-        {% csrf_token %}
-        <div class="form-row">
-            {{ form.username.errors }}
-            {{ form.username.label_tag }} {{ form.username }}
+                <button type="submit" class="btn btn-login">Login</button>
+                <button type="button" class="btn btn-ol" id="olButton" aria-disabled="true">OL</button>
+            </form>
+
+            <div class="forgot">
+                <a href="#" id="forgotLink">Forgot your password?</a>
+            </div>
         </div>
-        <div class="form-row">
-            {{ form.password.errors }}
-            {{ form.password.label_tag }} {{ form.password }}
-            <input type="hidden" name="next" value="{{ next }}">
-        </div>
-        {% url 'admin_password_reset' as password_reset_url %}
-        {% if password_reset_url %}
-        <div class="password-reset-link">
-            <a href="{{ password_reset_url }}">{% trans 'Forgotten your password or username?' %}</a>
-        </div>
-        {% endif %}
-        <div class="submit-row">
-            <input type="submit" value="{% trans 'Log in' %}">
-        </div>
-    </form>
+    </div>
 
-    <script type="text/javascript">
-        document.getElementById('id_username').focus()
+    <div id="forgotModal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="forgot-title">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2 id="forgot-title">Password Reset</h2>
+                <button type="button" class="modal-close" id="modalClose" aria-label="Close">×</button>
+            </div>
+            <div class="modal-body">
+                <p>Contact <strong>Abdullah Saleh</strong> to reset your password.</p>
+                <p>Email: <a href="mailto:Abdullah.Saleh-@hotmail.com">Abdullah.Saleh-@hotmail.com</a></p>
+                <p>Phone: <a href="tel:+966559990187">+966559990187</a></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-login" id="modalOk">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Password container with eye icon */
+        .password-container {
+            position: relative;
+            margin-bottom: 15px;
+        }
+        
+        .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-60%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 5px;
+            z-index: 10;
+        }
+        
+        .password-toggle:hover {
+            opacity: 0.7;
+        }
+        
+        /* Remember me checkbox */
+        .remember-me {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .checkbox-container input[type="checkbox"] {
+            margin-right: 8px;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+        
+        .checkbox-container:hover {
+            color: #333;
+        }
+        
+        /* Load saved credentials */
+        .remember-me input:checked + .checkmark {
+            background-color: var(--primary);
+        }
+    </style>
+
+    <script>
+        (function() {
+            var forgotLink = document.getElementById('forgotLink');
+            var modal = document.getElementById('forgotModal');
+            var modalClose = document.getElementById('modalClose');
+            var modalOk = document.getElementById('modalOk');
+            var passwordToggle = document.getElementById('passwordToggle');
+            var passwordField = document.getElementById('id_password');
+            var rememberMe = document.getElementById('rememberMe');
+            var usernameField = document.getElementById('id_username');
+            
+            // Password toggle functionality
+            if (passwordToggle && passwordField) {
+                passwordToggle.addEventListener('click', function() {
+                    if (passwordField.type === 'password') {
+                        passwordField.type = 'text';
+                        passwordToggle.innerHTML = '<span class="eye-icon">🙈</span>';
+                    } else {
+                        passwordField.type = 'password';
+                        passwordToggle.innerHTML = '<span class="eye-icon">👁️</span>';
+                    }
+                });
+            }
+            
+            // Remember me functionality
+            if (rememberMe) {
+                // Load saved credentials on page load
+                if (localStorage.getItem('rememberMe') === 'true') {
+                    rememberMe.checked = true;
+                    usernameField.value = localStorage.getItem('savedUsername') || '';
+                    passwordField.value = localStorage.getItem('savedPassword') || '';
+                }
+                
+                // Save credentials when checkbox is checked
+                rememberMe.addEventListener('change', function() {
+                    if (this.checked) {
+                        localStorage.setItem('rememberMe', 'true');
+                        localStorage.setItem('savedUsername', usernameField.value);
+                        localStorage.setItem('savedPassword', passwordField.value);
+                    } else {
+                        localStorage.removeItem('rememberMe');
+                        localStorage.removeItem('savedUsername');
+                        localStorage.removeItem('savedPassword');
+                    }
+                });
+            }
+            
+            // Save credentials when form is submitted
+            var form = document.querySelector('.login-form');
+            if (form) {
+                form.addEventListener('submit', function() {
+                    if (rememberMe && rememberMe.checked) {
+                        localStorage.setItem('savedUsername', usernameField.value);
+                        localStorage.setItem('savedPassword', passwordField.value);
+                    }
+                });
+            }
+            
+            // Modal functionality
+            function openModal(e){ if(e) e.preventDefault(); modal.classList.add('open'); modal.setAttribute('aria-hidden','false'); }
+            function closeModal(){ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); }
+            if (forgotLink) forgotLink.addEventListener('click', openModal);
+            if (modalClose) modalClose.addEventListener('click', closeModal);
+            if (modalOk) modalOk.addEventListener('click', closeModal);
+            window.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeModal(); });
+        })();
     </script>
-</div>
-{% endblock %}
+</body>
+</html>

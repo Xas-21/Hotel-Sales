@@ -14,8 +14,8 @@
 {% block extrastyle %}
     {{ block.super }}
     <style>
-        /* Hide default Django Admin blue header */
-        #header { display: none !important; }
+        /* Hide default Django Admin blue header except on login page */
+        body:not(.login) #header { display: none !important; }
 
         /* Minimal styles so the persistent navbar looks correct without Bootstrap CSS */
         .hsrms-nav { background-color: #212529; color: #fff; position: sticky; top: 0; z-index: 1050; box-shadow: 0 2px 4px rgba(0,0,0,.1); }
@@ -78,9 +78,9 @@
         #notificationsDropdown { position: relative; }
         #notification-badge { position: absolute; top: 0; left: 100%; transform: translate(-50%, -50%); }
 
-        /* Keep admin background dark */
-        body { background: #000; color: #eaeaea; }
-        #content { background: #121212; color: #eaeaea; }
+        /* Keep admin background dark except on login page */
+        body:not(.login) { background: #000; color: #eaeaea; }
+        body:not(.login) #content { background: #121212; color: #eaeaea; }
         
         /* Fix Actions Bar with Black Background and White Text */
         .actions,
