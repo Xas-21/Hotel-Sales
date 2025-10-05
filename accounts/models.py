@@ -30,7 +30,7 @@ class Account(models.Model):
     name = models.CharField(max_length=200, help_text="Company/Organization name")
     # Note: account_type choices are managed through the dynamic configuration system
     # See Configuration > Account section to manage available types
-    account_type = models.CharField(max_length=30)
+    account_type = models.CharField(max_length=30, choices=ACCOUNT_TYPES)
     city = models.CharField(max_length=200, blank=True, help_text="Primary city location")
     contact_person = models.TextField(blank=True, max_length=100)
     position = models.TextField(blank=True, help_text="Contact person's position/title (can be detailed)")

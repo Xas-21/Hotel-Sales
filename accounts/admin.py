@@ -20,7 +20,7 @@ def sanitize_csv_value(value):
     return str_value
 
 @admin.register(Account)
-class AccountAdmin(ConfigEnforcedAdminMixin,admin.ModelAdmin):
+class AccountAdmin(admin.ModelAdmin):
     list_display = ['name', 'account_type', 'city', 'contact_person', 'phone', 'email', 'created_at', 'get_contact_info_display']
     list_filter = ['account_type', 'city', 'created_at']
     search_fields = ['name', 'contact_person', 'email', 'phone', 'city']
@@ -34,11 +34,7 @@ class AccountAdmin(ConfigEnforcedAdminMixin,admin.ModelAdmin):
         models.TimeField: {'widget': admin.widgets.AdminTimeWidget},
     }
 
-    def get_config_form_type(self, obj=None):
-        """Get the form type for configuration lookup"""
-        return "accounts.Account"
-
-    def get_original_fieldsets(self, request, obj=None):
+    def get_fieldsets(self, request, obj=None):
         """Enhanced fieldsets for Phase 1D - better organization and preparation for export functionality"""
         return [
             ('Account Information', {
@@ -61,9 +57,6 @@ class AccountAdmin(ConfigEnforcedAdminMixin,admin.ModelAdmin):
             })
         ]
 
-    def get_conditional_fieldsets(self, request, obj=None):
-        """Get conditional fieldsets based on object state"""
-        return []
     
     # Add export preparation - enhanced for future CSV export functionality
     actions = ['export_selected_accounts']
