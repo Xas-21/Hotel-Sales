@@ -1,0 +1,757 @@
+<!-- Persistent Top Navigation Component -->
+<nav class="hsrms-nav navbar navbar-expand-lg navbar-dark bg-dark" id="persistent-topnav" style="position: sticky; top: 0; z-index: 1050;">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{% url 'dashboard' %}">
+            <i class="fas fa-hotel me-2"></i>Hotel Sales Management
+        </a>
+        
+        <!-- Navigation Links -->
+        <ul class="navbar-nav me-auto">
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' and request.resolver_match.namespace != 'configuration' and request.resolver_match.namespace != 'admin' %}active{% endif %}" href="{% url 'dashboard' %}">
+                    <i class="fas fa-chart-bar me-1"></i>Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'calendar' %}active{% endif %}" href="{% url 'calendar' %}">
+                    <i class="fas fa-calendar-alt me-1"></i>Calendar
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.namespace == 'configuration' %}active{% endif %}" href="{% url 'configuration:dashboard' %}">
+                    <i class="fas fa-sliders-h me-1"></i>Configuration
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.namespace == 'admin' %}active{% endif %}" href="{% url 'admin:index' %}">
+                    <i class="fas fa-cog me-1"></i>Admin Panel
+                </a>
+            </li>
+        </ul>
+        
+        <!-- Notifications and User Menu -->
+        <ul class="navbar-nav">
+            <!-- Notifications Bell -->
+            <li class="nav-item dropdown me-2">
+                <a class="nav-link position-relative" href="#" id="notificationsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notification-badge" style="font-size: 0.7em; display: none;">
+                        <span id="notification-count">0</span>
+                    </span>
+                </a>
+                <div class="dropdown-menu dropdown-menu-end shadow-lg" aria-labelledby="notificationsDropdown" style="min-width: 350px; max-height: 400px; overflow-y: auto;">
+                    <div class="dropdown-header d-flex justify-content-between align-items-center">
+                        <span class="fw-bold">Notifications</span>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-link text-muted p-0" id="mark-all-read" style="display: none;">
+                                <small>Mark all read</small>
+                            </button>
+                            <button class="btn btn-sm btn-link text-danger p-0" id="clear-all-alerts" style="display: none;">
+                                <small>Clear Alerts</small>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <div id="notifications-container">
+                        <div class="dropdown-item-text text-muted text-center">
+                            <i class="fas fa-bell-slash me-2"></i>No new notifications
+                        </div>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item text-center" href="#" id="view-all-notifications">
+                        <small>View all notifications</small>
+                    </a>
+                </div>
+            </li>
+            
+            <!-- User Profile -->
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle d-flex align-items-center user-profile-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <div class="user-avatar me-2">
+                        {% if user.is_authenticated %}
+                            <span class="avatar-text">{{ user.get_full_name|default:user.username|slice:":1"|upper }}</span>
+                        {% else %}
+                            <i class="fas fa-user"></i>
+                        {% endif %}
+                    </div>
+                    <span class="user-name d-none d-lg-inline">{% if user.is_authenticated %}{{ user.get_full_name|default:user.username }}{% else %}Guest{% endif %}</span>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end user-dropdown-menu shadow-lg">
+                    {% if user.is_authenticated %}
+                    <!-- User Info Header with Enhanced Design -->
+                    <li class="dropdown-header user-info-header">
+                        <div class="d-flex align-items-center p-2">
+                            <div class="user-avatar-large me-3">
+                                <span class="avatar-text-large">{{ user.get_full_name|default:user.username|slice:":1"|upper }}</span>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="user-full-name">{{ user.get_full_name|default:user.username }}</div>
+                                <div class="user-email">{{ user.email }}</div>
+                                <div class="mt-1">
+                                    {% if user.profile.role_label == "Admin" %}
+                                        <span class="role-badge role-admin"><i class="fas fa-crown me-1"></i>Admin</span>
+                                    {% elif user.profile.role_label == "Director" %}
+                                        <span class="role-badge role-director"><i class="fas fa-user-tie me-1"></i>Director</span>
+                                    {% elif user.profile.role_label == "Sales Manager" %}
+                                        <span class="role-badge role-manager"><i class="fas fa-user-cog me-1"></i>Sales Manager</span>
+                                    {% elif user.profile.role_label == "Sales Executive" %}
+                                        <span class="role-badge role-executive"><i class="fas fa-briefcase me-1"></i>Sales Executive</span>
+                                    {% elif user.profile.role_label == "Sales Coordinator" %}
+                                        <span class="role-badge role-coordinator"><i class="fas fa-users me-1"></i>Sales Coordinator</span>
+                                    {% elif user.is_superuser %}
+                                        <span class="role-badge role-admin"><i class="fas fa-crown me-1"></i>Superuser</span>
+                                    {% elif user.is_staff %}
+                                        <span class="role-badge role-staff"><i class="fas fa-id-badge me-1"></i>Staff</span>
+                                    {% else %}
+                                        <span class="role-badge role-user"><i class="fas fa-user me-1"></i>User</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    <li><hr class="dropdown-divider m-0"></li>
+                    
+                    <!-- Action Items with Icons -->
+                    <li><a class="dropdown-item enhanced-dropdown-item" href="{% url 'admin:auth_user_change' user.id %}">
+                        <i class="fas fa-user-edit me-2 item-icon"></i>
+                        <div class="item-content">
+                            <div class="item-title">Edit Profile</div>
+                            <div class="item-subtitle">Update your personal information</div>
+                        </div>
+                    </a></li>
+                    <li><a class="dropdown-item enhanced-dropdown-item" href="{% url 'admin:auth_user_change' user.id %}">
+                        <i class="fas fa-cog me-2 item-icon"></i>
+                        <div class="item-content">
+                            <div class="item-title">Account Settings</div>
+                            <div class="item-subtitle">Manage your preferences</div>
+                        </div>
+                    </a></li>
+                    <li><hr class="dropdown-divider m-0"></li>
+                    
+                    <!-- Currency Toggle -->
+                    <li><a class="dropdown-item enhanced-dropdown-item currency-toggle-item" href="#" id="currencyToggle">
+                        <i class="fas fa-exchange-alt me-2 item-icon"></i>
+                        <div class="item-content">
+                            <div class="item-title">Switch to {{ other_currency }}</div>
+                            <div class="item-subtitle">Currently using {{ currency_name }}</div>
+                        </div>
+                    </a></li>
+                    <li><hr class="dropdown-divider m-0"></li>
+                    <li><a class="dropdown-item enhanced-dropdown-item logout-item" href="{% url 'logout' %}">
+                        <i class="fas fa-sign-out-alt me-2 item-icon"></i>
+                        <div class="item-content">
+                            <div class="item-title">Logout</div>
+                            <div class="item-subtitle">Sign out of your account</div>
+                        </div>
+                    </a></li>
+                    {% endif %}
+                </ul>
+            </li>
+        </ul>
+    </div>
+</nav>
+
+<!-- Add body padding to prevent content overlap with sticky nav -->
+<style>
+.hsrms-nav {
+    box-shadow: 0 2px 4px rgba(0,0,0,.1);
+}
+body {
+    padding-top: 0 !important; /* Reset any existing padding */
+}
+#persistent-topnav + * {
+    margin-top: 0 !important; /* Ensure content starts right after nav */
+}
+
+/* Enhanced User Avatar Styles */
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+}
+
+.user-avatar-large {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 20px;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+    flex-shrink: 0;
+}
+
+.avatar-text, .avatar-text-large {
+    line-height: 1;
+}
+
+.user-profile-toggle:hover .user-avatar {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6);
+}
+
+/* Enhanced User Dropdown Menu */
+.user-dropdown-menu {
+    min-width: 320px !important;
+    border: none !important;
+    border-radius: 12px !important;
+    overflow: hidden;
+    margin-top: 8px !important;
+}
+
+.user-info-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+}
+
+.user-full-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 2px;
+}
+
+.user-email {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 4px;
+}
+
+/* Role Badges */
+.role-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.role-admin {
+    background: rgba(220, 53, 69, 0.2);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.role-director {
+    background: rgba(33, 37, 41, 0.3);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.role-manager {
+    background: rgba(255, 193, 7, 0.3);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.role-executive {
+    background: rgba(13, 202, 240, 0.3);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.role-coordinator {
+    background: rgba(25, 135, 84, 0.3);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.role-staff {
+    background: rgba(13, 110, 253, 0.3);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.role-user {
+    background: rgba(108, 117, 125, 0.3);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Enhanced Dropdown Items */
+.enhanced-dropdown-item {
+    display: flex !important;
+    align-items: center;
+    padding: 12px 16px !important;
+    transition: all 0.3s ease;
+    border-left: 3px solid transparent;
+}
+
+.enhanced-dropdown-item:hover {
+    background: linear-gradient(90deg, rgba(102, 126, 234, 0.1) 0%, rgba(102, 126, 234, 0.05) 100%);
+    border-left-color: #667eea;
+    transform: translateX(2px);
+}
+
+.enhanced-dropdown-item .item-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: #667eea;
+    flex-shrink: 0;
+}
+
+.enhanced-dropdown-item .item-content {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.enhanced-dropdown-item .item-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #212529;
+    margin-bottom: 2px;
+}
+
+.enhanced-dropdown-item .item-subtitle {
+    font-size: 12px;
+    color: #6c757d;
+    line-height: 1.2;
+}
+
+.logout-item:hover {
+    background: linear-gradient(90deg, rgba(220, 53, 69, 0.1) 0%, rgba(220, 53, 69, 0.05) 100%);
+    border-left-color: #dc3545;
+}
+
+.logout-item .item-icon {
+    color: #dc3545;
+}
+
+.logout-item:hover .item-title {
+    color: #dc3545;
+}
+
+/* Notification styles */
+#notification-badge {
+    font-size: 0.7em;
+    min-width: 1.2em;
+    height: 1.2em;
+}
+
+.notification-item {
+    max-width: 350px;
+    width: 350px;
+    word-wrap: break-word;
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.notification-item.unread {
+    background-color: #f8f9fa;
+    border-left: 3px solid #007bff;
+}
+
+.notification-item .notification-time {
+    font-size: 0.75em;
+    color: #6c757d;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 767px) {
+    .hsrms-nav .dropdown-menu {
+        min-width: 280px !important;
+        right: 0 !important;
+        left: auto !important;
+    }
+    
+    .hsrms-nav .navbar-nav {
+        margin-top: 0.5rem;
+    }
+    
+    .user-dropdown-menu {
+        min-width: 280px !important;
+    }
+}
+
+/* Admin page compatibility */
+body.admin #persistent-topnav {
+    margin-bottom: 0;
+}
+</style>
+
+<!-- Notification JavaScript -->
+<script>
+class NotificationManager {
+    constructor() {
+        this.pollingInterval = null;
+        this.lastPollTime = null;
+        this.dropdownOpen = false;
+        this.init();
+    }
+    
+    init() {
+        // Start polling for notifications
+        this.startPolling();
+        
+        // Bind event listeners
+        this.bindEvents();
+        
+        // Initial load
+        this.updateUnreadCount();
+    }
+    
+    bindEvents() {
+        const dropdown = document.getElementById('notificationsDropdown');
+        const markAllReadBtn = document.getElementById('mark-all-read');
+        const clearAllBtn = document.getElementById('clear-all-alerts');
+        
+        if (dropdown) {
+            dropdown.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.toggleDropdown();
+            });
+        }
+        
+        if (markAllReadBtn) {
+            markAllReadBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.markAllRead();
+            });
+        }
+        
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.clearAllAlerts();
+            });
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (this.dropdownOpen && !e.target.closest('#notificationsDropdown') && !e.target.closest('.dropdown-menu')) {
+                this.closeDropdown();
+            }
+        });
+    }
+    
+    startPolling() {
+        // Poll every 30 seconds
+        this.pollingInterval = setInterval(() => {
+            this.updateUnreadCount();
+        }, 30000);
+    }
+    
+    stopPolling() {
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+            this.pollingInterval = null;
+        }
+    }
+    
+    async updateUnreadCount() {
+        try {
+            const response = await fetch('/api/notifications/unread-count/');
+            const data = await response.json();
+            
+            if (data.success) {
+                this.updateBadge(data.unread_count);
+            }
+        } catch (error) {
+            console.error('Failed to fetch unread count:', error);
+        }
+    }
+    
+    updateBadge(count) {
+        const badge = document.getElementById('notification-badge');
+        const countSpan = document.getElementById('notification-count');
+        
+        if (badge && countSpan) {
+            if (count > 0) {
+                badge.style.display = 'inline-block';
+                countSpan.textContent = count > 99 ? '99+' : count;
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    }
+    
+    async toggleDropdown() {
+        const dropdownMenu = document.querySelector('#notificationsDropdown + .dropdown-menu');
+        
+        if (!this.dropdownOpen) {
+            await this.loadNotifications();
+            this.openDropdown();
+        } else {
+            this.closeDropdown();
+        }
+    }
+    
+    openDropdown() {
+        const dropdownMenu = document.querySelector('#notificationsDropdown + .dropdown-menu');
+        if (dropdownMenu) {
+            dropdownMenu.classList.add('show');
+            this.dropdownOpen = true;
+        }
+    }
+    
+    closeDropdown() {
+        const dropdownMenu = document.querySelector('#notificationsDropdown + .dropdown-menu');
+        if (dropdownMenu) {
+            dropdownMenu.classList.remove('show');
+            this.dropdownOpen = false;
+        }
+    }
+    
+    async loadNotifications() {
+        const container = document.getElementById('notifications-container');
+        const markAllBtn = document.getElementById('mark-all-read');
+        
+        try {
+            // Show loading
+            if (container) {
+                container.innerHTML = '<div class="dropdown-item-text text-center"><i class="fas fa-spinner fa-spin me-2"></i>Loading notifications...</div>';
+            }
+            
+            const response = await fetch('/api/notifications/?limit=10');
+            const data = await response.json();
+            
+            if (data.success && container) {
+                this.renderNotifications(data.notifications, container);
+                
+                // Show/hide buttons
+                if (markAllBtn) {
+                    const hasUnread = data.notifications.some(n => !n.is_read);
+                    markAllBtn.style.display = hasUnread ? 'block' : 'none';
+                }
+                
+                const clearAllBtn = document.getElementById('clear-all-alerts');
+                if (clearAllBtn) {
+                    clearAllBtn.style.display = data.notifications.length > 0 ? 'block' : 'none';
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load notifications:', error);
+            if (container) {
+                container.innerHTML = '<div class="dropdown-item-text text-danger text-center"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load notifications</div>';
+            }
+        }
+    }
+    
+    renderNotifications(notifications, container) {
+        if (notifications.length === 0) {
+            container.innerHTML = '<div class="dropdown-item-text text-muted text-center"><i class="fas fa-bell-slash me-2"></i>No new notifications</div>';
+            return;
+        }
+        
+        container.innerHTML = notifications.map(notification => `
+            <div class="dropdown-item notification-item ${notification.is_read ? '' : 'unread'} ${notification.priority_class}" 
+                 data-notification-id="${notification.id}" style="white-space: normal; word-wrap: break-word;">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1" style="min-width: 0; overflow: hidden;">
+                        <div class="d-flex align-items-center mb-1 flex-wrap">
+                            <i class="${notification.icon} me-2"></i>
+                            <small class="fw-bold" style="word-break: break-word; overflow-wrap: break-word;">${this.escapeHtml(notification.title)}</small>
+                            ${notification.is_read ? '' : '<span class="badge bg-primary ms-2" style="font-size: 0.6em;">NEW</span>'}
+                        </div>
+                        <div class="small text-muted mb-1" style="word-break: break-word; overflow-wrap: break-word; white-space: normal;">${this.escapeHtml(notification.message)}</div>
+                        <div class="d-flex justify-content-between align-items-center flex-wrap">
+                            <span class="notification-time">${notification.time_since}</span>
+                            ${notification.link_url ? `<a href="${notification.link_url}" class="btn btn-sm btn-outline-primary" style="font-size: 0.7em; white-space: nowrap;">${this.escapeHtml(notification.link_text || 'View')}</a>` : ''}
+                        </div>
+                    </div>
+                    ${!notification.is_read ? `<button class="btn btn-sm btn-link text-muted p-0 ms-2 flex-shrink-0" onclick="notificationManager.markAsRead(${notification.id})" title="Mark as read"><i class="fas fa-check"></i></button>` : ''}
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    async markAsRead(notificationId) {
+        try {
+            const response = await fetch(`/api/notifications/${notificationId}/mark-read/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': this.getCSRFToken(),
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                // Remove the unread styling and NEW badge
+                const notificationElement = document.querySelector(`[data-notification-id="${notificationId}"]`);
+                if (notificationElement) {
+                    notificationElement.classList.remove('unread');
+                    const newBadge = notificationElement.querySelector('.badge');
+                    if (newBadge) newBadge.remove();
+                    const markBtn = notificationElement.querySelector('button[onclick*="markAsRead"]');
+                    if (markBtn) markBtn.remove();
+                }
+                
+                // Update unread count
+                this.updateUnreadCount();
+                
+                // Update button visibility
+                const hasUnread = document.querySelectorAll('.notification-item.unread').length > 0;
+                const markAllBtn = document.getElementById('mark-all-read');
+                if (markAllBtn) {
+                    markAllBtn.style.display = hasUnread ? 'block' : 'none';
+                }
+                
+                const hasAnyNotifications = document.querySelectorAll('.notification-item').length > 0;
+                const clearAllBtn = document.getElementById('clear-all-alerts');
+                if (clearAllBtn) {
+                    clearAllBtn.style.display = hasAnyNotifications ? 'block' : 'none';
+                }
+            }
+        } catch (error) {
+            console.error('Failed to mark notification as read:', error);
+        }
+    }
+    
+    async markAllRead() {
+        try {
+            const response = await fetch('/api/notifications/mark-all-read/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': this.getCSRFToken(),
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                // Reload notifications
+                await this.loadNotifications();
+                this.updateUnreadCount();
+            }
+        } catch (error) {
+            console.error('Failed to mark all as read:', error);
+        }
+    }
+    
+    async clearAllAlerts() {
+        try {
+            // Confirm with user before clearing all alerts
+            if (!confirm('Are you sure you want to clear all alerts? This action cannot be undone.')) {
+                return;
+            }
+            
+            const response = await fetch('/api/notifications/clear-all/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': this.getCSRFToken(),
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                // Reload notifications (should be empty)
+                await this.loadNotifications();
+                this.updateUnreadCount();
+            }
+        } catch (error) {
+            console.error('Failed to clear all alerts:', error);
+        }
+    }
+    
+    getCSRFToken() {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'csrftoken') {
+                return value;
+            }
+        }
+        return '';
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+}
+
+// Initialize notification manager when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    window.notificationManager = new NotificationManager();
+    
+    // Initialize currency toggle
+    initializeCurrencyToggle();
+});
+
+// Currency Toggle Functionality
+function initializeCurrencyToggle() {
+    const currencyToggle = document.getElementById('currencyToggle');
+    if (!currencyToggle) return;
+    
+    currencyToggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        toggleCurrency();
+    });
+}
+
+function toggleCurrency() {
+    fetch('/api/currency/toggle/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update the toggle button text
+            const currencyToggle = document.getElementById('currencyToggle');
+            if (currencyToggle) {
+                const titleElement = currencyToggle.querySelector('.item-title');
+                const subtitleElement = currencyToggle.querySelector('.item-subtitle');
+                
+                if (titleElement && subtitleElement) {
+                    titleElement.textContent = `Switch to ${data.currency === 'SAR' ? 'USD' : 'SAR'}`;
+                    subtitleElement.textContent = `Currently using ${data.currency === 'SAR' ? 'Saudi Riyal' : 'US Dollar'}`;
+                }
+            }
+            
+            // Reload the page to update all currency displays
+            window.location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Error toggling currency:', error);
+    });
+}
+
+// Helper function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>

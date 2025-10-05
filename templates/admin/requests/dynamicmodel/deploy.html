@@ -1,0 +1,216 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="deploy-model-container">
+    <h1>{{ title }}</h1>
+    
+    <div class="model-summary">
+        <h2>Model Details</h2>
+        <table class="model-details">
+            <tr>
+                <th>Model Name:</th>
+                <td>{{ dynamic_model.name }}</td>
+            </tr>
+            <tr>
+                <th>Display Name:</th>
+                <td>{{ dynamic_model.display_name }}</td>
+            </tr>
+            <tr>
+                <th>Database Table:</th>
+                <td>{{ dynamic_model.table_name }}</td>
+            </tr>
+            <tr>
+                <th>App Label:</th>
+                <td>{{ dynamic_model.app_label }}</td>
+            </tr>
+            <tr>
+                <th>Description:</th>
+                <td>{{ dynamic_model.description|default:"No description" }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="fields-summary">
+        <h2>Fields to be Created ({{ fields.count }})</h2>
+        <div class="fields-grid">
+            {% for field in fields %}
+                <div class="field-card">
+                    <div class="field-header">
+                        <strong>{{ field.display_name }}</strong>
+                        <span class="field-type">{{ field.get_field_type_display }}</span>
+                    </div>
+                    <div class="field-details">
+                        <div>Database name: <code>{{ field.name }}</code></div>
+                        <div>Section: {{ field.section|default:"General" }}</div>
+                        {% if field.required %}<div class="required">Required field</div>{% endif %}
+                        {% if field.default_value %}<div>Default: {{ field.default_value }}</div>{% endif %}
+                        {% if field.help_text %}<div class="help-text">{{ field.help_text }}</div>{% endif %}
+                    </div>
+                </div>
+            {% empty %}
+                <div class="no-fields">No fields configured for this model.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="deployment-warning">
+        <h3>⚠️ Deployment Actions</h3>
+        <p>This action will:</p>
+        <ul>
+            <li>Create a new database table: <strong>{{ dynamic_model.table_name }}</strong></li>
+            <li>Add {{ fields.count }} database columns</li>
+            <li>Register the model with Django admin</li>
+            <li>Make the model available for data entry</li>
+        </ul>
+        <p><strong>Note:</strong> This action cannot be easily undone. Make sure the model configuration is correct.</p>
+    </div>
+
+    <div class="actions">
+        <form method="post" class="deploy-form">
+            {% csrf_token %}
+            <input type="submit" value="Deploy Model" class="btn btn-primary" onclick="return confirm('Are you sure you want to deploy this model? This will create database tables and cannot be easily undone.');">
+            <a href="{% url 'admin:requests_dynamicmodel_changelist' %}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+
+<style>
+.deploy-model-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.model-details {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+}
+
+.model-details th, .model-details td {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+.model-details th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    width: 150px;
+}
+
+.fields-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 15px;
+    margin: 15px 0;
+}
+
+.field-card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    background: #f9f9f9;
+}
+
+.field-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #ddd;
+}
+
+.field-type {
+    background: #007cba;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.field-details div {
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+
+.required {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.help-text {
+    color: #666;
+    font-style: italic;
+}
+
+.no-fields {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    color: #666;
+    font-style: italic;
+}
+
+.deployment-warning {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.deployment-warning h3 {
+    margin-top: 0;
+    color: #856404;
+}
+
+.deployment-warning ul {
+    margin: 10px 0;
+}
+
+.deployment-warning li {
+    margin-bottom: 5px;
+}
+
+.actions {
+    margin-top: 30px;
+    text-align: center;
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    margin: 0 10px;
+    border: none;
+    border-radius: 5px;
+    text-decoration: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.btn-primary {
+    background: #007cba;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #005a87;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #545b62;
+}
+</style>
+{% endblock %}

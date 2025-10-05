@@ -1,0 +1,30 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{% block submit_buttons_bottom %}
+{{ block.super }}
+
+{% if show_cancel_button %}
+<div class="submit-row" style="margin-top: 10px;">
+    <button type="button" class="button" onclick="openCancelPopup();" style="float: left; background-color: #dc3545; color: white;">
+        Cancel Request
+    </button>
+</div>
+
+<script>
+function openCancelPopup() {
+    const url = '{{ cancel_url }}';
+    const width = 650;
+    const height = 500;
+    const left = (window.innerWidth - width) / 2;
+    const top = (window.innerHeight - height) / 2;
+    
+    window.open(
+        url,
+        'CancelRequest',
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+    );
+}
+</script>
+{% endif %}
+{% endblock %}

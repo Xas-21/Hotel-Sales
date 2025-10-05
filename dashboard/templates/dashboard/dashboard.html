@@ -1,0 +1,2132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Sales Request Management System1</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .card-hover {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .profile-dropdown {
+            min-width: 250px;
+        }
+        .company-link {
+            color: inherit;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .company-link:hover {
+            color: #0d6efd;
+            text-decoration: underline;
+        }
+        .dashboard-section {
+            cursor: move;
+            transition: all 0.3s ease;
+        }
+        .dashboard-section:hover {
+            transform: translateY(-2px);
+        }
+        .dashboard-section.sortable-ghost {
+            opacity: 0.5;
+        }
+        .dashboard-section.sortable-drag {
+            transform: rotate(5deg);
+        }
+        .status-dropdown {
+            min-width: 120px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Include Persistent Navigation -->
+    {% include 'components/topnav.html' %}
+    
+    <div class="container-fluid">
+        <div class="row">
+        </div>
+
+        <!-- Dashboard Content -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="mb-0">Dashboard Overview</h1>
+                    <button id="edit-sections-btn" class="btn btn-outline-secondary">
+                        <i class="fas fa-edit me-1"></i>Edit Sections Place
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW ANALYTICS SECTIONS - Added above existing dashboard -->
+        
+        <!-- COMPREHENSIVE BOOKING ANALYTICS DASHBOARD -->
+        <div class="dashboard-section mb-4" data-section="booking-analytics">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Comprehensive Booking Analytics Dashboard</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Comprehensive Date Range Selector -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Date Range Selector</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <!-- Predefined Periods -->
+                                        <div class="col-md-8">
+                                            <h6 class="mb-3">Quick Select Periods</h6>
+                                            <div class="btn-group flex-wrap" role="group">
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'this_month' %}active{% endif %}" data-period="this_month">This Month</button>
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'last_month' %}active{% endif %}" data-period="last_month">Last Month</button>
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'last_3_months' %}active{% endif %}" data-period="last_3_months">Last 3 Months</button>
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'last_6_months' %}active{% endif %}" data-period="last_6_months">Last 6 Months</button>
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'this_year' %}active{% endif %}" data-period="this_year">This Year</button>
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'next_year' %}active{% endif %}" data-period="next_year">Next Year</button>
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'last_year' %}active{% endif %}" data-period="last_year">Last Year</button>
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'last_2_years' %}active{% endif %}" data-period="last_2_years">Last 2 Years</button>
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'qtd' %}active{% endif %}" data-period="qtd">QTD</button>
+                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'ytd' %}active{% endif %}" data-period="ytd">YTD</button>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Custom Date Range -->
+                                        <div class="col-md-4">
+                                            <h6 class="mb-3">Custom Range</h6>
+                                            <div class="row">
+                                                <div class="col-6">
+                                                    <label for="custom-start-date" class="form-label small">Start Date</label>
+                                                    <input type="date" class="form-control form-control-sm" id="custom-start-date" 
+                                                           value="{{ date_range.start_date|date:'Y-m-d' }}">
+                                                </div>
+                                                <div class="col-6">
+                                                    <label for="custom-end-date" class="form-label small">End Date</label>
+                                                    <input type="date" class="form-control form-control-sm" id="custom-end-date" 
+                                                           value="{{ date_range.end_date|date:'Y-m-d' }}">
+                                                </div>
+                                            </div>
+                                            <button type="button" class="btn btn-primary btn-sm mt-2 w-100" id="apply-custom-range">
+                                                <i class="fas fa-search me-1"></i>Apply Custom Range
+                                            </button>
+                                            {% if date_range.is_custom_range %}
+                                            <div class="mt-2">
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check me-1"></i>Custom Range Active
+                                                </span>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Current Selection Display -->
+                                    <div class="row mt-3">
+                                        <div class="col-12">
+                                            <div class="alert alert-info mb-0">
+                                                <div class="row">
+                                                    <div class="col-md-4">
+                                                        <strong>Current Period:</strong><br>
+                                                        <small>{{ current_period_name }}</small>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <strong>Previous Period (MoM):</strong><br>
+                                                        <small>{{ mom_period_name }}</small>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <strong>Same Period Last Year (YoY):</strong><br>
+                                                        <small>{{ yoy_period_name }}</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- KPI Summary Cards -->
+                    <div class="row mb-4">
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h4 class="mb-0">{{ analytics_kpis.total_bookings }}</h4>
+                                            <p class="mb-0">Total Bookings</p>
+                                            <small class="d-flex align-items-center mt-1">
+                                                {% if analytics_kpis.mom_bookings_change >= 0 %}
+                                                    <i class="fas fa-arrow-up text-success me-1"></i>
+                                                    <span class="text-success">+{{ analytics_kpis.mom_bookings_change_pct|floatformat:1 }}% MoM</span>
+                                                {% else %}
+                                                    <i class="fas fa-arrow-down text-danger me-1"></i>
+                                                    <span class="text-danger">{{ analytics_kpis.mom_bookings_change_pct|floatformat:1 }}% MoM</span>
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                        <i class="fas fa-calendar-check fa-2x opacity-50"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h4 class="mb-0">{{ currency_symbol }} {{ analytics_kpis.total_revenue|floatformat:0 }}</h4>
+                                            <p class="mb-0">Total Revenue</p>
+                                            <small class="d-flex align-items-center mt-1">
+                                                {% if analytics_kpis.mom_revenue_change >= 0 %}
+                                                    <i class="fas fa-arrow-up text-success me-1"></i>
+                                                    <span class="text-success">+{{ analytics_kpis.mom_revenue_change_pct|floatformat:1 }}% MoM</span>
+                                                {% else %}
+                                                    <i class="fas fa-arrow-down text-danger me-1"></i>
+                                                    <span class="text-danger">{{ analytics_kpis.mom_revenue_change_pct|floatformat:1 }}% MoM</span>
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                        <i class="fas fa-coins fa-2x opacity-50"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h4 class="mb-0">{{ currency_symbol }} {{ analytics_kpis.avg_booking_value|floatformat:0 }}</h4>
+                                            <p class="mb-0">Avg Booking Value</p>
+                                            <small class="d-flex align-items-center mt-1">
+                                                <i class="fas fa-chart-line text-info me-1"></i>
+                                                <span class="text-info">Current Period</span>
+                                            </small>
+                                        </div>
+                                        <i class="fas fa-calculator fa-2x opacity-50"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h4 class="mb-0">{{ analytics_kpis.occupancy_rate|floatformat:1 }}%</h4>
+                                            <p class="mb-0">Occupancy Rate</p>
+                                            <small class="d-flex align-items-center mt-1">
+                                                <i class="fas fa-bed text-warning me-1"></i>
+                                                <span class="text-warning">Current Period</span>
+                                            </small>
+                                        </div>
+                                        <i class="fas fa-bed fa-2x opacity-50"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Main Charts Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">Revenue Trend</h6>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button type="button" class="btn btn-outline-secondary {% if view_type == 'month' %}active{% elif not view_type %}active{% endif %}" data-view="month">Month</button>
+                                            <button type="button" class="btn btn-outline-secondary {% if view_type == 'week' %}active{% endif %}" data-view="week">Week</button>
+                                            <button type="button" class="btn btn-outline-secondary {% if view_type == 'day' %}active{% endif %}" data-view="day">Day</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div style="height: 300px;">
+                                        <canvas id="revenueTrendChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">Bookings Over Time</h6>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button type="button" class="btn btn-outline-secondary {% if view_type == 'month' %}active{% elif not view_type %}active{% endif %}" data-view="month">Month</button>
+                                            <button type="button" class="btn btn-outline-secondary {% if view_type == 'week' %}active{% endif %}" data-view="week">Week</button>
+                                            <button type="button" class="btn btn-outline-secondary {% if view_type == 'day' %}active{% endif %}" data-view="day">Day</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div style="height: 300px;">
+                                        <canvas id="bookingsTrendChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Trend Charts Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Request Status Trends</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div style="height: 300px;">
+                                        <canvas id="requestStatusTrendChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Rooms Booked Trends</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div style="height: 300px;">
+                                        <canvas id="roomsTrendChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Secondary Analysis Section -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Performance by Account Type</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div style="height: 300px;">
+                                        <canvas id="accountTypeChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">Performance by Account Profile</h6>
+                                        <div class="d-flex gap-2 align-items-center">
+                                            <input type="date" id="propStart" class="form-control form-control-sm" style="width: 150px;">
+                                            <input type="date" id="propEnd" class="form-control form-control-sm" style="width: 150px;">
+                                            <input type="text" id="propAccount" class="form-control form-control-sm" placeholder="Search account" style="width: 200px;">
+                                            <button id="propApply" class="btn btn-sm btn-outline-primary">Apply</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive" style="height: 300px; overflow-y: auto;">
+                                        <table class="table table-sm" id="propertyPerformanceTable">
+                                            <thead class="sticky-top bg-light">
+                                                <tr>
+                                                    <th>Account Name</th>
+                                                    <th>Bookings</th>
+                                                    <th>Revenue</th>
+                                                    <th>Avg Value</th>
+                                                    <th>MoM %</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="propertyPerformanceBody">
+                                                {% for property_name, data in property_breakdown.items %}
+                                                <tr>
+                                                    <td>
+                                                        <strong>{{ property_name }}</strong>
+                                                        <br><small class="text-muted">{{ data.account_type }}</small>
+                                                    </td>
+                                                    <td>{{ data.bookings }}</td>
+                                                    <td>${{ data.revenue|floatformat:0 }}</td>
+                                                    <td>${{ data.avg_value|floatformat:0 }}</td>
+                                                    <td><span class="badge bg-success">+5.2%</span></td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Forecast Section -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Future Forecast</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="text-center">
+                                                <h4 class="text-primary">{{ forecast_data.predicted_bookings }}</h4>
+                                                <p class="mb-0">Predicted Bookings</p>
+                                                <small class="text-muted">Next Month</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="text-center">
+                                                <h4 class="text-success">{{ currency_symbol }} {{ forecast_data.predicted_revenue|floatformat:0 }}</h4>
+                                                <p class="mb-0">Predicted Revenue</p>
+                                                <small class="text-muted">Next Month</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="text-center">
+                                                <h4 class="text-info">{{ forecast_data.confidence_level }}%</h4>
+                                                <p class="mb-0">Confidence Level</p>
+                                                <small class="text-muted">Forecast Accuracy</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Analytics Section 0: Visual Charts & Graphs Overview -->
+        <div class="dashboard-section mb-4" data-section="charts-overview">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>System Overview - Charts & Graphs</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Bar Charts Section -->
+                        <div class="col-md-6">
+                            <div class="text-center mb-3">
+                                <h6><i class="fas fa-chart-bar me-2"></i>Bar Charts</h6>
+                            </div>
+                            
+                            <!-- Request Segments Bar Chart -->
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-2">Request Segments</h6>
+                                <div style="height: 200px;">
+                                    <canvas id="requestSegmentsChart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Agreement Status Bar Chart -->
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-2">Agreement Status</h6>
+                                <div style="height: 150px;">
+                                    <canvas id="agreementStatusChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pie Charts Section -->
+                        <div class="col-md-6">
+                            <div class="text-center mb-3">
+                                <h6><i class="fas fa-chart-pie me-2"></i>Pie Charts</h6>
+                            </div>
+                            
+                            <!-- Request Status Pie Chart -->
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-2">Request Status Distribution</h6>
+                                <div style="height: 200px;">
+                                    <canvas id="requestStatusPieChart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Sales Calls Potential Pie Chart -->
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-2">Sales Call Potential</h6>
+                                <div style="height: 150px;">
+                                    <canvas id="salesCallPotentialChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- System Summary -->
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6 class="text-muted mb-2">System Summary</h6>
+                            <div class="row text-center">
+                                <div class="col-md-3 mb-2">
+                                    <div class="card bg-primary text-white">
+                                        <div class="card-body py-3">
+                                            <h4 class="mb-0">{{ total_accounts }}</h4>
+                                            <small>Accounts</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <div class="card bg-info text-white">
+                                        <div class="card-body py-3">
+                                            <h4 class="mb-0">{{ total_requests }}</h4>
+                                            <small>Requests</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <div class="card bg-success text-white">
+                                        <div class="card-body py-3">
+                                            <h4 class="mb-0">{{ total_agreements }}</h4>
+                                            <small>Agreements</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <div class="card bg-warning text-white">
+                                        <div class="card-body py-3">
+                                            <h4 class="mb-0">{{ follow_up_stats.required }}</h4>
+                                            <small>Follow-ups</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Analytics Section 1: Request Type & Status Distribution -->
+        <div class="dashboard-section mb-4" data-section="request-analytics">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Request Type & Status Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Request Status Breakdown</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr><th>Status</th><th>Count</th><th>%</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in request_status_distribution %}
+                                        <tr>
+                                            <td><span class="badge bg-{% if item.status == 'Confirmed' %}success{% elif item.status == 'Paid' %}primary{% elif item.status == 'Actual' %}success{% elif item.status == 'Cancelled' %}danger{% else %}warning{% endif %}">{{ item.status }}</span></td>
+                                            <td>{{ item.count }}</td>
+                                            <td>{% widthratio item.count total_requests 100 %}%</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Request Type Breakdown</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr><th>Type</th><th>Count</th><th>%</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in request_types %}
+                                        <tr>
+                                            <td>{{ item.request_type }}</td>
+                                            <td>{{ item.count }}</td>
+                                            <td>{% widthratio item.count total_requests 100 %}%</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Section 2: Agreements Analytics -->
+        <div class="dashboard-section mb-4" data-section="agreement-analytics">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-file-contract me-2"></i>Agreements Analytics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Agreement Status Distribution</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr><th>Status</th><th>Count</th><th>%</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in agreement_status_breakdown %}
+                                        <tr>
+                                            <td><span class="badge bg-{% if item.status == 'Signed' %}success{% elif item.status == 'Draft' %}warning{% elif item.status == 'Sent' %}info{% else %}secondary{% endif %}">{{ item.status }}</span></td>
+                                            <td>{{ item.count }}</td>
+                                            <td>{% widthratio item.count total_agreements 100 %}%</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Agreement Rate Types</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr><th>Rate Type</th><th>Count</th><th>%</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in agreement_rate_type_breakdown %}
+                                        <tr>
+                                            <td>{{ item.rate_type }}</td>
+                                            <td>{{ item.count }}</td>
+                                            <td>{% widthratio item.count total_agreements 100 %}%</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Section 3: Sales Calls Analytics -->
+        <div class="dashboard-section mb-4" data-section="sales-analytics">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-phone me-2"></i>Sales Calls Analytics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6>Business Potential</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr><th>Potential</th><th>Count</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in sales_calls_by_potential %}
+                                        <tr>
+                                            <td><span class="badge bg-{% if item.business_potential == 'High' %}success{% elif item.business_potential == 'Medium' %}warning{% else %}secondary{% endif %}">{{ item.business_potential }}</span></td>
+                                            <td>{{ item.count }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Meeting Subjects</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr><th>Subject</th><th>Count</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in sales_calls_by_subject %}
+                                        <tr>
+                                            <td>{{ item.meeting_subject }}</td>
+                                            <td>{{ item.count }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Follow-up Status</h6>
+                            <div class="d-flex justify-content-around text-center">
+                                <div>
+                                    <h4 class="text-primary">{{ follow_up_stats.required }}</h4>
+                                    <small>Required</small>
+                                </div>
+                                <div>
+                                    <h4 class="text-success">{{ follow_up_stats.completed }}</h4>
+                                    <small>Completed</small>
+                                </div>
+                                <div>
+                                    <h4 class="text-warning">{{ follow_up_stats.pending }}</h4>
+                                    <small>Pending</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard organized into 4 main draggable sections -->
+        <div id="full-dashboard-container">
+        
+        <!-- Section 1: Cards (All Metrics) -->
+        <div class="dashboard-section" data-section="cards-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header" data-section-header>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Dashboard Metrics</h5>
+                            <button id="edit-cards-btn" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-edit me-1"></i>Edit Cards
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="cards-container">
+                            <!-- Key Metrics -->
+                            <div class="col-md-3 mb-3 metric-card" data-card="total-accounts">
+                                <a href="/admin/accounts/account/" class="text-decoration-none">
+                                    <div class="card bg-primary text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>{{ total_accounts }}</h4>
+                                                    <p class="mb-0">Total Accounts</p>
+                                                </div>
+                                                <i class="fas fa-building fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3 metric-card" data-card="confirmed-requests">
+                                <a href="/admin/requests/request/?status__exact=Confirmed" class="text-decoration-none">
+                                    <div class="card bg-success text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>{{ confirmed_requests }}</h4>
+                                                    <p class="mb-0">Confirmed Requests</p>
+                                                </div>
+                                                <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3 metric-card" data-card="total-revenue">
+                                <a href="/admin/requests/request/?status__exact=Paid" class="text-decoration-none">
+                                    <div class="card bg-info text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>{{ currency_symbol }} {{ total_revenue|floatformat:0 }}</h4>
+                                                    <p class="mb-0">Total Revenue</p>
+                                                </div>
+                                                <i class="fas fa-coins fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3 metric-card" data-card="total-requests">
+                                <a href="/admin/requests/request/" class="text-decoration-none">
+                                    <div class="card bg-warning text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>{{ total_requests }}</h4>
+                                                    <p class="mb-0">Total Requests</p>
+                                                </div>
+                                                <i class="fas fa-clipboard-list fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            
+                            <!-- Agreement and Financial Metrics -->
+                            <div class="col-md-3 mb-3 metric-card" data-card="signed-agreements">
+                                <a href="/admin/agreements/agreement/?status__exact=Signed" class="text-decoration-none">
+                                    <div class="card bg-success text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>{{ signed_agreements }}</h4>
+                                                    <p class="mb-0">Signed Agreements</p>
+                                                </div>
+                                                <i class="fas fa-file-contract fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3 metric-card" data-card="pending-agreements">
+                                <a href="/admin/agreements/agreement/?status__exact=Draft" class="text-decoration-none">
+                                    <div class="card bg-warning text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>{{ pending_agreements }}</h4>
+                                                    <p class="mb-0">Pending Agreements</p>
+                                                </div>
+                                                <i class="fas fa-file-signature fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3 metric-card" data-card="cancelled-requests">
+                                <a href="/admin/requests/cancelledrequest/" class="text-decoration-none">
+                                    <div class="card bg-danger text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>{{ cancelled_requests }}</h4>
+                                                    <p class="mb-0">Cancelled Requests</p>
+                                                </div>
+                                                <i class="fas fa-times-circle fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3 metric-card" data-card="cancelled-lost-amount">
+                                <a href="/admin/requests/cancelledrequest/" class="text-decoration-none">
+                                    <div class="card bg-danger text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>{{ currency_symbol }} {{ cancelled_lost_amount|floatformat:0 }}</h4>
+                                                    <p class="mb-0">Lost Amount (Cancelled)</p>
+                                                </div>
+                                                <i class="fas fa-chart-line-down fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3 metric-card" data-card="confirmed-paid-amount">
+                                <a href="/admin/requests/request/?status__exact=Paid" class="text-decoration-none">
+                                    <div class="card bg-success text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>{{ currency_symbol }} {{ confirmed_paid_amount|floatformat:0 }}</h4>
+                                                    <p class="mb-0">Confirmed Paid Amount</p>
+                                                </div>
+                                                <i class="fas fa-check-double fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3 metric-card" data-card="unpaid-total">
+                                <a href="/admin/requests/request/?status__exact=Confirmed" class="text-decoration-none">
+                                    <div class="card bg-warning text-white card-hover">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <h4>{{ currency_symbol }} {{ unpaid_total|floatformat:0 }}</h4>
+                                                    <p class="mb-0">Total Unpaid Amount</p>
+                                                </div>
+                                                <i class="fas fa-exclamation-triangle fa-2x opacity-50"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Recent Activity -->
+        <div class="dashboard-section" data-section="recent-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header" data-section-header>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Recent Activity</h5>
+                            <button id="edit-recent-btn" class="btn btn-sm btn-outline-info">
+                                <i class="fas fa-edit me-1"></i>Edit Recent
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Recent Requests Section (Top) -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Recent Requests</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if recent_requests %}
+                                            <div class="list-group list-group-flush" style="max-height: 420px; overflow-y: auto;">
+                                                {% for request in recent_requests %}
+                                                <div class="list-group-item d-flex justify-content-between align-items-center p-2">
+                                                    <div>
+                                                        <a href="/admin/accounts/account/{{ request.account.id }}/change/" class="company-link">
+                                                            <strong>{{ request.account.name }}</strong>
+                                                        </a>
+                                                        <small class="text-muted ms-2">{{ request.request_type }}</small>
+                                                        <small class="text-info ms-2">{{ request.check_in_date|default:"No check-in date" }}</small>
+                                                    </div>
+                                                    <div class="d-flex align-items-center">
+                                                        <select class="form-select form-select-sm me-2 status-dropdown" 
+                                                                data-type="request" 
+                                                                data-id="{{ request.id }}"
+                                                                data-current-status="{{ request.status }}">
+                                                            <option value="Draft" {% if request.status == 'Draft' %}selected{% endif %}>Draft</option>
+                                                            <option value="Confirmed" {% if request.status == 'Confirmed' %}selected{% endif %}>Confirmed</option>
+                                                            <option value="Cancelled" {% if request.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                                                            <option value="Pending" {% if request.status == 'Pending' %}selected{% endif %}>Pending</option>
+                                                            <option value="Paid" {% if request.status == 'Paid' %}selected{% endif %}>Paid</option>
+                                                            <option value="Partially Paid" {% if request.status == 'Partially Paid' %}selected{% endif %}>Partially Paid</option>
+                                                            <option value="Actual" {% if request.status == 'Actual' %}selected{% endif %}>Actual</option>
+                                                        </select>
+                                                        <div class="btn-group" role="group">
+                                                            <a href="/admin/requests/request/{{ request.id }}/change/" class="btn btn-sm btn-outline-primary">View</a>
+                                                            {% if request.status != 'Cancelled' %}
+                                                            <a href="/admin/requests/request/{{ request.id }}/cancel/" class="btn btn-sm btn-outline-danger">Cancel</a>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <p class="text-muted">No recent requests found.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Other Recent Activities (Accounts, Sales Calls, Agreements) -->
+                        <div class="row">
+                            <!-- Recent Accounts -->
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Recent Accounts</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if recent_accounts %}
+                                            <div class="list-group list-group-flush" style="max-height: 360px; overflow-y: auto;">
+                                                {% for account in recent_accounts %}
+                                                <div class="list-group-item d-flex justify-content-between align-items-center p-2">
+                                                    <div>
+                                                        <a href="/admin/accounts/account/{{ account.id }}/change/" class="company-link">
+                                                            <strong>{{ account.name }}</strong>
+                                                        </a><br>
+                                                        <small class="text-muted">{{ account.account_type }}</small>
+                                                        <br><small class="text-info">{{ account.city|default:"No city" }}</small>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <a href="/admin/accounts/account/{{ account.id }}/change/" class="btn btn-sm btn-outline-primary">View</a>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <p class="text-muted">No recent accounts found.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Recent Sales Calls -->
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Recent Sales Calls</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if recent_sales_calls %}
+                                            <div class="list-group list-group-flush" style="max-height: 360px; overflow-y: auto;">
+                                                {% for call in recent_sales_calls %}
+                                                <div class="list-group-item d-flex justify-content-between align-items-center p-2">
+                                                    <div>
+                                                        <a href="/admin/accounts/account/{{ call.account.id }}/change/" class="company-link">
+                                                            <strong>{{ call.account.name }}</strong>
+                                                        </a><br>
+                                                        <small class="text-muted">{{ call.meeting_subject }}</small>
+                                                        <br><small class="text-info">{{ call.city }}</small>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <small class="text-muted d-block">{{ call.visit_date }}</small>
+                                                        <a href="/admin/sales_calls/salescall/{{ call.id }}/change/" class="btn btn-sm btn-outline-primary">View</a>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <p class="text-muted">No recent sales calls found.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Recent Agreements -->
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Recent Agreements</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if recent_agreements %}
+                                            <div class="list-group list-group-flush" style="max-height: 360px; overflow-y: auto;">
+                                                {% for agreement in recent_agreements %}
+                                                <div class="list-group-item d-flex justify-content-between align-items-center p-2">
+                                                    <div>
+                                                        <a href="/admin/accounts/account/{{ agreement.account.id }}/change/" class="company-link">
+                                                            <strong>{{ agreement.account.name }}</strong>
+                                                        </a><br>
+                                                        <small class="text-muted">{{ agreement.rate_type }}</small>
+                                                        <br><small class="text-info">{{ agreement.start_date }} - {{ agreement.end_date }}</small>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <select class="form-select form-select-sm mb-1 status-dropdown" 
+                                                                data-type="agreement" 
+                                                                data-id="{{ agreement.id }}"
+                                                                data-current-status="{{ agreement.status }}">
+                                                            <option value="Draft" {% if agreement.status == 'Draft' %}selected{% endif %}>Draft</option>
+                                                            <option value="Sent" {% if agreement.status == 'Sent' %}selected{% endif %}>Sent</option>
+                                                            <option value="Signed" {% if agreement.status == 'Signed' %}selected{% endif %}>Signed</option>
+                                                            <option value="Expired" {% if agreement.status == 'Expired' %}selected{% endif %}>Expired</option>
+                                                        </select>
+                                                        <a href="/admin/agreements/agreement/{{ agreement.id }}/change/" class="btn btn-sm btn-outline-primary">View</a>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <p class="text-muted">No recent agreements found.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts & Notifications are now in the persistent navigation bar bell icon -->
+
+        <!-- Include Quick Actions Panel -->
+        {% include 'dashboard/quick_actions.html' %}
+        
+        </div> <!-- End full-dashboard-container -->
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    
+    <!-- Custom CSS for section separation -->
+    <style>
+        .dashboard-section {
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            margin-bottom: 20px !important;
+            padding: 0;
+            background: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .dashboard-section:not(:last-child) {
+            border-bottom: 3px solid #dee2e6;
+            margin-bottom: 25px !important;
+        }
+        
+        .dashboard-section::after {
+            content: "";
+            display: block;
+            height: 2px;
+            background: linear-gradient(to right, #dee2e6, #adb5bd, #dee2e6);
+            margin: 15px auto;
+            width: 90%;
+        }
+        
+        .dashboard-section:last-child::after {
+            display: none;
+        }
+        
+        .dashboard-section .card {
+            border: none !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+        }
+        
+        .dashboard-section .card-header[data-section-header] {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef) !important;
+            border-bottom: 2px solid #dee2e6 !important;
+            font-weight: 600;
+            cursor: grab;
+            transition: all 0.3s ease;
+        }
+        
+        .dashboard-section .card-header[data-section-header]:hover {
+            background: linear-gradient(135deg, #e9ecef, #dee2e6) !important;
+            transform: translateY(-1px);
+        }
+        
+        .dashboard-section .card-header[data-section-header]:active {
+            cursor: grabbing;
+        }
+        
+        /* Special styling for alerts section */
+        .dashboard-section .card-header.bg-warning[data-section-header] {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7) !important;
+        }
+        
+        .dashboard-section .card-header.bg-warning[data-section-header]:hover {
+            background: linear-gradient(135deg, #ffeaa7, #fdcb6e) !important;
+        }
+        
+        /* Section isolation - prevent content mixing */
+        .dashboard-section .card-body {
+            padding: 20px;
+            min-height: 150px;
+            border-top: 1px solid #f8f9fa;
+        }
+        
+        /* Drag feedback */
+        .sortable-ghost {
+            opacity: 0.4 !important;
+            background: #f8f9fa !important;
+        }
+        
+        .sortable-drag {
+            transform: rotate(2deg) scale(1.02) !important;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+            z-index: 1000 !important;
+        }
+        
+        /* Edit mode styling */
+        .cards-edit-mode .metric-card {
+            border: 2px dashed #007bff !important;
+            border-radius: 8px !important;
+            transition: all 0.3s ease !important;
+            cursor: grab !important;
+        }
+        
+        .cards-edit-mode .metric-card:hover {
+            border-color: #0056b3 !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 4px 15px rgba(0,123,255,0.2) !important;
+        }
+        
+        .cards-edit-mode .metric-card.sortable-chosen {
+            cursor: grabbing !important;
+            transform: rotate(3deg) scale(1.05) !important;
+        }
+        
+        .cards-edit-mode .metric-card .card {
+            pointer-events: none !important;
+        }
+        
+        /* Section edit mode styling */
+        .sections-edit-mode .dashboard-section {
+            border: 2px dashed #6c757d !important;
+            cursor: grab !important;
+        }
+        
+        .sections-edit-mode .dashboard-section:hover {
+            border-color: #495057 !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 4px 15px rgba(108,117,125,0.2) !important;
+        }
+        
+        .sections-edit-mode .dashboard-section.sortable-chosen {
+            cursor: grabbing !important;
+        }
+        
+        /* Recent Activity edit mode */
+        .recent-edit-mode .list-group-item {
+            border: 1px dashed #17a2b8 !important;
+            cursor: grab !important;
+            margin: 2px 0 !important;
+        }
+        
+        .recent-edit-mode .list-group-item:hover {
+            border-color: #138496 !important;
+            background-color: #e9f7f9 !important;
+        }
+        
+        /* Alerts edit mode */
+        .alerts-edit-mode ul li {
+            border: 1px dashed #ffc107 !important;
+            padding: 8px !important;
+            margin: 2px 0 !important;
+            border-radius: 4px !important;
+            cursor: grab !important;
+        }
+        
+        .alerts-edit-mode ul li:hover {
+            border-color: #e0a800 !important;
+            background-color: #fff8e1 !important;
+        }
+        
+        /* Quick Actions edit mode */
+        .actions-edit-mode .col-md-3 {
+            border: 1px dashed #28a745 !important;
+            cursor: grab !important;
+            margin: 2px !important;
+            border-radius: 4px !important;
+        }
+        
+        .actions-edit-mode .col-md-3:hover {
+            border-color: #1e7e34 !important;
+            background-color: #e8f5e8 !important;
+        }
+        
+        /* Active edit button styling */
+        .btn.active {
+            background-color: #dc3545 !important;
+            border-color: #dc3545 !important;
+            color: white !important;
+        }
+        
+        /* Disable section drag handles by default */
+        .dashboard-section {
+            cursor: default !important;
+        }
+        
+        .dashboard-section:hover {
+            transform: none !important;
+        }
+        
+        .dashboard-section .card-header[data-section-header] {
+            cursor: default !important;
+        }
+        
+        .dashboard-section .card-header[data-section-header]:hover {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef) !important;
+            transform: none !important;
+        }
+        
+        .dashboard-section .card-header[data-section-header]:active {
+            cursor: default !important;
+        }
+    </style>
+    <script>
+        // Initialize dashboard functionality with comprehensive edit system
+        document.addEventListener('DOMContentLoaded', function() {
+            const fullDashboardContainer = document.getElementById('full-dashboard-container');
+            
+            // Variables to track edit modes and sortable instances
+            let sectionsSortable = null;
+            let recentSortables = {};
+            let alertsSortables = {};
+            let actionsSortable = null;
+            
+            let isSectionsEditMode = false;
+            let isRecentEditMode = false;
+            let isAlertsEditMode = false;
+            let isActionsEditMode = false;
+            
+            // Initialize master sections edit button
+            const editSectionsBtn = document.getElementById('edit-sections-btn');
+            if (editSectionsBtn && fullDashboardContainer) {
+                editSectionsBtn.addEventListener('click', function() {
+                    isSectionsEditMode = !isSectionsEditMode;
+                    
+                    if (isSectionsEditMode) {
+                        // Enable sections edit mode
+                        document.body.classList.add('sections-edit-mode');
+                        editSectionsBtn.classList.add('active');
+                        editSectionsBtn.innerHTML = '<i class="fas fa-save me-1"></i>Save Sections';
+                        
+                        // Initialize section dragging
+                        sectionsSortable = new Sortable(fullDashboardContainer, {
+                            animation: 150,
+                            ghostClass: 'sortable-ghost',
+                            dragClass: 'sortable-drag',
+                            draggable: '.dashboard-section',
+                            handle: '[data-section-header]',
+                            onStart: function(evt) {
+                                evt.item.style.transform = 'rotate(2deg) scale(1.02)';
+                                evt.item.style.zIndex = '1000';
+                                evt.item.style.opacity = '0.8';
+                            },
+                            onEnd: function(evt) {
+                                evt.item.style.transform = '';
+                                evt.item.style.zIndex = '';
+                                evt.item.style.opacity = '';
+                                
+                                // Save the new order to localStorage
+                                const order = Array.from(fullDashboardContainer.children).map(el => 
+                                    el.getAttribute('data-section')
+                                ).filter(section => section);
+                                
+                                localStorage.setItem('dashboardSectionOrder', JSON.stringify(order));
+                                showNotification('Dashboard layout saved!', 'success');
+                            }
+                        });
+                        
+                        showNotification('Section edit mode enabled! Drag sections to rearrange.', 'info');
+                    } else {
+                        // Disable sections edit mode
+                        document.body.classList.remove('sections-edit-mode');
+                        editSectionsBtn.classList.remove('active');
+                        editSectionsBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit Sections Place';
+                        
+                        // Destroy section dragging
+                        if (sectionsSortable) {
+                            sectionsSortable.destroy();
+                            sectionsSortable = null;
+                        }
+                        
+                        showNotification('Section layout saved!', 'success');
+                    }
+                });
+            }
+            
+            // Restore saved section order from localStorage on load
+            const savedOrder = localStorage.getItem('dashboardSectionOrder');
+            if (savedOrder && fullDashboardContainer) {
+                try {
+                    const order = JSON.parse(savedOrder);
+                    order.forEach((sectionId) => {
+                        const section = fullDashboardContainer.querySelector(`[data-section="${sectionId}"]`);
+                        if (section && section.parentElement === fullDashboardContainer) {
+                            fullDashboardContainer.appendChild(section);
+                        }
+                    });
+                } catch (e) {
+                    console.log('Could not restore dashboard order:', e);
+                }
+            }
+            
+            // Initialize Edit Cards functionality
+            let cardsSortable = null;
+            let isCardsEditMode = false;
+            const editCardsBtn = document.getElementById('edit-cards-btn');
+            const cardsContainer = document.getElementById('cards-container');
+            
+            if (editCardsBtn && cardsContainer) {
+                editCardsBtn.addEventListener('click', function() {
+                    isCardsEditMode = !isCardsEditMode;
+                    
+                    if (isCardsEditMode) {
+                        // Enable card edit mode
+                        cardsContainer.parentElement.classList.add('cards-edit-mode');
+                        editCardsBtn.classList.add('active');
+                        editCardsBtn.innerHTML = '<i class="fas fa-save me-1"></i>Save Cards';
+                        
+                        // Initialize individual card dragging
+                        cardsSortable = new Sortable(cardsContainer, {
+                            animation: 150,
+                            ghostClass: 'sortable-ghost',
+                            chosenClass: 'sortable-chosen',
+                            dragClass: 'sortable-drag',
+                            draggable: '.metric-card',
+                            onStart: function(evt) {
+                                evt.item.style.zIndex = '1000';
+                            },
+                            onEnd: function(evt) {
+                                evt.item.style.zIndex = '';
+                                
+                                // Save card order to localStorage
+                                const order = Array.from(cardsContainer.children).map(el => 
+                                    el.getAttribute('data-card')
+                                ).filter(card => card);
+                                
+                                localStorage.setItem('cardsOrder', JSON.stringify(order));
+                                showNotification('Card layout saved!', 'success');
+                            }
+                        });
+                        
+                        showNotification('Card edit mode enabled! Drag cards to rearrange.', 'info');
+                    } else {
+                        // Disable card edit mode
+                        cardsContainer.parentElement.classList.remove('cards-edit-mode');
+                        editCardsBtn.classList.remove('active');
+                        editCardsBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit Cards';
+                        
+                        // Destroy card dragging
+                        if (cardsSortable) {
+                            cardsSortable.destroy();
+                            cardsSortable = null;
+                        }
+                        
+                        showNotification('Card layout saved!', 'success');
+                    }
+                });
+                
+                // Restore saved card order from localStorage
+                const savedCardsOrder = localStorage.getItem('cardsOrder');
+                if (savedCardsOrder) {
+                    try {
+                        const order = JSON.parse(savedCardsOrder);
+                        order.forEach((cardId) => {
+                            const card = cardsContainer.querySelector(`[data-card="${cardId}"]`);
+                            if (card && card.parentElement === cardsContainer) {
+                                cardsContainer.appendChild(card);
+                            }
+                        });
+                    } catch (e) {
+                        console.log('Could not restore cards order:', e);
+                    }
+                }
+            }
+            
+            // Initialize Recent Activity edit functionality
+            const editRecentBtn = document.getElementById('edit-recent-btn');
+            if (editRecentBtn) {
+                editRecentBtn.addEventListener('click', function() {
+                    isRecentEditMode = !isRecentEditMode;
+                    
+                    if (isRecentEditMode) {
+                        // Enable recent edit mode
+                        document.querySelector('[data-section="recent-section"]').classList.add('recent-edit-mode');
+                        editRecentBtn.classList.add('active');
+                        editRecentBtn.innerHTML = '<i class="fas fa-save me-1"></i>Save Recent';
+                        
+                        // Initialize dragging for each recent activity list
+                        document.querySelectorAll('[data-section="recent-section"] .list-group').forEach((listGroup, index) => {
+                            const sortableId = 'recent-' + index;
+                            recentSortables[sortableId] = new Sortable(listGroup, {
+                                animation: 150,
+                                ghostClass: 'sortable-ghost',
+                                dragClass: 'sortable-drag',
+                                draggable: '.list-group-item',
+                                onEnd: function(evt) {
+                                    // Save order to localStorage
+                                    const order = Array.from(listGroup.children).map((el, i) => i);
+                                    localStorage.setItem('recentOrder-' + index, JSON.stringify(order));
+                                    showNotification('Recent activity layout saved!', 'success');
+                                }
+                            });
+                        });
+                        
+                        showNotification('Recent activity edit mode enabled!', 'info');
+                    } else {
+                        // Disable recent edit mode
+                        document.querySelector('[data-section="recent-section"]').classList.remove('recent-edit-mode');
+                        editRecentBtn.classList.remove('active');
+                        editRecentBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit Recent';
+                        
+                        // Destroy all recent sortables
+                        Object.values(recentSortables).forEach(sortable => {
+                            if (sortable) sortable.destroy();
+                        });
+                        recentSortables = {};
+                        
+                        showNotification('Recent activity layout saved!', 'success');
+                    }
+                });
+            }
+            
+            // Initialize Alerts edit functionality
+            const editAlertsBtn = document.getElementById('edit-alerts-btn');
+            if (editAlertsBtn) {
+                editAlertsBtn.addEventListener('click', function() {
+                    isAlertsEditMode = !isAlertsEditMode;
+                    
+                    if (isAlertsEditMode) {
+                        // Enable alerts edit mode
+                        document.querySelector('[data-section="alerts-section"]').classList.add('alerts-edit-mode');
+                        editAlertsBtn.classList.add('active');
+                        editAlertsBtn.innerHTML = '<i class="fas fa-save me-1"></i>Save Alerts';
+                        
+                        // Initialize dragging for alert lists
+                        document.querySelectorAll('[data-section="alerts-section"] ul').forEach((ul, index) => {
+                            const sortableId = 'alerts-' + index;
+                            alertsSortables[sortableId] = new Sortable(ul, {
+                                animation: 150,
+                                ghostClass: 'sortable-ghost',
+                                dragClass: 'sortable-drag',
+                                draggable: 'li',
+                                onEnd: function(evt) {
+                                    // Save order to localStorage
+                                    const order = Array.from(ul.children).map((el, i) => i);
+                                    localStorage.setItem('alertsOrder-' + index, JSON.stringify(order));
+                                    showNotification('Alerts layout saved!', 'success');
+                                }
+                            });
+                        });
+                        
+                        showNotification('Alerts edit mode enabled!', 'info');
+                    } else {
+                        // Disable alerts edit mode
+                        document.querySelector('[data-section="alerts-section"]').classList.remove('alerts-edit-mode');
+                        editAlertsBtn.classList.remove('active');
+                        editAlertsBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit Alerts';
+                        
+                        // Destroy all alerts sortables
+                        Object.values(alertsSortables).forEach(sortable => {
+                            if (sortable) sortable.destroy();
+                        });
+                        alertsSortables = {};
+                        
+                        showNotification('Alerts layout saved!', 'success');
+                    }
+                });
+            }
+            
+            // Initialize Quick Actions edit functionality
+            const editActionsBtn = document.getElementById('edit-actions-btn');
+            if (editActionsBtn) {
+                editActionsBtn.addEventListener('click', function() {
+                    isActionsEditMode = !isActionsEditMode;
+                    
+                    if (isActionsEditMode) {
+                        // Enable actions edit mode
+                        const actionsRow = document.querySelector('[data-section="quick-actions-section"] .card-body .row');
+                        actionsRow.classList.add('actions-edit-mode');
+                        editActionsBtn.classList.add('active');
+                        editActionsBtn.innerHTML = '<i class="fas fa-save me-1"></i>Save Actions';
+                        
+                        // Add data attributes for better sorting if not already present
+                        const actionButtons = actionsRow.querySelectorAll('.col-md-3');
+                        actionButtons.forEach((btn, index) => {
+                            if (!btn.hasAttribute('data-action')) {
+                                btn.setAttribute('data-action', 'action-' + index);
+                            }
+                        });
+                        
+                        // Initialize dragging for quick actions
+                        actionsSortable = new Sortable(actionsRow, {
+                            animation: 150,
+                            ghostClass: 'sortable-ghost',
+                            dragClass: 'sortable-drag',
+                            draggable: '.col-md-3',
+                            onEnd: function(evt) {
+                                // Save order to localStorage
+                                const order = Array.from(actionsRow.children).map(el => 
+                                    el.getAttribute('data-action') || Array.from(actionsRow.children).indexOf(el)
+                                );
+                                localStorage.setItem('actionsOrder', JSON.stringify(order));
+                                showNotification('Quick actions layout saved!', 'success');
+                            }
+                        });
+                        
+                        showNotification('Quick actions edit mode enabled!', 'info');
+                    } else {
+                        // Disable actions edit mode
+                        const actionsRow = document.querySelector('[data-section="quick-actions-section"] .card-body .row');
+                        actionsRow.classList.remove('actions-edit-mode');
+                        editActionsBtn.classList.remove('active');
+                        editActionsBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit Actions';
+                        
+                        // Destroy actions sortable
+                        if (actionsSortable) {
+                            actionsSortable.destroy();
+                            actionsSortable = null;
+                        }
+                        
+                        showNotification('Quick actions layout saved!', 'success');
+                    }
+                });
+            }
+            
+            // Initialize status dropdowns
+            document.querySelectorAll('.status-dropdown').forEach(dropdown => {
+                dropdown.addEventListener('change', function() {
+                    const type = this.getAttribute('data-type');
+                    const id = this.getAttribute('data-id');
+                    const currentStatus = this.getAttribute('data-current-status');
+                    const newStatus = this.value;
+                    
+                    if (newStatus === currentStatus) return;
+                    
+                    // Show loading state
+                    this.disabled = true;
+                    
+                    // Make AJAX request
+                    const url = type === 'request' ? '/api/update-request-status/' : '/api/update-agreement-status/';
+                    const data = {};
+                    data[type + '_id'] = id;
+                    data.status = newStatus;
+                    
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify(data)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.setAttribute('data-current-status', newStatus);
+                            showNotification(data.message, 'success');
+                        } else {
+                            // Revert to previous status
+                            this.value = currentStatus;
+                            showNotification(data.error || 'Failed to update status', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        // Revert to previous status
+                        this.value = currentStatus;
+                        showNotification('Network error: Could not update status', 'error');
+                        console.error('Error:', error);
+                    })
+                    .finally(() => {
+                        this.disabled = false;
+                    });
+                });
+            });
+        });
+        
+        // Helper function to get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        // Notification function
+        function showNotification(message, type) {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed`;
+            notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            notification.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+                    <span>${message}</span>
+                    <button type="button" class="btn-close ms-auto" onclick="this.parentElement.parentElement.remove()"></button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+    </script>
+    
+    <!-- Chart.js Configuration and Initialization -->
+    <script>
+        // Chart.js Configuration
+        Chart.defaults.responsive = true;
+        Chart.defaults.maintainAspectRatio = false;
+
+        // Request Segments Bar Chart
+        const requestSegmentsCtx = document.getElementById('requestSegmentsChart').getContext('2d');
+        new Chart(requestSegmentsCtx, {
+            type: 'bar',
+            data: {
+                labels: [{% for item in request_segments %}'{{ item.account__account_type }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [{
+                    data: [{% for item in request_segments %}{{ item.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    backgroundColor: [
+                        {% for item in request_segments %}
+                        {% if item.account__account_type == 'Travel Agency' %}'#0d6efd'
+                        {% elif item.account__account_type == 'Company' %}'#198754'
+                        {% elif item.account__account_type == 'Government' %}'#ffc107'
+                        {% else %}'#6c757d'{% endif %}{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ]
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { beginAtZero: true }
+                }
+            }
+        });
+
+        // Agreement Status Bar Chart
+        const agreementStatusCtx = document.getElementById('agreementStatusChart').getContext('2d');
+        new Chart(agreementStatusCtx, {
+            type: 'bar',
+            data: {
+                labels: [{% for item in agreement_status_breakdown %}'{{ item.status }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [{
+                    data: [{% for item in agreement_status_breakdown %}{{ item.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    backgroundColor: [
+                        {% for item in agreement_status_breakdown %}
+                        {% if item.status == 'Signed' %}'#198754'
+                        {% elif item.status == 'Draft' %}'#ffc107'
+                        {% elif item.status == 'Sent' %}'#0dcaf0'
+                        {% else %}'#6c757d'{% endif %}{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ]
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { beginAtZero: true }
+                }
+            }
+        });
+
+        // Request Status Pie Chart
+        const requestStatusPieCtx = document.getElementById('requestStatusPieChart').getContext('2d');
+        new Chart(requestStatusPieCtx, {
+            type: 'pie',
+            data: {
+                labels: [{% for item in request_status_distribution %}'{{ item.status }} ({{ item.count }})'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [{
+                    data: [{% for item in request_status_distribution %}{{ item.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    backgroundColor: [
+                        {% for item in request_status_distribution %}
+                        {% if item.status == 'Confirmed' %}'#198754'
+                        {% elif item.status == 'Paid' %}'#0d6efd'
+                        {% elif item.status == 'Actual' %}'#198754'
+                        {% elif item.status == 'Cancelled' %}'#dc3545'
+                        {% elif item.status == 'Draft' %}'#ffc107'
+                        {% else %}'#6c757d'{% endif %}{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ]
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { fontSize: 12 }
+                    }
+                }
+            }
+        });
+
+        // Sales Call Potential Pie Chart
+        const salesCallPotentialCtx = document.getElementById('salesCallPotentialChart').getContext('2d');
+        new Chart(salesCallPotentialCtx, {
+            type: 'pie',
+            data: {
+                labels: [{% for item in sales_calls_by_potential %}'{{ item.business_potential }} ({{ item.count }})'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [{
+                    data: [{% for item in sales_calls_by_potential %}{{ item.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    backgroundColor: [
+                        {% for item in sales_calls_by_potential %}
+                        {% if item.business_potential == 'High' %}'#198754'
+                        {% elif item.business_potential == 'Medium' %}'#ffc107'
+                        {% elif item.business_potential == 'Low' %}'#6c757d'
+                        {% else %}'#0dcaf0'{% endif %}{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ]
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { fontSize: 12 }
+                    }
+                }
+            }
+        });
+    </script>
+    
+    <!-- Analytics Dashboard Charts -->
+    <script>
+        // Revenue Trend Chart
+        const revenueTrendCtx = document.getElementById('revenueTrendChart').getContext('2d');
+        new Chart(revenueTrendCtx, {
+            type: 'line',
+            data: {
+                labels: [{% for label in trend_labels %}'{{ label }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [{
+                    label: 'Revenue',
+                    data: [{% for value in revenue_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                            stepSize: 1,
+                            callback: function(value) { return '$' + value.toLocaleString(); }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Bookings Trend Chart
+        const bookingsTrendCtx = document.getElementById('bookingsTrendChart').getContext('2d');
+        new Chart(bookingsTrendCtx, {
+            type: 'bar',
+            data: {
+                labels: [{% for label in trend_labels %}'{{ label }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [{
+                    label: 'Bookings',
+                    data: [{% for value in bookings_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    backgroundColor: '#198754',
+                    borderColor: '#198754',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0, stepSize: 1 }
+                    }
+                }
+            }
+        });
+
+        // Request Status Trends Chart
+        const requestStatusTrendCtx = document.getElementById('requestStatusTrendChart').getContext('2d');
+        new Chart(requestStatusTrendCtx, {
+            type: 'bar',
+            data: {
+                labels: [{% for label in trend_labels %}'{{ label }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [
+                    {
+                        label: 'Draft',
+                        data: [{% for value in draft_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: '#6c757d',
+                        borderColor: '#6c757d',
+                        borderWidth: 0,
+                        maxBarThickness: 18
+                    },
+                    {
+                        label: 'Pending',
+                        data: [{% for value in pending_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: '#ffc107',
+                        borderColor: '#ffc107',
+                        borderWidth: 0,
+                        maxBarThickness: 18
+                    },
+                    {
+                        label: 'Partially Paid',
+                        data: [{% for value in partially_paid_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: '#0d6efd',
+                        borderColor: '#0d6efd',
+                        borderWidth: 0,
+                        maxBarThickness: 18
+                    },
+                    {
+                        label: 'Paid',
+                        data: [{% for value in paid_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: '#20c997',
+                        borderColor: '#20c997',
+                        borderWidth: 0,
+                        maxBarThickness: 18
+                    },
+                    {
+                        label: 'Confirmed',
+                        data: [{% for value in confirmed_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: '#198754',
+                        borderColor: '#198754',
+                        borderWidth: 0,
+                        maxBarThickness: 18
+                    },
+                    {
+                        label: 'Actual',
+                        data: [{% for value in actual_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: '#808000',
+                        borderColor: '#808000',
+                        borderWidth: 0,
+                        maxBarThickness: 18
+                    },
+                    {
+                        label: 'Cancelled',
+                        data: [{% for value in cancelled_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: '#dc3545',
+                        borderColor: '#dc3545',
+                        borderWidth: 0,
+                        maxBarThickness: 18
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    tooltip: {
+                        mode: 'nearest',
+                        intersect: true,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label || '';
+                                const value = context.parsed.y ?? context.parsed;
+                                return `${label}: ${value}`;
+                            }
+                        }
+                    }
+                },
+                interaction: { mode: 'nearest', intersect: true },
+                scales: {
+                    x: {
+                        stacked: false,
+                        grid: { display: false }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0, stepSize: 1 }
+                    }
+                }
+            }
+        });
+
+        // Rooms Booked Trend Chart
+        const roomsTrendCtx = document.getElementById('roomsTrendChart').getContext('2d');
+        new Chart(roomsTrendCtx, {
+            type: 'line',
+            data: {
+                labels: [{% for label in trend_labels %}'{{ label }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [{
+                    label: 'Rooms Booked',
+                    data: [{% for value in rooms_trend_data %}{{ value }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    borderColor: '#198754',
+                    backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0, stepSize: 1 }
+                    }
+                }
+            }
+        });
+
+        // Account Type Chart
+        const accountTypeCtx = document.getElementById('accountTypeChart').getContext('2d');
+        new Chart(accountTypeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: [{% for account_type, data in account_type_breakdown.items %}'{{ account_type }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [{
+                    data: [{% for account_type, data in account_type_breakdown.items %}{{ data.bookings }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    backgroundColor: [
+                        '#0d6efd',
+                        '#198754', 
+                        '#ffc107',
+                        '#dc3545',
+                        '#6c757d'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { fontSize: 12 }
+                    }
+                }
+            }
+        });
+
+        // Independent filter for Performance by Account Profile
+        function renderPropertyTable(rows) {
+            const tbody = document.getElementById('propertyPerformanceBody');
+            if (!tbody) return;
+            tbody.innerHTML = rows.map(r => `
+                <tr>
+                    <td><strong>${r.account_name}</strong><br><small class="text-muted">${r.account_type || ''}</small></td>
+                    <td>${r.bookings}</td>
+                    <td>$${Math.round(r.revenue).toLocaleString()}</td>
+                    <td>$${Math.round(r.avg_value).toLocaleString()}</td>
+                    <td><span class="badge bg-success">+5.2%</span></td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadPropertyPerformance() {
+            const s = document.getElementById('propStart').value;
+            const e = document.getElementById('propEnd').value;
+            const a = document.getElementById('propAccount').value;
+            const params = new URLSearchParams();
+            if (s) params.append('start_date', s);
+            if (e) params.append('end_date', e);
+            if (a) params.append('account', a);
+            const resp = await fetch(`/api/property-performance/?${params.toString()}`);
+            const data = await resp.json();
+            renderPropertyTable(data.results || []);
+        }
+
+        const applyBtn = document.getElementById('propApply');
+        if (applyBtn) {
+            applyBtn.addEventListener('click', loadPropertyPerformance);
+        }
+
+        // Period selector functionality
+        document.querySelectorAll('[data-period]').forEach(button => {
+            button.addEventListener('click', function() {
+                const period = this.getAttribute('data-period');
+                
+                // Remove active class from all buttons
+                document.querySelectorAll('[data-period]').forEach(btn => btn.classList.remove('active'));
+                // Add active class to clicked button
+                this.classList.add('active');
+                
+                // Reload page with new period parameter
+                const url = new URL(window.location);
+                url.searchParams.set('period', period);
+                url.searchParams.delete('start_date');
+                url.searchParams.delete('end_date');
+                // Preserve view parameter if it exists
+                const currentView = url.searchParams.get('view');
+                if (currentView) {
+                    url.searchParams.set('view', currentView);
+                }
+                window.location.href = url.toString();
+            });
+        });
+
+        // Custom date range functionality
+        document.getElementById('apply-custom-range').addEventListener('click', function() {
+            const startDate = document.getElementById('custom-start-date').value;
+            const endDate = document.getElementById('custom-end-date').value;
+            
+            if (!startDate || !endDate) {
+                showNotification('Please select both start and end dates', 'error');
+                return;
+            }
+            
+            if (new Date(startDate) > new Date(endDate)) {
+                showNotification('Start date must be before end date', 'error');
+                return;
+            }
+            
+            // Allow future dates for bookings analysis
+            const today = new Date();
+            const twoYearsFromNow = new Date();
+            twoYearsFromNow.setFullYear(twoYearsFromNow.getFullYear() + 2);
+            
+            if (new Date(endDate) > twoYearsFromNow) {
+                showNotification('End date cannot be more than 2 years in the future', 'error');
+                return;
+            }
+            
+            // Remove active class from all period buttons
+            document.querySelectorAll('[data-period]').forEach(btn => btn.classList.remove('active'));
+            
+            // Reload page with custom date parameters
+            const url = new URL(window.location);
+            url.searchParams.set('start_date', startDate);
+            url.searchParams.set('end_date', endDate);
+            url.searchParams.delete('period');
+            // Preserve view parameter if it exists
+            const currentView = url.searchParams.get('view');
+            if (currentView) {
+                url.searchParams.set('view', currentView);
+            }
+            window.location.href = url.toString();
+        });
+
+        // Set max date for end date to 2 years in the future to allow future bookings
+        const twoYearsFromNow = new Date();
+        twoYearsFromNow.setFullYear(twoYearsFromNow.getFullYear() + 2);
+        document.getElementById('custom-end-date').setAttribute('max', twoYearsFromNow.toISOString().split('T')[0]);
+        
+        // Set min date for start date to 5 years ago
+        const fiveYearsAgo = new Date();
+        fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
+        document.getElementById('custom-start-date').setAttribute('min', fiveYearsAgo.toISOString().split('T')[0]);
+
+        // Function to ensure view parameter consistency
+        function ensureViewParameter() {
+            const url = new URL(window.location);
+            const currentView = url.searchParams.get('view');
+            
+            // If no view parameter, default to month
+            if (!currentView) {
+                url.searchParams.set('view', 'month');
+                window.history.replaceState({}, '', url.toString());
+                return 'month';
+            }
+            return currentView;
+        }
+        
+        // Set correct active state on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentView = ensureViewParameter();
+            
+            // Remove all active classes
+            document.querySelectorAll('[data-view]').forEach(btn => btn.classList.remove('active'));
+            
+            // Add active class to buttons matching current view
+            document.querySelectorAll(`[data-view="${currentView}"]`).forEach(btn => btn.classList.add('active'));
+        });
+
+        // Chart view selector functionality
+        document.querySelectorAll('[data-view]').forEach(button => {
+            button.addEventListener('click', function() {
+                const viewType = this.getAttribute('data-view');
+                
+                // Remove active class from all view buttons across all charts
+                document.querySelectorAll('[data-view]').forEach(btn => btn.classList.remove('active'));
+                // Add active class to all buttons with the same view type
+                document.querySelectorAll(`[data-view="${viewType}"]`).forEach(btn => btn.classList.add('active'));
+                
+                // Show loading notification
+                showNotification(`Switching to ${viewType} view...`, 'info');
+                
+                // Reload page with new view parameter, preserving all other parameters
+                const url = new URL(window.location);
+                url.searchParams.set('view', viewType);
+                window.location.href = url.toString();
+            });
+        });
+    </script>
+</body>
+</html>

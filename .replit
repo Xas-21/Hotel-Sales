@@ -1,0 +1,67 @@
+modules = ["python-3.11", "postgresql-16"]
+[agent]
+expertMode = true
+
+[nix]
+channel = "stable-25_05"
+packages = ["freetype", "lcms2", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "tcl", "tk", "zlib"]
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Django Server"
+
+[[workflows.workflow]]
+name = "Django Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python manage.py runserver 0.0.0.0:5000"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 33147
+externalPort = 5000
+
+[[ports]]
+localPort = 36739
+externalPort = 3002
+
+[[ports]]
+localPort = 38941
+externalPort = 3003
+
+[[ports]]
+localPort = 41439
+externalPort = 4200
+
+[[ports]]
+localPort = 43795
+externalPort = 5173
+
+[[ports]]
+localPort = 45189
+externalPort = 3000
+
+[[ports]]
+localPort = 45607
+externalPort = 3001
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["python", "manage.py", "runserver", "0.0.0.0:5000"]

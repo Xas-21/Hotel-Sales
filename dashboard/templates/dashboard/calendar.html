@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar - Hotel Sales Request Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
+    <style>
+        .legend-item {
+            display: inline-flex;
+            align-items: center;
+            margin-right: 20px;
+            margin-bottom: 10px;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+            border-radius: 3px;
+        }
+        .fc-event {
+            cursor: pointer;
+        }
+        .fc-event:hover {
+            opacity: 0.8;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+        }
+        .calendar-container {
+            position: relative;
+            min-height: 600px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Include Persistent Navigation -->
+    {% include 'components/topnav.html' %}
+    
+    <div class="container-fluid">
+        <div class="row">
+        </div>
+
+        <!-- Calendar Content -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1><i class="fas fa-calendar-alt me-2"></i>Event Calendar</h1>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-primary" onclick="calendar.changeView('dayGridMonth')">
+                            <i class="fas fa-calendar me-1"></i>Month
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="calendar.changeView('dayGridWeek')">
+                            <i class="fas fa-calendar-week me-1"></i>Week
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="calendar.changeView('listWeek')">
+                            <i class="fas fa-list me-1"></i>List
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body py-2">
+                        <div class="d-flex flex-wrap align-items-center">
+                            <strong class="me-3">Legend:</strong>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background-color: #0d6efd;"></div>
+                                <span>Group Accommodation</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background-color: #6f42c1;"></div>
+                                <span>Series Group</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background-color: #fd7e14;"></div>
+                                <span>Events</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background-color: #198754;"></div>
+                                <span>Sales Calls</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendar -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="calendar-container">
+                            <div id="loading" class="d-none">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                            <div id="calendar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+    <script>
+        let calendar;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+            const loadingEl = document.getElementById('loading');
+            
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,dayGridWeek,listWeek'
+                },
+                height: 'auto',
+                events: {
+                    url: '/api/calendar/events/',
+                    failure: function() {
+                        alert('There was an error while fetching events!');
+                    }
+                },
+                eventClick: function(info) {
+                    if (info.event.url) {
+                        // Open admin change page in new window
+                        window.open(info.event.url, '_blank');
+                        info.jsEvent.preventDefault();
+                    }
+                },
+                eventMouseEnter: function(info) {
+                    // Add tooltip on hover
+                    info.el.title = info.event.title + '\\nClick to view details';
+                },
+                loading: function(bool) {
+                    if (bool) {
+                        loadingEl.classList.remove('d-none');
+                    } else {
+                        loadingEl.classList.add('d-none');
+                    }
+                },
+                eventDidMount: function(info) {
+                    // Add Bootstrap classes for better styling
+                    info.el.classList.add('text-white');
+                    info.el.style.border = 'none';
+                    info.el.style.fontSize = '0.85rem';
+                }
+            });
+            
+            calendar.render();
+        });
+        
+        // Function to refresh calendar
+        function refreshCalendar() {
+            calendar.refetchEvents();
+        }
+        
+        // Auto-refresh every 5 minutes
+        setInterval(refreshCalendar, 300000);
+    </script>
+
+    <!-- Include Quick Actions Panel -->
+    {% include 'dashboard/quick_actions.html' %}
+</body>
+</html>

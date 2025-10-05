@@ -1,0 +1,78 @@
+﻿
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hotel Sales Management - Login</title>
+    <link rel="stylesheet" href="/static/admin/css/custom_login.c639823d2c59.css">
+</head>
+<body class="custom-login-page">
+    <div class="login-wrapper">
+        <div class="login-card" role="dialog" aria-labelledby="hsm-login-title">
+            <div class="logo-area" aria-hidden="true">🏨</div>
+            <h1 id="hsm-login-title" class="title">Hotel Sales Management</h1>
+            <div class="subtitle">Professional Enterprise Platform</div>
+
+            
+
+            
+
+            <form action="/admin/login/" method="post" class="login-form" novalidate>
+                <input type="hidden" name="csrfmiddlewaretoken" value="3Bdv8IeNxDqy0qDpW73Gs0WOwhaNyDOLJxjdPfykgqFnfeUG0MbfrxnTLVunwaSB">
+                <input type="hidden" name="next" value="/dashboard/">
+                <input type="hidden" name="this_is_the_login_form" value="1">
+
+                <label class="sr-only" for="id_username">Username</label>
+                <input id="id_username" name="username" type="text" placeholder="Enter your username" autocomplete="username" required>
+
+                <label class="sr-only" for="id_password">Password</label>
+                <input id="id_password" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required>
+
+                <button type="submit" class="btn btn-login">Login</button>
+                <button type="button" class="btn btn-ol" id="olButton" aria-disabled="true">OL</button>
+            </form>
+
+            <div class="forgot">
+                <a href="#" id="forgotLink">Forgot your password?</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="forgotModal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="forgot-title">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2 id="forgot-title">Password Reset</h2>
+                <button type="button" class="modal-close" id="modalClose" aria-label="Close">×</button>
+            </div>
+            <div class="modal-body">
+                <p>Contact <strong>Abdullah Saleh</strong> to reset your password.</p>
+                <p>Email: <a href="mailto:Abdullah.Saleh-@hotmail.com">Abdullah.Saleh-@hotmail.com</a></p>
+                <p>Phone: <a href="tel:+966559990187">+966559990187</a></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-login" id="modalOk">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            var forgotLink = document.getElementById('forgotLink');
+            var modal = document.getElementById('forgotModal');
+            var modalClose = document.getElementById('modalClose');
+            var modalOk = document.getElementById('modalOk');
+            function openModal(e){ if(e) e.preventDefault(); modal.classList.add('open'); modal.setAttribute('aria-hidden','false'); }
+            function closeModal(){ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); }
+            if (forgotLink) forgotLink.addEventListener('click', openModal);
+            if (modalClose) modalClose.addEventListener('click', closeModal);
+            if (modalOk) modalOk.addEventListener('click', closeModal);
+            window.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeModal(); });
+        })();
+    </script>
+</body>
+</html>
+
+
+
+

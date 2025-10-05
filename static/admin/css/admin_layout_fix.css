@@ -1,0 +1,210 @@
+/* Admin Layout Fix - Ensure proper sizing and layout */
+
+/* Ensure admin interface takes full width and proper height */
+body.admin {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    min-height: 100vh !important;
+}
+
+/* Fix admin header and navigation */
+#header {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    display: none !important; /* Hide default Django admin header to prevent double nav */
+}
+
+#user-tools {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+}
+
+#user-tools a {
+    font-size: 12px !important;
+    padding: 2px 6px !important;
+}
+
+/* Ensure breadcrumbs display properly */
+.breadcrumbs {
+    display: none !important; /* Hide blue breadcrumbs bar */
+}
+
+/* Fix content area */
+#content {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    box-sizing: border-box !important;
+}
+
+/* Ensure forms display properly */
+.form-row {
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* Fix table layouts */
+.results {
+    width: 100% !important;
+    overflow-x: auto !important;
+}
+
+/* Ensure proper icon sizing */
+.admin-icon {
+    width: 16px !important;
+    height: 16px !important;
+    display: inline-block !important;
+}
+
+/* Fix any potential viewport issues */
+html {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Ensure proper font sizing */
+body {
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+}
+
+/* Fix button sizing */
+.button, input[type="submit"], input[type="button"] {
+    font-size: 13px !important;
+    padding: 8px 12px !important;
+    line-height: 1.4 !important;
+}
+
+/* Ensure proper spacing */
+.module {
+    margin-bottom: 20px !important;
+}
+
+/* Fix any potential overflow issues */
+.admin-container {
+    width: 100% !important;
+    max-width: none !important;
+    overflow-x: hidden !important;
+}
+
+/* Fix Actions Bar with Go Button */
+.actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 12px 0 !important;
+    margin-bottom: 15px !important;
+    background-color: #000000 !important;
+    border: 1px solid #333 !important;
+    border-radius: 4px !important;
+    padding: 12px 15px !important;
+}
+
+.actions label {
+    font-weight: 600 !important;
+    color: #ffffff !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+}
+
+.actions select {
+    height: 38px !important;
+    min-width: 200px !important;
+    padding: 6px 12px !important;
+    border: 1px solid #666 !important;
+    border-radius: 4px !important;
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+    margin: 0 !important;
+    vertical-align: middle !important;
+}
+
+.actions select option {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+}
+
+.actions button[type="submit"],
+.actions input[type="submit"],
+.actions .button {
+    height: 38px !important;
+    padding: 6px 20px !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 4px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    line-height: 1.5 !important;
+    vertical-align: middle !important;
+    margin: 0 !important;
+}
+
+.actions button[type="submit"]:hover,
+.actions input[type="submit"]:hover,
+.actions .button:hover {
+    background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3) !important;
+}
+
+.actions .question {
+    margin-left: 8px !important;
+    color: #666 !important;
+    font-size: 13px !important;
+}
+
+/* Fix changelist actions alignment */
+.changelist-form-container .actions {
+    margin: 0 0 15px 0 !important;
+}
+
+/* Ensure action checkbox is visible */
+.action-checkbox-column {
+    width: 1.5em !important;
+    text-align: center !important;
+}
+
+.action-select {
+    display: inline-block !important;
+    vertical-align: middle !important;
+}
+
+/* Responsive fixes */
+@media (max-width: 768px) {
+    #content {
+        padding: 10px !important;
+    }
+    
+    .breadcrumbs {
+        padding: 10px !important;
+        font-size: 12px !important;
+    }
+    
+    #user-tools {
+        font-size: 11px !important;
+    }
+    
+    #user-tools a {
+        font-size: 11px !important;
+        padding: 1px 4px !important;
+    }
+    
+    .actions {
+        flex-wrap: wrap !important;
+        gap: 10px !important;
+    }
+    
+    .actions select {
+        min-width: 150px !important;
+        flex: 1 !important;
+    }
+}
+
+

@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ display_name }} - Configuration</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .config-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+        }
+        .field-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid #dee2e6;
+        }
+        .field-card.model-field {
+            border-left-color: #0d6efd;
+            background-color: #f8f9ff;
+        }
+        .field-card.dynamic-field {
+            border-left-color: #198754;
+            background-color: #f8fff9;
+        }
+        .field-card:hover {
+            transform: translateX(4px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .field-type-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+        }
+        .btn-add-field {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            border: none;
+            color: white;
+        }
+        .btn-add-field:hover {
+            background: linear-gradient(135deg, #0f877d 0%, #32d96a 100%);
+            color: white;
+        }
+        .editable-field {
+            border: 1px dashed transparent;
+            padding: 2px 4px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .editable-field:hover {
+            border-color: #dee2e6;
+            background-color: #f8f9fa;
+        }
+        .editing {
+            border-color: #0d6efd !important;
+            background-color: white !important;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- Header -->
+    <div class="config-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="mb-2">
+                        <i class="fas fa-list-ul me-3"></i>{{ display_name }}
+                    </h1>
+                    <p class="mb-0 opacity-90">
+                        Manage fields for this section
+                    </p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="{% url 'configuration:dashboard' %}" class="btn btn-light btn-lg">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Configuration
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden container for choice data scripts (outside field cards) -->
+    {% for field in model_fields %}
+        {% if field.choices %}
+            {{ field.choices|json_script:field.choices_script_id }}
+        {% endif %}
+    {% endfor %}
+    {% for field in dynamic_fields %}
+        {% if field.choices %}
+            {{ field.choices|json_script:field.choices_script_id }}
+        {% endif %}
+    {% endfor %}
+
+    <div class="container my-5">
+        <!-- Summary -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-database fa-2x text-primary mb-3"></i>
+                        <h4>{{ model_fields|length }}</h4>
+                        <p class="text-muted mb-0">Core Fields</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-plus-circle fa-2x text-success mb-3"></i>
+                        <h4>{{ dynamic_fields|length }}</h4>
+                        <p class="text-muted mb-0">Custom Fields</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Field Button -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <button class="btn btn-add-field btn-lg" onclick="showAddFieldModal()">
+                    <i class="fas fa-plus me-2"></i>Add New Field
+                </button>
+            </div>
+        </div>
+
+        <!-- Core Fields -->
+        {% if model_fields %}
+        <div class="row">
+            <div class="col-12">
+                <h3 class="mb-4">
+                    <i class="fas fa-database me-2 text-primary"></i>Core Fields
+                </h3>
+                {% for field in model_fields %}
+                <div class="card field-card model-field mb-3" data-field-id="{{ field.id }}">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-3">
+                                <h6 class="mb-1 field-title">{{ field.display_name }}</h6>
+                                <small class="text-muted">{{ field.name }}</small>
+                            </div>
+                            <div class="col-md-2">
+                                <span class="badge bg-primary field-type-badge" data-type="{{ field.field_type }}">{{ field.field_type }}</span>
+                            </div>
+                            <div class="col-md-2">
+                                {% if field.required %}
+                                <span class="badge bg-danger">Required</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Optional</span>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">Built-in field</small>
+                            </div>
+                            <div class="col-md-2 text-end">
+                                <button class="btn btn-outline-primary btn-sm me-1" 
+                                        onclick="editField({{ field.id }}, 'model')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm" 
+                                        onclick="deleteField({{ field.id }}, '{{ field.display_name }}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Custom Fields -->
+        {% if dynamic_fields %}
+        <div class="row mt-5">
+            <div class="col-12">
+                <h3 class="mb-4">
+                    <i class="fas fa-plus-circle me-2 text-success"></i>Custom Fields
+                </h3>
+                {% for field in dynamic_fields %}
+                <div class="card field-card dynamic-field mb-3" data-field-id="{{ field.id }}">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-3">
+                                <h6 class="mb-1 field-title">
+                                    <span class="editable-field" data-field="display_name" data-value="{{ field.display_name }}">
+                                        {{ field.display_name }}
+                                    </span>
+                                </h6>
+                                <small class="text-muted">{{ field.name }}</small>
+                            </div>
+                            <div class="col-md-2">
+                                <span class="badge bg-success field-type-badge" data-type="{{ field.field_type }}">{{ field.field_type }}</span>
+                            </div>
+                            <div class="col-md-2">
+                                <span class="editable-toggle" data-field="required" data-value="{{ field.required|yesno:'true,false' }}">
+                                    {% if field.required %}
+                                    <span class="badge bg-danger">Required</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Optional</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">
+                                    Section: 
+                                    <span class="editable-field" data-field="section" data-value="{{ field.section }}">
+                                        {{ field.section }}
+                                    </span>
+                                </small>
+                            </div>
+                            <div class="col-md-2 text-end">
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" onclick="editField({{ field.id }})">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger" onclick="deleteField({{ field.id }}, '{{ field.display_name }}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if not model_fields and not dynamic_fields %}
+        <div class="alert alert-info text-center">
+            <i class="fas fa-info-circle fa-2x mb-3"></i>
+            <h5>No fields found</h5>
+            <p>Start by adding your first custom field to this section.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Add Field Modal -->
+    <div class="modal fade" id="addFieldModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Field</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addFieldForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="fieldName" class="form-label">Field Name</label>
+                                    <input type="text" class="form-control" id="fieldName" placeholder="custom_notes" required>
+                                    <div class="form-text">Lowercase, no spaces</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="fieldDisplayName" class="form-label">Display Name</label>
+                                    <input type="text" class="form-control" id="fieldDisplayName" placeholder="Custom Notes" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="fieldType" class="form-label">Field Type</label>
+                                    <select class="form-select" id="fieldType" required>
+                                        <option value="CharField">Text</option>
+                                        <option value="TextField">Textarea</option>
+                                        <option value="IntegerField">Number</option>
+                                        <option value="DecimalField">Decimal</option>
+                                        <option value="DateField">Date</option>
+                                        <option value="DateTimeField">Date & Time</option>
+                                        <option value="BooleanField">Checkbox</option>
+                                        <option value="EmailField">Email</option>
+                                        <option value="URLField">URL</option>
+                                        <option value="ChoiceField">Choice/Dropdown</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="fieldSection" class="form-label">Section</label>
+                                    <input type="text" class="form-control" id="fieldSection" placeholder="Custom Fields" value="Custom Fields">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="fieldRequired">
+                                        <label class="form-check-label" for="fieldRequired">
+                                            Required Field
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="fieldOrder" class="form-label">Order</label>
+                                    <input type="number" class="form-control" id="fieldOrder" placeholder="100" value="100">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="fieldDefaultValue" class="form-label">Default Value (Optional)</label>
+                            <input type="text" class="form-control" id="fieldDefaultValue" placeholder="">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-add-field" onclick="submitAddField()">Add Field</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let editingField = null;
+
+        function showAddFieldModal() {
+            new bootstrap.Modal(document.getElementById('addFieldModal')).show();
+        }
+
+        function submitAddField() {
+            const formData = {
+                name: document.getElementById('fieldName').value,
+                display_name: document.getElementById('fieldDisplayName').value,
+                field_type: document.getElementById('fieldType').value,
+                required: document.getElementById('fieldRequired').checked,
+                section: document.getElementById('fieldSection').value,
+                order: parseInt(document.getElementById('fieldOrder').value) || 100,
+                default_value: document.getElementById('fieldDefaultValue').value || null
+            };
+
+            if (!formData.name || !formData.display_name || !formData.field_type) {
+                alert('Please fill in required fields');
+                return;
+            }
+
+            const url = `{% url "configuration:add_field" section_id %}{% if is_legacy_dynamic %}?dynamic=true{% endif %}`;
+            
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error adding field: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error);
+            });
+        }
+
+        function editField(fieldId, fieldType = 'custom') {
+            // Get field data from the DOM
+            const fieldCard = document.querySelector(`[data-field-id="${fieldId}"]`);
+            if (!fieldCard) {
+                alert('Field not found');
+                return;
+            }
+
+            // Extract current field values
+            const displayName = fieldCard.querySelector('.field-title').textContent.trim();
+            const currentType = fieldCard.querySelector('.field-type-badge').dataset.type || fieldCard.querySelector('.field-type-badge').textContent.trim();
+            const isRequired = fieldCard.querySelector('.bg-danger') !== null;
+            
+            // Get existing choices for any field (regardless of current type)
+            let existingChoices = {};
+            
+            try {
+                // Try to extract choices from json_script for any field
+                const choicesScript = document.getElementById(`choices-${fieldId}`);
+                
+                if (choicesScript) {
+                    const choicesText = choicesScript.textContent;
+                    
+                    if (choicesText && choicesText.trim() !== '{}' && choicesText.trim() !== '') {
+                        existingChoices = JSON.parse(choicesText);
+                    }
+                }
+            } catch (e) {
+                console.error('Error parsing choices:', e);
+                existingChoices = {};
+            }
+
+            // Create inline edit form
+            const editForm = `
+                <div id="edit-form-${fieldId}">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <input type="text" class="form-control form-control-sm" value="${displayName}" id="edit-display-name-${fieldId}">
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="edit-type-${fieldId}" onchange="toggleChoiceOptions(${fieldId})">
+                                <option value="CharField" ${currentType === 'CharField' ? 'selected' : ''}>Text</option>
+                                <option value="TextField" ${currentType === 'TextField' ? 'selected' : ''}>Textarea</option>
+                                <option value="IntegerField" ${currentType === 'IntegerField' ? 'selected' : ''}>Number</option>
+                                <option value="DecimalField" ${currentType === 'DecimalField' ? 'selected' : ''}>Decimal</option>
+                                <option value="DateField" ${currentType === 'DateField' ? 'selected' : ''}>Date</option>
+                                <option value="DateTimeField" ${currentType === 'DateTimeField' ? 'selected' : ''}>Date & Time</option>
+                                <option value="BooleanField" ${currentType === 'BooleanField' ? 'selected' : ''}>Checkbox</option>
+                                <option value="EmailField" ${currentType === 'EmailField' ? 'selected' : ''}>Email</option>
+                                <option value="URLField" ${currentType === 'URLField' ? 'selected' : ''}>URL</option>
+                                <option value="ChoiceField" ${currentType === 'ChoiceField' ? 'selected' : ''}>Choice/Dropdown</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" ${isRequired ? 'checked' : ''} id="edit-required-${fieldId}">
+                                <label class="form-check-label" for="edit-required-${fieldId}">Required</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted">Editing...</small>
+                        </div>
+                        <div class="col-md-2 text-end">
+                            <button class="btn btn-success btn-sm me-1" onclick="saveFieldEdit(${fieldId})">
+                                <i class="fas fa-check"></i>
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="cancelFieldEdit(${fieldId})">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row mt-3" id="choice-options-${fieldId}" style="display: ${currentType === 'ChoiceField' ? 'block' : 'none'};">
+                        <div class="col-12">
+                            <div class="card border-info">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="fas fa-list me-2"></i>Choice Options</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="choices-container-${fieldId}">
+                                        <!-- Choice options will be loaded here -->
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="addChoiceOption(${fieldId})">
+                                        <i class="fas fa-plus me-1"></i>Add Option
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Store original content and replace with edit form
+            const originalContent = fieldCard.innerHTML;
+            fieldCard.setAttribute('data-original-content', originalContent);
+            fieldCard.innerHTML = editForm;
+
+            // Initialize choice options based on current field type
+            toggleChoiceOptions(fieldId);
+            
+            // Load existing choices if there are any saved
+            if (existingChoices && Object.keys(existingChoices).length > 0) {
+                loadExistingChoices(fieldId, existingChoices);
+            }
+        }
+
+        function saveFieldEdit(fieldId) {
+            const displayName = document.getElementById(`edit-display-name-${fieldId}`).value;
+            const fieldType = document.getElementById(`edit-type-${fieldId}`).value;
+            const required = document.getElementById(`edit-required-${fieldId}`).checked;
+
+            const updateData = {
+                display_name: displayName,
+                field_type: fieldType,
+                required: required
+            };
+
+            // If this is a choice field, collect the choice options
+            if (fieldType === 'ChoiceField') {
+                const choices = {};
+                const choiceRows = document.querySelectorAll(`#choices-container-${fieldId} .choice-row`);
+                choiceRows.forEach(row => {
+                    const valueInput = row.querySelector('.choice-value');
+                    const displayInput = row.querySelector('.choice-display');
+                    if (valueInput && displayInput && valueInput.value.trim()) {
+                        choices[valueInput.value.trim()] = displayInput.value.trim() || valueInput.value.trim();
+                    }
+                });
+                updateData.choices = choices;
+            }
+
+            fetch(`{% url "configuration:update_field" 0 %}`.replace('0', fieldId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(updateData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error updating field: ' + data.error);
+                    cancelFieldEdit(fieldId);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error);
+                cancelFieldEdit(fieldId);
+            });
+        }
+
+        function cancelFieldEdit(fieldId) {
+            const fieldCard = document.querySelector(`[data-field-id="${fieldId}"]`);
+            const originalContent = fieldCard.getAttribute('data-original-content');
+            if (originalContent) {
+                fieldCard.innerHTML = originalContent;
+                fieldCard.removeAttribute('data-original-content');
+            }
+        }
+
+        function toggleChoiceOptions(fieldId) {
+            const fieldType = document.getElementById(`edit-type-${fieldId}`).value;
+            const choiceOptions = document.getElementById(`choice-options-${fieldId}`);
+            
+            if (fieldType === 'ChoiceField') {
+                choiceOptions.style.display = 'block';
+                // Load default options if container is empty
+                const container = document.getElementById(`choices-container-${fieldId}`);
+                if (container.children.length === 0) {
+                    addChoiceOption(fieldId);
+                }
+            } else {
+                choiceOptions.style.display = 'none';
+            }
+        }
+
+        function addChoiceOption(fieldId, value = '', display = '') {
+            const container = document.getElementById(`choices-container-${fieldId}`);
+            const optionIndex = container.children.length;
+            
+            const optionHtml = `
+                <div class="choice-row mb-2">
+                    <div class="row align-items-center">
+                        <div class="col-md-4">
+                            <input type="text" class="form-control form-control-sm choice-value" 
+                                   placeholder="Value (e.g., biz_mgmt)" value="${value}">
+                        </div>
+                        <div class="col-md-6">
+                            <input type="text" class="form-control form-control-sm choice-display" 
+                                   placeholder="Display Name (e.g., Business Relationship Management)" value="${display}">
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                    onclick="removeChoiceOption(this)">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.insertAdjacentHTML('beforeend', optionHtml);
+        }
+
+        function removeChoiceOption(button) {
+            const choiceRow = button.closest('.choice-row');
+            if (choiceRow) {
+                choiceRow.remove();
+            }
+        }
+
+        function loadExistingChoices(fieldId, choices) {
+            const container = document.getElementById(`choices-container-${fieldId}`);
+            container.innerHTML = ''; // Clear existing
+            
+            // Load existing choices
+            if (choices && Object.keys(choices).length > 0) {
+                Object.entries(choices).forEach(([value, display]) => {
+                    addChoiceOption(fieldId, value, display);
+                });
+            } else {
+                // Add one empty option
+                addChoiceOption(fieldId);
+            }
+        }
+
+        function deleteField(fieldId, fieldName) {
+            if (!confirm(`Are you sure you want to delete "${fieldName}"? This cannot be undone.`)) {
+                return;
+            }
+
+            fetch(`{% url "configuration:delete_field" 0 %}`.replace('0', fieldId), {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error deleting field: ' + data.error);
+                }
+            });
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Auto-fill display name from field name
+        document.getElementById('fieldName').addEventListener('input', function() {
+            const name = this.value;
+            const displayName = name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            document.getElementById('fieldDisplayName').value = displayName;
+        });
+    </script>
+</body>
+</html>
