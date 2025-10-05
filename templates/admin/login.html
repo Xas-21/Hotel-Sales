@@ -1,0 +1,47 @@
+{% extends "admin/base.html" %}
+{% load i18n static %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <link rel="stylesheet" type="text/css" href="{% static 'admin/css/login.css' %}">
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} login{% endblock %}
+
+{% block usertools %}{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block nav-breadcrumbs %}{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <form action="{{ app_path }}" method="post" id="login-form">
+        {% csrf_token %}
+        <div class="form-row">
+            {{ form.username.errors }}
+            {{ form.username.label_tag }} {{ form.username }}
+        </div>
+        <div class="form-row">
+            {{ form.password.errors }}
+            {{ form.password.label_tag }} {{ form.password }}
+            <input type="hidden" name="next" value="{{ next }}">
+        </div>
+        {% url 'admin_password_reset' as password_reset_url %}
+        {% if password_reset_url %}
+        <div class="password-reset-link">
+            <a href="{{ password_reset_url }}">{% trans 'Forgotten your password or username?' %}</a>
+        </div>
+        {% endif %}
+        <div class="submit-row">
+            <input type="submit" value="{% trans 'Log in' %}">
+        </div>
+    </form>
+
+    <script type="text/javascript">
+        document.getElementById('id_username').focus()
+    </script>
+</div>
+{% endblock %}
