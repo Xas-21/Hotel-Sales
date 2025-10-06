@@ -25,3 +25,5 @@ def currency_convert(amount, from_currency='SAR'):
     if amount is None:
         amount = 0
     return convert_currency(amount, from_currency, 'USD')
+
+

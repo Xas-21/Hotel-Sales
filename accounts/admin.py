@@ -38,22 +38,18 @@ class AccountAdmin(admin.ModelAdmin):
         """Enhanced fieldsets for Phase 1D - better organization and preparation for export functionality"""
         return [
             ('Account Information', {
-                'fields': ('name', 'account_type', 'city'),
-                'description': 'Core account identification and classification'
+                'fields': ('name', 'account_type', 'city')
             }),
             ('Contact Details', {
-                'fields': ('contact_person', 'position', 'phone', 'email'),
-                'description': 'Primary contact information and role details. Position field enhanced as TextField for detailed role descriptions.'
+                'fields': ('contact_person', 'position', 'phone', 'email', 'business_card')
             }),
             ('Additional Information', {
                 'fields': ('address', 'website', 'notes'),
-                'description': 'Extended account information with Phase 1D enhancements: address and notes as TextField, website as URLField',
                 'classes': ('wide',)
             }),
             ('System Information', {
                 'fields': ('created_at', 'get_contact_info_display'),
-                'classes': ('collapse',),
-                'description': 'System-generated information and formatted contact summary'
+                'classes': ('collapse',)
             })
         ]
 

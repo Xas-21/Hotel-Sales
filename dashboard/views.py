@@ -429,27 +429,75 @@ def dashboard_view(request):
                 account_type_breakdown[account_type]['bookings']
             )
     
-    # Property breakdown (using account names as properties)
+    # Property breakdown (using account names as properties) with MOM calculation
+    # Show all accounts by default
+    all_accounts = Account.objects.all()
     property_breakdown = {}
+    
+    # Calculate previous period for MOM comparison
+    period_days = (end_date - start_date).days
+    prev_end_date = start_date - timedelta(days=1)
+    prev_start_date = prev_end_date - timedelta(days=period_days)
+    
+    # Get previous period requests for MOM calculation
+    previous_period_requests = BookingRequest.objects.filter(
+        (Q(status='Confirmed') | Q(status='Paid') | Q(status='Actual')) &
+        Q(check_in_date__gte=prev_start_date) & Q(check_in_date__lte=prev_end_date)
+    ).select_related('account')
+    
+    # Build previous period breakdown
+    previous_breakdown = {}
+    for request in previous_period_requests:
+        property_name = request.account.name
+        if property_name not in previous_breakdown:
+            previous_breakdown[property_name] = {
+                'revenue': Decimal('0.00'),
+            }
+        previous_breakdown[property_name]['revenue'] += request.total_cost
+    
+    # Build current period breakdown
+    current_breakdown = {}
     for request in current_period_requests:
         property_name = request.account.name
-        if property_name not in property_breakdown:
-            property_breakdown[property_name] = {
+        if property_name not in current_breakdown:
+            current_breakdown[property_name] = {
                 'bookings': 0,
                 'revenue': Decimal('0.00'),
-                'avg_value': Decimal('0.00'),
                 'account_type': request.account.account_type
             }
-        property_breakdown[property_name]['bookings'] += 1
-        property_breakdown[property_name]['revenue'] += request.total_cost
+        current_breakdown[property_name]['bookings'] += 1
+        current_breakdown[property_name]['revenue'] += request.total_cost
     
-    # Calculate averages for properties
-    for property_name in property_breakdown:
-        if property_breakdown[property_name]['bookings'] > 0:
-            property_breakdown[property_name]['avg_value'] = (
-                property_breakdown[property_name]['revenue'] / 
-                property_breakdown[property_name]['bookings']
-            )
+    # Build results for all accounts
+    for account in all_accounts:
+        account_name = account.name
+        account_type = account.account_type
+        
+        # Current period data
+        current_data = current_breakdown.get(account_name, {'bookings': 0, 'revenue': Decimal('0.00')})
+        current_bookings = current_data['bookings']
+        current_revenue = current_data['revenue']
+        current_avg_value = (current_revenue / current_bookings) if current_bookings else Decimal('0.00')
+        
+        # Previous period data
+        previous_data = previous_breakdown.get(account_name, {'revenue': Decimal('0.00')})
+        previous_revenue = previous_data['revenue']
+        
+        # Calculate MOM percentage
+        if previous_revenue > 0:
+            mom_percentage = ((current_revenue - previous_revenue) / previous_revenue) * 100
+        elif current_revenue > 0:
+            mom_percentage = 100.0  # 100% growth from 0
+        else:
+            mom_percentage = 0.0
+            
+        property_breakdown[account_name] = {
+            'bookings': current_bookings,
+            'revenue': current_revenue,
+            'avg_value': current_avg_value,
+            'account_type': account_type,
+            'mom_percentage': round(mom_percentage, 1)
+        }
     
     # Revenue trend data - dynamic based on selected period
     revenue_trend_data = []
@@ -786,7 +834,7 @@ def health_check(request):
 def api_property_performance(request):
     """
     Independent endpoint to compute performance by account profile with its own
-    date range and optional account search. Not tied to the main date selector.
+    date range and optional account search. Shows all accounts by default with real MOM calculations.
     Query params:
       - start_date (YYYY-MM-DD)
       - end_date (YYYY-MM-DD)
@@ -808,41 +856,84 @@ def api_property_performance(request):
 
     account_query = request.GET.get('account', '').strip()
 
-    # Use same status filter as main analytics (Confirmed, Paid, Actual)
-    requests_qs = BookingRequest.objects.filter(
+    # Calculate previous period for MOM comparison
+    period_days = (end_date_val - start_date_val).days
+    prev_end_date = start_date_val - timedelta(days=1)
+    prev_start_date = prev_end_date - timedelta(days=period_days)
+
+    # Get all accounts (for showing all accounts by default)
+    all_accounts = Account.objects.all()
+    if account_query:
+        all_accounts = all_accounts.filter(name__icontains=account_query)
+
+    # Current period requests
+    current_requests_qs = BookingRequest.objects.filter(
         (Q(status='Confirmed') | Q(status='Paid') | Q(status='Actual')) &
         Q(check_in_date__gte=start_date_val) & Q(check_in_date__lte=end_date_val)
     ).select_related('account')
 
-    if account_query:
-        requests_qs = requests_qs.filter(account__name__icontains=account_query)
+    # Previous period requests for MOM calculation
+    previous_requests_qs = BookingRequest.objects.filter(
+        (Q(status='Confirmed') | Q(status='Paid') | Q(status='Actual')) &
+        Q(check_in_date__gte=prev_start_date) & Q(check_in_date__lte=prev_end_date)
+    ).select_related('account')
 
-    # Build breakdown
-    breakdown = {}
-    for req in requests_qs:
+    # Build current period breakdown
+    current_breakdown = {}
+    for req in current_requests_qs:
         property_name = req.account.name
-        if property_name not in breakdown:
-            breakdown[property_name] = {
+        if property_name not in current_breakdown:
+            current_breakdown[property_name] = {
                 'bookings': 0,
                 'revenue': Decimal('0.00'),
-                'avg_value': Decimal('0.00'),
                 'account_type': req.account.account_type,
             }
-        breakdown[property_name]['bookings'] += 1
-        breakdown[property_name]['revenue'] += req.total_cost
+        current_breakdown[property_name]['bookings'] += 1
+        current_breakdown[property_name]['revenue'] += req.total_cost
 
-    # Finalize averages
+    # Build previous period breakdown
+    previous_breakdown = {}
+    for req in previous_requests_qs:
+        property_name = req.account.name
+        if property_name not in previous_breakdown:
+            previous_breakdown[property_name] = {
+                'bookings': 0,
+                'revenue': Decimal('0.00'),
+            }
+        previous_breakdown[property_name]['bookings'] += 1
+        previous_breakdown[property_name]['revenue'] += req.total_cost
+
+    # Build results for all accounts
     results = []
-    for name, data in breakdown.items():
-        bookings = data['bookings']
-        revenue = data['revenue']
-        avg_value = (revenue / bookings) if bookings else Decimal('0.00')
+    for account in all_accounts:
+        account_name = account.name
+        account_type = account.account_type
+        
+        # Current period data
+        current_data = current_breakdown.get(account_name, {'bookings': 0, 'revenue': Decimal('0.00')})
+        current_bookings = current_data['bookings']
+        current_revenue = current_data['revenue']
+        current_avg_value = (current_revenue / current_bookings) if current_bookings else Decimal('0.00')
+        
+        # Previous period data
+        previous_data = previous_breakdown.get(account_name, {'bookings': 0, 'revenue': Decimal('0.00')})
+        previous_revenue = previous_data['revenue']
+        
+        # Calculate MOM percentage
+        if previous_revenue > 0:
+            mom_percentage = ((current_revenue - previous_revenue) / previous_revenue) * 100
+        elif current_revenue > 0:
+            mom_percentage = 100.0  # 100% growth from 0
+        else:
+            mom_percentage = 0.0
+        
         results.append({
-            'account_name': name,
-            'account_type': data['account_type'],
-            'bookings': bookings,
-            'revenue': float(revenue),
-            'avg_value': float(avg_value),
+            'account_name': account_name,
+            'account_type': account_type,
+            'bookings': current_bookings,
+            'revenue': float(current_revenue),
+            'avg_value': float(current_avg_value),
+            'mom_percentage': round(mom_percentage, 1),
         })
 
     # Sort by revenue desc

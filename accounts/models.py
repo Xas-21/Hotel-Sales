@@ -41,6 +41,7 @@ class Account(models.Model):
     address = models.TextField(blank=True, help_text="Complete address including street, city, state, country")
     notes = models.TextField(blank=True, help_text="Additional notes about this account")
     website = models.URLField(blank=True, help_text="Company website URL")
+    business_card = models.FileField(upload_to='business_cards/', blank=True, null=True, help_text="Business card attachment (PDF, JPG, PNG)")
     
     created_at = models.DateTimeField(default=timezone.now)
     

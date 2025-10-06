@@ -362,7 +362,7 @@
                                                     <td>{{ data.bookings }}</td>
                                                     <td>${{ data.revenue|floatformat:0 }}</td>
                                                     <td>${{ data.avg_value|floatformat:0 }}</td>
-                                                    <td><span class="badge bg-success">+5.2%</span></td>
+                                                    <td><span class="badge bg-success">+{{ data.mom_percentage|default:0 }}%</span></td>
                                                 </tr>
                                                 {% endfor %}
                                             </tbody>
@@ -1979,15 +1979,20 @@
         function renderPropertyTable(rows) {
             const tbody = document.getElementById('propertyPerformanceBody');
             if (!tbody) return;
-            tbody.innerHTML = rows.map(r => `
+            tbody.innerHTML = rows.map(r => {
+                const momPercentage = r.mom_percentage || 0;
+                const momClass = momPercentage >= 0 ? 'bg-success' : 'bg-danger';
+                const momSign = momPercentage >= 0 ? '+' : '';
+                return `
                 <tr>
                     <td><strong>${r.account_name}</strong><br><small class="text-muted">${r.account_type || ''}</small></td>
                     <td>${r.bookings}</td>
                     <td>$${Math.round(r.revenue).toLocaleString()}</td>
                     <td>$${Math.round(r.avg_value).toLocaleString()}</td>
-                    <td><span class="badge bg-success">+5.2%</span></td>
+                    <td><span class="badge ${momClass}">${momSign}${momPercentage}%</span></td>
                 </tr>
-            `).join('');
+            `;
+            }).join('');
         }
 
         async function loadPropertyPerformance() {

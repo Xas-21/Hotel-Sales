@@ -158,34 +158,27 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
         fieldsets = [
             ('Basic Information', {
                 'fields': ('request_type', 'account', 'confirmation_number', 'request_received_date'),
-                'description': 'Core request information and identification'
             }),
             ('Accommodation Details & Room Configuration', {
                 'fields': ('check_in_date', 'check_out_date', 'nights', 'meal_plan'),
-                'description': 'Configure accommodation dates and meal plan. Add specific room types and occupancy in the "Room Configuration" section below. Room costs will be automatically calculated and included in totals.'
             }),
             ('Transportation & Event Details', {
                 'fields': (),  # Transportation handled via inline forms
-                'description': 'Transportation arrangements are managed in the "Transportation entries" section below. Event details can be configured in the "Event agenda entries" section for event-type requests.',
                 'classes': ('collapse',)
             }),
             ('Status & Payment Tracking', {
                 'fields': ('status', 'offer_acceptance_deadline', 'deposit_deadline', 'full_payment_deadline'),
-                'description': 'Request status and payment deadlines. Cancellation fields will appear automatically when status is set to "Cancelled".'
             }),
             ('Financial Summary (Auto-Calculated)', {
                 'fields': ('total_cost', 'total_rooms', 'total_room_nights', 'deposit_amount', 'paid_amount'),
-                'description': 'Automatically calculated totals from room entries, transportation, and event costs. ADR (Average Daily Rate) is calculated as total_cost ÷ total_room_nights.',
                 'classes': ('wide',)
             }),
             ('Advanced Statistics & Analytics', {
                 'fields': ('get_adr_display', 'get_room_total_display', 'get_transportation_total_display', 'get_event_total_display', 'get_statistics_summary'),
-                'description': 'Detailed cost breakdowns and performance analytics for this request.',
                 'classes': ('collapse', 'wide')
             }),
             ('Documents & Notes', {
                 'fields': ('agreement_file', 'notes'),
-                'description': 'Upload agreements and add detailed notes',
                 'classes': ('collapse',)
             }),
             ('System Information', {
@@ -205,7 +198,6 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
         if obj and obj.status == 'Cancelled':
             conditional_fieldsets.append(('Cancellation Details', {
                 'fields': ('cancellation_reason_fixed', 'cancellation_reason'),
-                'description': 'Cancellation information for this request'
             }))
         
         return conditional_fieldsets
@@ -641,34 +633,27 @@ class AccommodationRequestAdmin(BaseRequestAdmin):
         fieldsets = [
             ('Basic Information', {
                 'fields': ('account', 'confirmation_number', 'request_received_date'),
-                'description': 'Core request information and identification'
             }),
             ('Accommodation Details & Room Configuration', {
                 'fields': ('check_in_date', 'check_out_date', 'nights', 'meal_plan'),
-                'description': 'Configure accommodation dates and meal plan. Add specific room types and occupancy in the "Room Configuration" section below. Room costs will be automatically calculated and included in totals.'
             }),
             ('Transportation & Event Details', {
                 'fields': (),  # Transportation handled via inline forms
-                'description': 'Transportation arrangements are managed in the "Transportation entries" section below.',
                 'classes': ('collapse',)
             }),
             ('Status & Payment Tracking', {
                 'fields': ('status', 'offer_acceptance_deadline', 'deposit_deadline', 'full_payment_deadline'),
-                'description': 'Request status and payment deadlines. Cancellation fields will appear automatically when status is set to "Cancelled".'
             }),
             ('Financial Summary (Auto-Calculated)', {
                 'fields': ('total_cost', 'total_rooms', 'total_room_nights', 'deposit_amount', 'paid_amount'),
-                'description': 'Automatically calculated totals from room entries and transportation costs. ADR (Average Daily Rate) is calculated as total_cost ÷ total_room_nights.',
                 'classes': ('wide',)
             }),
             ('Advanced Statistics & Analytics', {
                 'fields': ('get_adr_display', 'get_room_total_display', 'get_transportation_total_display', 'get_event_total_display', 'get_statistics_summary'),
-                'description': 'Detailed cost breakdowns and performance analytics for this request.',
                 'classes': ('collapse', 'wide')
             }),
             ('Documents & Notes', {
                 'fields': ('agreement_file', 'notes'),
-                'description': 'Upload agreements and add detailed notes',
                 'classes': ('collapse',)
             }),
             ('System Information', {
@@ -681,7 +666,6 @@ class AccommodationRequestAdmin(BaseRequestAdmin):
         if obj and obj.status == 'Cancelled':
             fieldsets.append(('Cancellation Details', {
                 'fields': ('cancellation_reason_fixed', 'cancellation_reason'),
-                'description': 'Cancellation information for this request'
             }))
         
         return fieldsets
@@ -809,30 +793,24 @@ class EventOnlyRequestAdmin(BaseRequestAdmin):
         fieldsets = [
             ('Basic Information', {
                 'fields': ('account', 'confirmation_number', 'request_received_date'),
-                'description': 'Core request information and identification'
             }),
             ('Event & Transportation Details', {
                 'fields': (),  # Event and transportation handled via inline forms
-                'description': 'Event details are configured in the "Event agenda entries" section below. Transportation arrangements are managed in the "Transportation entries" section.',
                 'classes': ('collapse',)
             }),
             ('Status & Payment Tracking', {
                 'fields': ('status', 'offer_acceptance_deadline', 'deposit_deadline', 'full_payment_deadline'),
-                'description': 'Request status and payment deadlines. Cancellation fields will appear automatically when status is set to "Cancelled".'
             }),
             ('Financial Summary (Auto-Calculated)', {
                 'fields': ('total_cost', 'deposit_amount', 'paid_amount'),
-                'description': 'Automatically calculated totals from event entries and transportation costs.',
                 'classes': ('wide',)
             }),
             ('Advanced Statistics & Analytics', {
                 'fields': ('get_adr_display', 'get_room_total_display', 'get_transportation_total_display', 'get_event_total_display', 'get_statistics_summary'),
-                'description': 'Detailed cost breakdowns and performance analytics for this request.',
                 'classes': ('collapse', 'wide')
             }),
             ('Documents & Notes', {
                 'fields': ('agreement_file', 'notes'),
-                'description': 'Upload agreements and add detailed notes',
                 'classes': ('collapse',)
             }),
             ('System Information', {
@@ -845,7 +823,6 @@ class EventOnlyRequestAdmin(BaseRequestAdmin):
         if obj and obj.status == 'Cancelled':
             fieldsets.append(('Cancellation Details', {
                 'fields': ('cancellation_reason_fixed', 'cancellation_reason'),
-                'description': 'Cancellation information for this request'
             }))
         
         return fieldsets
@@ -977,34 +954,27 @@ class EventWithRoomsRequestAdmin(BaseRequestAdmin):
         fieldsets = [
             ('Basic Information', {
                 'fields': ('account', 'confirmation_number', 'request_received_date'),
-                'description': 'Core request information and identification'
             }),
             ('Accommodation Details & Room Configuration', {
                 'fields': ('check_in_date', 'check_out_date', 'nights', 'meal_plan'),
-                'description': 'Configure accommodation dates and meal plan. Add specific room types and occupancy in the "Room Configuration" section below. Room costs will be automatically calculated and included in totals.'
             }),
             ('Event & Transportation Details', {
                 'fields': (),  # Event and transportation handled via inline forms
-                'description': 'Event details are configured in the "Event agenda entries" section below. Transportation arrangements are managed in the "Transportation entries" section.',
                 'classes': ('collapse',)
             }),
             ('Status & Payment Tracking', {
                 'fields': ('status', 'offer_acceptance_deadline', 'deposit_deadline', 'full_payment_deadline'),
-                'description': 'Request status and payment deadlines. Cancellation fields will appear automatically when status is set to "Cancelled".'
             }),
             ('Financial Summary (Auto-Calculated)', {
                 'fields': ('total_cost', 'total_rooms', 'total_room_nights', 'deposit_amount', 'paid_amount'),
-                'description': 'Automatically calculated totals from room entries, event costs, and transportation costs. ADR (Average Daily Rate) is calculated as total_cost ÷ total_room_nights.',
                 'classes': ('wide',)
             }),
             ('Advanced Statistics & Analytics', {
                 'fields': ('get_adr_display', 'get_room_total_display', 'get_transportation_total_display', 'get_event_total_display', 'get_statistics_summary'),
-                'description': 'Detailed cost breakdowns and performance analytics for this request.',
                 'classes': ('collapse', 'wide')
             }),
             ('Documents & Notes', {
                 'fields': ('agreement_file', 'notes'),
-                'description': 'Upload agreements and add detailed notes',
                 'classes': ('collapse',)
             }),
             ('System Information', {
@@ -1017,7 +987,6 @@ class EventWithRoomsRequestAdmin(BaseRequestAdmin):
         if obj and obj.status == 'Cancelled':
             fieldsets.append(('Cancellation Details', {
                 'fields': ('cancellation_reason_fixed', 'cancellation_reason'),
-                'description': 'Cancellation information for this request'
             }))
         
         return fieldsets
@@ -1147,30 +1116,24 @@ class SeriesGroupRequestAdmin(BaseRequestAdmin):
         fieldsets = [
             ('Basic Information', {
                 'fields': ('account', 'confirmation_number', 'request_received_date'),
-                'description': 'Core request information and identification'
             }),
             ('Series Group & Transportation Details', {
                 'fields': (),  # Series group and transportation handled via inline forms
-                'description': 'Series group details are configured in the "Series Group Details" section below. Transportation arrangements are managed in the "Transportation entries" section.',
                 'classes': ('collapse',)
             }),
             ('Status & Payment Tracking', {
                 'fields': ('status', 'offer_acceptance_deadline', 'deposit_deadline', 'full_payment_deadline'),
-                'description': 'Request status and payment deadlines. Cancellation fields will appear automatically when status is set to "Cancelled".'
             }),
             ('Financial Summary (Auto-Calculated)', {
                 'fields': ('total_cost', 'total_rooms', 'total_room_nights', 'deposit_amount', 'paid_amount'),
-                'description': 'Automatically calculated totals from series group entries and transportation costs. ADR (Average Daily Rate) is calculated as total_cost ÷ total_room_nights.',
                 'classes': ('wide',)
             }),
             ('Advanced Statistics & Analytics', {
                 'fields': ('get_adr_display', 'get_room_total_display', 'get_transportation_total_display', 'get_event_total_display', 'get_statistics_summary'),
-                'description': 'Detailed cost breakdowns and performance analytics for this request.',
                 'classes': ('collapse', 'wide')
             }),
             ('Documents & Notes', {
                 'fields': ('agreement_file', 'notes'),
-                'description': 'Upload agreements and add detailed notes',
                 'classes': ('collapse',)
             }),
             ('System Information', {
@@ -1183,7 +1146,6 @@ class SeriesGroupRequestAdmin(BaseRequestAdmin):
         if obj and obj.status == 'Cancelled':
             fieldsets.append(('Cancellation Details', {
                 'fields': ('cancellation_reason_fixed', 'cancellation_reason'),
-                'description': 'Cancellation information for this request'
             }))
         
         return fieldsets

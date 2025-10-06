@@ -141,11 +141,15 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Riyadh'  # or your local timezone
 
 USE_I18N = True
 
 USE_TZ = True
+
+# Disable timezone warnings
+import warnings
+warnings.filterwarnings('ignore', message='.*timezone.*')
 
 
 # Static files (CSS, JavaScript, Images)

@@ -9,3 +9,5 @@ def currency_context(request):
     Add currency context to all templates
     """
     return get_currency_context(request)
+
+

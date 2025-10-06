@@ -49,8 +49,8 @@ def cleanup_notifications_on_agreement_delete(sender, instance, **kwargs):
 @receiver(post_save, sender=Agreement)
 def auto_generate_agreement_notifications(sender, instance, created, **kwargs):
     """Automatically generate deadline notifications when agreements are created or updated."""
-    print(f"🔔 SIGNAL DEBUG: Agreement {instance.id} saved - Status: {instance.status}")
-    logger.info(f"🔔 Agreement signal triggered: {instance.account.name} (ID: {instance.id}) - Status: {instance.status} - {'Created' if created else 'Updated'}")
+    print(f"SIGNAL DEBUG: Agreement {instance.id} saved - Status: {instance.status}")
+    logger.info(f"Agreement signal triggered: {instance.account.name} (ID: {instance.id}) - Status: {instance.status} - {'Created' if created else 'Updated'}")
     try:
         # FIRST: Clean up existing notifications for this agreement if it's being updated
         # This ensures old notifications with outdated dates are removed
@@ -254,7 +254,7 @@ def auto_generate_request_notifications(sender, instance, created, **kwargs):
     from django.contrib.auth.models import User
     
     try:
-        logger.info(f"🔔 SIGNAL DEBUG: Request {instance.id} saved - Type: {instance.request_type}")
+        logger.info(f"SIGNAL DEBUG: Request {instance.id} saved - Type: {instance.request_type}")
         
         # Clean up existing request notifications if it's being updated
         if not created:
@@ -303,7 +303,7 @@ def auto_generate_event_agenda_notifications(sender, instance, created, **kwargs
     from dashboard.services.deadline_notifications import generate_for_event_beo_reminders, generate_for_event_with_rooms
     
     try:
-        logger.info(f"🔔 SIGNAL DEBUG: EventAgenda {instance.id} saved - Event Date: {instance.event_date}")
+        logger.info(f"SIGNAL DEBUG: EventAgenda {instance.id} saved - Event Date: {instance.event_date}")
         
         # Clean up existing event notifications for this request
         if not created:
@@ -339,7 +339,7 @@ def auto_generate_series_entry_notifications(sender, instance, created, **kwargs
     from dashboard.services.deadline_notifications import generate_for_series_group_arrivals
     
     try:
-        logger.info(f"🔔 SIGNAL DEBUG: SeriesGroupEntry {instance.id} saved - Arrival Date: {instance.arrival_date}")
+        logger.info(f"SIGNAL DEBUG: SeriesGroupEntry {instance.id} saved - Arrival Date: {instance.arrival_date}")
         
         # Clean up existing series notifications for this request
         if not created:

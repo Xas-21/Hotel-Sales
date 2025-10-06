@@ -52,22 +52,18 @@ class SalesCallAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
         """Enhanced fieldsets for Phase 1E - better organization and descriptions"""
         return [
             ('Visit Information', {
-                'fields': ('account', 'visit_date', 'city', 'address'),
-                'description': 'Core visit details and location information'
+                'fields': ('account', 'visit_date', 'city', 'address')
             }),
             ('Meeting Details & Business Assessment', {
                 'fields': ('meeting_subject', 'business_potential', 'detailed_notes', 'next_steps'),
-                'description': 'Meeting discussion details and business potential evaluation. Text areas are enlarged for comprehensive note-taking.',
                 'classes': ('wide',)
             }),
             ('Follow-up Management', {
-                'fields': ('follow_up_required', 'follow_up_date', 'follow_up_completed'),
-                'description': 'Follow-up requirements and completion tracking. Status will appear in list view with color coding.'
+                'fields': ('follow_up_required', 'follow_up_date', 'follow_up_completed')
             }),
             ('System Information', {
                 'fields': ('created_at', 'updated_at', 'get_next_steps_summary'),
-                'classes': ('collapse',),
-                'description': 'System-generated timestamps and next steps summary'
+                'classes': ('collapse',)
             })
         ]
 

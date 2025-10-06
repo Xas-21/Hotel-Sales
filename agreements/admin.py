@@ -44,23 +44,19 @@ class AgreementAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
         """Enhanced fieldsets for Phase 1F - better organization with proper DateField and file upload support"""
         return [
             ('Agreement Information', {
-                'fields': ('account', 'rate_type', 'status'),
-                'description': 'Core agreement details and current status'
+                'fields': ('account', 'rate_type', 'status')
             }),
             ('Date Management', {
                 'fields': ('start_date', 'end_date', 'return_deadline'),
-                'description': 'All dates are properly configured as DateField types for accurate date handling. Return deadline includes automated status tracking.',
                 'classes': ('wide',)
             }),
             ('File Upload & Documentation', {
                 'fields': ('agreement_file', 'notes'),
-                'description': 'File upload functionality with proper storage directory structure. Notes field enlarged as TextField for comprehensive documentation.',
                 'classes': ('wide',)
             }),
             ('System Tracking', {
                 'fields': ('created_at', 'updated_at', 'get_file_status', 'get_notes_summary'),
-                'classes': ('collapse',),
-                'description': 'System-generated timestamps and enhanced status displays'
+                'classes': ('collapse',)
             })
         ]
     

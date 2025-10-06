@@ -74,3 +74,5 @@ class Command(BaseCommand):
         self.stdout.write(f"  Total choices: {len(account_type_choices)}")
         self.stdout.write(f"  Choices: {', '.join(account_type_choices.keys())}")
 
+
+
