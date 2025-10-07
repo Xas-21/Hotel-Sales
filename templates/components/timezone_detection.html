@@ -1,0 +1,327 @@
+<!-- Timezone Detection Component -->
+<script>
+class TimezoneDetector {
+    constructor() {
+        this.hasDetected = false;
+        this.init();
+    }
+
+    init() {
+        // Check if timezone detection is already done
+        if (sessionStorage.getItem('timezone_detected') === 'true') {
+            return;
+        }
+
+        // Show timezone detection modal
+        this.showTimezoneModal();
+    }
+
+    showTimezoneModal() {
+        // Create modal HTML
+        const modalHTML = `
+            <div class="modal fade" id="timezoneModal" tabindex="-1" aria-labelledby="timezoneModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="timezoneModalLabel">
+                                <i class="fas fa-globe me-2"></i>Timezone Detection
+                            </h5>
+                        </div>
+                        <div class="modal-body">
+                            <div class="text-center">
+                                <div class="mb-3">
+                                    <i class="fas fa-map-marker-alt fa-3x text-primary mb-3"></i>
+                                    <h6>We'd like to set your timezone automatically</h6>
+                                    <p class="text-muted">This will help us display times correctly for your location.</p>
+                                </div>
+                                
+                                <div id="timezoneStatus" class="mb-3">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Detecting timezone...</span>
+                                    </div>
+                                    <p class="mt-2">Detecting your timezone...</p>
+                                </div>
+                                
+                                <div id="timezoneResult" style="display: none;">
+                                    <div class="alert alert-info">
+                                        <strong>Detected Timezone:</strong> <span id="detectedTimezone"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" id="manualTimezoneBtn">
+                                <i class="fas fa-cog me-1"></i>Set Manually
+                            </button>
+                            <button type="button" class="btn btn-primary" id="acceptTimezoneBtn" style="display: none;">
+                                <i class="fas fa-check me-1"></i>Use This Timezone
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Add modal to page
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('timezoneModal'));
+        modal.show();
+
+        // Start timezone detection
+        this.detectTimezone();
+        
+        // Bind events
+        this.bindEvents();
+    }
+
+    async detectTimezone() {
+        try {
+            // Try to get user's location
+            const position = await this.getCurrentPosition();
+            
+            if (position) {
+                // Detect timezone from coordinates
+                await this.detectFromCoordinates(position.coords.latitude, position.coords.longitude);
+            } else {
+                // Fallback to country detection
+                await this.detectFromCountry();
+            }
+        } catch (error) {
+            console.log('Timezone detection failed:', error);
+            // Fallback to country detection
+            await this.detectFromCountry();
+        }
+    }
+
+    getCurrentPosition() {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+                reject(new Error('Geolocation not supported'));
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                resolve,
+                reject,
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 300000 // 5 minutes
+                }
+            );
+        });
+    }
+
+    async detectFromCoordinates(lat, lon) {
+        try {
+            const response = await fetch('/api/timezone/detect/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
+                body: JSON.stringify({
+                    latitude: lat,
+                    longitude: lon
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showTimezoneResult(data.timezone);
+            } else {
+                throw new Error(data.error || 'Detection failed');
+            }
+        } catch (error) {
+            console.log('Coordinate detection failed:', error);
+            await this.detectFromCountry();
+        }
+    }
+
+    async detectFromCountry() {
+        try {
+            // Try to get country from IP or browser
+            const response = await fetch('https://ipapi.co/json/');
+            const data = await response.json();
+            
+            if (data.country_code) {
+                const timezoneResponse = await fetch('/api/timezone/detect/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCSRFToken()
+                    },
+                    body: JSON.stringify({
+                        country_code: data.country_code
+                    })
+                });
+
+                const timezoneData = await timezoneResponse.json();
+                
+                if (timezoneData.success) {
+                    this.showTimezoneResult(timezoneData.timezone);
+                } else {
+                    this.showManualTimezoneSelection();
+                }
+            } else {
+                this.showManualTimezoneSelection();
+            }
+        } catch (error) {
+            console.log('Country detection failed:', error);
+            this.showManualTimezoneSelection();
+        }
+    }
+
+    showTimezoneResult(timezone) {
+        document.getElementById('timezoneStatus').style.display = 'none';
+        document.getElementById('timezoneResult').style.display = 'block';
+        document.getElementById('detectedTimezone').textContent = timezone;
+        document.getElementById('acceptTimezoneBtn').style.display = 'inline-block';
+        
+        // Store detected timezone
+        this.detectedTimezone = timezone;
+    }
+
+    showManualTimezoneSelection() {
+        document.getElementById('timezoneStatus').innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Could not detect your timezone automatically.
+            </div>
+            <div class="mb-3">
+                <label for="manualTimezoneSelect" class="form-label">Select your timezone:</label>
+                <select class="form-select" id="manualTimezoneSelect">
+                    <option value="Asia/Riyadh">Asia/Riyadh (Saudi Arabia)</option>
+                    <option value="Asia/Dubai">Asia/Dubai (UAE)</option>
+                    <option value="Asia/Kuwait">Asia/Kuwait (Kuwait)</option>
+                    <option value="Asia/Qatar">Asia/Qatar (Qatar)</option>
+                    <option value="Asia/Bahrain">Asia/Bahrain (Bahrain)</option>
+                    <option value="Asia/Muscat">Asia/Muscat (Oman)</option>
+                    <option value="Africa/Cairo">Africa/Cairo (Egypt)</option>
+                    <option value="Asia/Amman">Asia/Amman (Jordan)</option>
+                    <option value="Asia/Beirut">Asia/Beirut (Lebanon)</option>
+                    <option value="Asia/Damascus">Asia/Damascus (Syria)</option>
+                    <option value="Asia/Baghdad">Asia/Baghdad (Iraq)</option>
+                    <option value="America/New_York">America/New_York (US East)</option>
+                    <option value="America/Chicago">America/Chicago (US Central)</option>
+                    <option value="America/Denver">America/Denver (US Mountain)</option>
+                    <option value="America/Los_Angeles">America/Los_Angeles (US West)</option>
+                    <option value="Europe/London">Europe/London (UK)</option>
+                    <option value="Europe/Paris">Europe/Paris (France)</option>
+                    <option value="Europe/Berlin">Europe/Berlin (Germany)</option>
+                    <option value="Europe/Rome">Europe/Rome (Italy)</option>
+                    <option value="Europe/Madrid">Europe/Madrid (Spain)</option>
+                    <option value="Asia/Tokyo">Asia/Tokyo (Japan)</option>
+                    <option value="Asia/Shanghai">Asia/Shanghai (China)</option>
+                    <option value="Asia/Kolkata">Asia/Kolkata (India)</option>
+                    <option value="Asia/Singapore">Asia/Singapore (Singapore)</option>
+                    <option value="Australia/Sydney">Australia/Sydney (Australia)</option>
+                </select>
+            </div>
+        `;
+        document.getElementById('acceptTimezoneBtn').style.display = 'inline-block';
+    }
+
+    bindEvents() {
+        // Accept timezone button
+        document.getElementById('acceptTimezoneBtn').addEventListener('click', () => {
+            const timezone = this.detectedTimezone || document.getElementById('manualTimezoneSelect')?.value || 'Asia/Riyadh';
+            this.setTimezone(timezone);
+        });
+
+        // Manual timezone button
+        document.getElementById('manualTimezoneBtn').addEventListener('click', () => {
+            this.showManualTimezoneSelection();
+        });
+    }
+
+    async setTimezone(timezone) {
+        try {
+            const response = await fetch('/api/timezone/set/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
+                body: JSON.stringify({
+                    timezone: timezone
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                // Mark as detected
+                sessionStorage.setItem('timezone_detected', 'true');
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('timezoneModal'));
+                modal.hide();
+                
+                // Show success message
+                this.showSuccessMessage(`Timezone set to ${timezone}`);
+                
+                // Reload page to apply timezone
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                throw new Error(data.error || 'Failed to set timezone');
+            }
+        } catch (error) {
+            console.error('Failed to set timezone:', error);
+            alert('Failed to set timezone. Please try again.');
+        }
+    }
+
+    showSuccessMessage(message) {
+        // Create and show success toast
+        const toastHTML = `
+            <div class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fas fa-check-circle me-2"></i>${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        `;
+        
+        // Add toast container if it doesn't exist
+        if (!document.getElementById('toastContainer')) {
+            document.body.insertAdjacentHTML('beforeend', '<div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3"></div>');
+        }
+        
+        const toastContainer = document.getElementById('toastContainer');
+        toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+        
+        // Show toast
+        const toastElement = toastContainer.lastElementChild;
+        const toast = new bootstrap.Toast(toastElement);
+        toast.show();
+        
+        // Remove toast after it's hidden
+        toastElement.addEventListener('hidden.bs.toast', () => {
+            toastElement.remove();
+        });
+    }
+
+    getCSRFToken() {
+        const token = document.querySelector('[name=csrfmiddlewaretoken]');
+        return token ? token.value : '';
+    }
+}
+
+// Initialize timezone detection when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Only run if user is authenticated
+    if (document.body.classList.contains('authenticated') || 
+        document.querySelector('[data-user-authenticated]')) {
+        new TimezoneDetector();
+    }
+});
+</script>
+

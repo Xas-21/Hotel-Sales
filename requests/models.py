@@ -361,9 +361,10 @@ class Request(models.Model):
         self.save(update_fields=['total_cost', 'total_rooms', 'total_room_nights'])
     
     def get_adr(self):
-        """Calculate ADR (Average Daily Rate): total_cost / total_room_nights"""
+        """Calculate ADR (Average Daily Rate): room_total / total_room_nights (excluding event costs)"""
         if self.total_room_nights and self.total_room_nights > 0:
-            return self.total_cost / Decimal(str(self.total_room_nights))
+            room_total = self.get_room_total()
+            return room_total / Decimal(str(self.total_room_nights))
         return Decimal('0.00')
     
     def check_and_update_to_actual(self):
@@ -398,6 +399,42 @@ class Request(models.Model):
         if self.status in ['Paid', 'Actual']:
             return self.total_cost
         return self.paid_amount
+    
+    def get_display_date(self):
+        """
+        Get the appropriate date to display in Recent Activity based on request type.
+        - For Event without Rooms: show the earliest event start date
+        - For Series Group: show the earliest arrival date from series group details
+        - For other types: show check-in date
+        """
+        if self.request_type == 'Event without Rooms':
+            # Get the earliest event date from event agendas
+            earliest_event = self.event_agendas.order_by('event_date').first()
+            if earliest_event:
+                return earliest_event.event_date
+            else:
+                return None
+        elif self.request_type == 'Series Group':
+            # Get the earliest arrival date from series group entries
+            earliest_arrival = self.series_entries.order_by('arrival_date').first()
+            if earliest_arrival:
+                return earliest_arrival.arrival_date
+            else:
+                return None
+        else:
+            # For other accommodation requests, show check-in date
+            return self.check_in_date
+    
+    def get_display_date_label(self):
+        """
+        Get the appropriate label for the display date based on request type.
+        """
+        if self.request_type == 'Event without Rooms':
+            return "Event start date"
+        elif self.request_type == 'Series Group':
+            return "Arrival date"
+        else:
+            return "Check-in date"
     
     def set_default_deadlines(self):
         """
@@ -598,6 +635,7 @@ class EventAgenda(models.Model):
     
     request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name='event_agendas')
     event_date = models.DateField(db_index=True)
+    event_name = models.CharField(max_length=200, help_text="Event name", blank=True)
     meeting_room_name = models.CharField(max_length=20, choices=ROOM_CHOICES, default='All Halls', help_text="Meeting room for the event")
     start_time = models.TimeField()
     end_time = models.TimeField()

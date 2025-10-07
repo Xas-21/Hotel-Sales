@@ -262,7 +262,7 @@ def auto_generate_request_notifications(sender, instance, created, **kwargs):
             old_notifications = Notification.objects.filter(
                 content_type=content_type,
                 object_id=instance.id,
-                notification_type__in=['beo', 'arrival', 'event_checkin', 'event_start', 'checkin', 'deadline']
+                notification_type__in=['beo', 'arrival', 'event_checkin', 'event_start', 'checkin', 'deadline', 'event_comprehensive']
             )
             deleted_count = old_notifications.count()
             if deleted_count > 0:

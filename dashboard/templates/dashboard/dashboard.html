@@ -58,10 +58,18 @@
         <div class="row mt-4">
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h1 class="mb-0">Dashboard Overview</h1>
-                    <button id="edit-sections-btn" class="btn btn-outline-secondary">
-                        <i class="fas fa-edit me-1"></i>Edit Sections Place
-                    </button>
+                    <div>
+                        <h1 class="mb-0">Dashboard Overview</h1>
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>
+                            <span id="currentTimezone">Loading timezone...</span>
+                        </small>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <button id="edit-sections-btn" class="btn btn-outline-secondary">
+                            <i class="fas fa-edit me-1"></i>Edit Sections Place
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -360,9 +368,9 @@
                                                         <br><small class="text-muted">{{ data.account_type }}</small>
                                                     </td>
                                                     <td>{{ data.bookings }}</td>
-                                                    <td>${{ data.revenue|floatformat:0 }}</td>
-                                                    <td>${{ data.avg_value|floatformat:0 }}</td>
-                                                    <td><span class="badge bg-success">+5.2%</span></td>
+                                                    <td><span class="currency-symbol">{{ currency_symbol }}</span>{{ data.revenue|floatformat:0 }}</td>
+                                                    <td><span class="currency-symbol">{{ currency_symbol }}</span>{{ data.avg_value|floatformat:0 }}</td>
+                                                    <td><span class="badge {% if data.mom_percentage >= 0 %}bg-success{% else %}bg-danger{% endif %}">{% if data.mom_percentage >= 0 %}+{% endif %}{{ data.mom_percentage|floatformat:1 }}%</span></td>
                                                 </tr>
                                                 {% endfor %}
                                             </tbody>
@@ -885,7 +893,7 @@
                                                             <strong>{{ request.account.name }}</strong>
                                                         </a>
                                                         <small class="text-muted ms-2">{{ request.request_type }}</small>
-                                                        <small class="text-info ms-2">{{ request.check_in_date|default:"No check-in date" }}</small>
+                                                        <small class="text-info ms-2">{{ request.get_display_date|default:"No date" }}</small>
                                                     </div>
                                                     <div class="d-flex align-items-center">
                                                         <select class="form-select form-select-sm me-2 status-dropdown" 
@@ -1230,6 +1238,56 @@
         // Initialize dashboard functionality with comprehensive edit system
         document.addEventListener('DOMContentLoaded', function() {
             const fullDashboardContainer = document.getElementById('full-dashboard-container');
+            
+            // Display current timezone and time
+            fetch('/api/timezone/current/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.timezone) {
+                        // Update timezone display if element exists
+                        const timezoneElement = document.getElementById('currentTimezone');
+                        if (timezoneElement) {
+                            timezoneElement.textContent = data.timezone;
+                        }
+                        
+                        // Show current time in user's timezone
+                        updateCurrentTime(data.timezone);
+                    }
+                })
+                .catch(error => {
+                    console.log('Could not get timezone:', error);
+                });
+            
+            function updateCurrentTime(timezone) {
+                const now = new Date();
+                const options = {
+                    timeZone: timezone,
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                };
+                
+                const timeString = now.toLocaleString('en-US', options);
+                const timezoneElement = document.getElementById('currentTimezone');
+                if (timezoneElement) {
+                    timezoneElement.textContent = `${timeString} (${timezone})`;
+                }
+            }
+            
+            // Update time every second
+            setInterval(function() {
+                const timezoneElement = document.getElementById('currentTimezone');
+                if (timezoneElement && timezoneElement.textContent.includes('(')) {
+                    const timezone = timezoneElement.textContent.match(/\(([^)]+)\)$/);
+                    if (timezone) {
+                        updateCurrentTime(timezone[1]);
+                    }
+                }
+            }, 1000);
             
             // Variables to track edit modes and sortable instances
             let sectionsSortable = null;
@@ -1979,15 +2037,30 @@
         function renderPropertyTable(rows) {
             const tbody = document.getElementById('propertyPerformanceBody');
             if (!tbody) return;
-            tbody.innerHTML = rows.map(r => `
-                <tr>
-                    <td><strong>${r.account_name}</strong><br><small class="text-muted">${r.account_type || ''}</small></td>
-                    <td>${r.bookings}</td>
-                    <td>$${Math.round(r.revenue).toLocaleString()}</td>
-                    <td>$${Math.round(r.avg_value).toLocaleString()}</td>
-                    <td><span class="badge bg-success">+5.2%</span></td>
-                </tr>
-            `).join('');
+            
+            // Get currency from Django context or default to SAR
+            const currencySymbol = '{{ currency_symbol|default:"SAR" }}';
+            
+            console.log('Rendering property table with data:', rows);
+            console.log('Using currency symbol:', currencySymbol);
+            
+            tbody.innerHTML = rows.map(r => {
+                console.log('Rendering row for:', r.account_name, 'MoM:', r.mom_percentage);
+                
+                // The API already returns converted amounts, so use them directly
+                const revenue = Math.round(r.revenue);
+                const avgValue = Math.round(r.avg_value);
+                
+                return `
+                    <tr>
+                        <td><strong>${r.account_name}</strong><br><small class="text-muted">${r.account_type || ''}</small></td>
+                        <td>${r.bookings}</td>
+                        <td><span class="currency-symbol">${currencySymbol}</span>${revenue.toLocaleString()}</td>
+                        <td><span class="currency-symbol">${currencySymbol}</span>${avgValue.toLocaleString()}</td>
+                        <td><span class="badge ${r.mom_percentage >= 0 ? 'bg-success' : 'bg-danger'}">${r.mom_percentage >= 0 ? '+' : ''}${r.mom_percentage.toFixed(1)}%</span></td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         async function loadPropertyPerformance() {
@@ -1998,15 +2071,41 @@
             if (s) params.append('start_date', s);
             if (e) params.append('end_date', e);
             if (a) params.append('account', a);
-            const resp = await fetch(`/api/property-performance/?${params.toString()}`);
-            const data = await resp.json();
-            renderPropertyTable(data.results || []);
+            
+            // Add cache-busting parameter
+            params.append('_t', Date.now());
+            
+            console.log('Loading property performance with params:', params.toString());
+            
+            try {
+                const resp = await fetch(`/api/property-performance/?${params.toString()}`);
+                
+                if (!resp.ok) {
+                    throw new Error(`HTTP error! status: ${resp.status}`);
+                }
+                
+                const data = await resp.json();
+                console.log('API response:', data);
+                
+                if (data.results && data.results.length > 0) {
+                    renderPropertyTable(data.results);
+                } else {
+                    console.log('No results from API, keeping existing data');
+                    // Don't clear the table if API returns no results
+                }
+            } catch (error) {
+                console.error('Error loading property performance:', error);
+                // Don't clear the table on error
+            }
         }
 
         const applyBtn = document.getElementById('propApply');
         if (applyBtn) {
             applyBtn.addEventListener('click', loadPropertyPerformance);
         }
+        
+        // Don't auto-load on page load to preserve Django template data
+        // Only load when user clicks Apply button
 
         // Period selector functionality
         document.querySelectorAll('[data-period]').forEach(button => {

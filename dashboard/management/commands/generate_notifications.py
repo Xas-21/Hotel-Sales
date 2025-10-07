@@ -79,7 +79,7 @@ class Command(BaseCommand):
                         
                 except Exception as e:
                     self.stdout.write(
-                        self.style.ERROR(f"  ✗ Error generating notifications: {e}")
+                        self.style.ERROR(f"  ERROR: Error generating notifications: {e}")
                     )
                     logger.error(f"Error generating notifications for user {user.id}: {e}")
             else:

@@ -51,19 +51,44 @@ def create_notification_if_absent(user, obj, title, message, notification_type, 
     Create notification only if it doesn't already exist for today.
     
     This ensures idempotency - running multiple times per day won't create duplicates.
+    For time-sensitive notifications (deadlines, payments, events), we check by notification_type 
+    and object_id to prevent duplicates even when the title changes daily (due to days_before count).
     """
     today = timezone.localdate()
     content_type = ContentType.objects.get_for_model(obj)
     
-    # Check if notification already exists for today
-    existing = Notification.objects.filter(
-        user=user,
-        content_type=content_type,
-        object_id=obj.id,
-        notification_type=notification_type,
-        title=title,  # Title includes days_before info, making it unique
-        created_at__date=today
-    ).exists()
+    # Notification types that change titles daily and need special duplicate prevention
+    time_sensitive_types = [
+        'beo',                    # BEO reminders - "Event in X days"
+        'payment',                # Payment deadlines - "due in X days"
+        'deadline',               # Offer deadlines - "expires in X days"
+        'arrival',                # Series group arrivals - "X days"
+        'event_checkin',          # Event with rooms check-ins - "X days"
+        'event_start',            # Event with rooms starts - "starts in X days"
+        'agreement',              # Agreement deadlines - "due in X days"
+        'event_comprehensive'     # Consolidated event with accommodation alerts
+    ]
+    
+    # For time-sensitive notifications, check by notification_type and object_id to prevent duplicates
+    # even when title changes daily (e.g., "3 days" vs "2 days")
+    if notification_type in time_sensitive_types:
+        existing = Notification.objects.filter(
+            user=user,
+            content_type=content_type,
+            object_id=obj.id,
+            notification_type=notification_type,
+            created_at__date=today
+        ).exists()
+    else:
+        # For other notification types, check by title as before
+        existing = Notification.objects.filter(
+            user=user,
+            content_type=content_type,
+            object_id=obj.id,
+            notification_type=notification_type,
+            title=title,
+            created_at__date=today
+        ).exists()
     
     if existing:
         return None  # Already exists, skip
@@ -90,6 +115,14 @@ def generate_for_requests_payments():
     today = timezone.localdate()
     window_end = today + timedelta(days=5)
     created_count = 0
+    
+    # Clean up old payment notifications from previous days
+    old_payment_notifications = Notification.objects.filter(
+        notification_type='payment',
+        created_at__date__lt=today
+    ).delete()
+    if old_payment_notifications[0] > 0:
+        logger.info(f"Cleaned up {old_payment_notifications[0]} old payment notifications")
     
     # Get requests with payment deadlines in the next 5 days
     requests_with_deadlines = BookingRequest.objects.filter(
@@ -147,6 +180,14 @@ def generate_for_requests_offers():
     window_end = today + timedelta(days=5)
     created_count = 0
     
+    # Clean up old offer deadline notifications from previous days
+    old_deadline_notifications = Notification.objects.filter(
+        notification_type='deadline',
+        created_at__date__lt=today
+    ).delete()
+    if old_deadline_notifications[0] > 0:
+        logger.info(f"Cleaned up {old_deadline_notifications[0]} old deadline notifications")
+    
     # Get requests with offer acceptance deadlines in the next 5 days
     requests_with_offers = BookingRequest.objects.filter(
         offer_acceptance_deadline__range=[today, window_end],
@@ -154,15 +195,28 @@ def generate_for_requests_offers():
     ).select_related('account')
     
     for request in requests_with_offers:
+        # Clean up any existing deadline notifications for this specific request first
+        from django.contrib.contenttypes.models import ContentType
+        content_type = ContentType.objects.get_for_model(request)
+        existing_deadline_notifications = Notification.objects.filter(
+            content_type=content_type,
+            object_id=request.id,
+            notification_type='deadline'
+        )
+        if existing_deadline_notifications.exists():
+            deleted_count = existing_deadline_notifications.count()
+            existing_deadline_notifications.delete()
+            logger.info(f"Cleaned up {deleted_count} existing deadline notifications for request {request.id}")
+        
         recipients = get_recipients(request)
         days_before = (request.offer_acceptance_deadline - today).days
         priority = 'urgent' if days_before == 0 else ('high' if days_before <= 1 else 'medium')
         
         if days_before == 0:
-            title = f"URGENT: Offer expires TODAY - {request.account.name}"
+            title = f"⚠️ Offer acceptance deadline TODAY - {request.account.name} - {request.request_type} request"
             message = f"Offer acceptance deadline is today for {request.request_type} request."
         else:
-            title = f"Offer expires in {days_before} day{'s' if days_before > 1 else ''} - {request.account.name}"
+            title = f"⚠️ Offer acceptance deadline in {days_before} day{'s' if days_before > 1 else ''} - {request.account.name} - {request.request_type} request"
             message = f"Offer acceptance deadline is {request.offer_acceptance_deadline.strftime('%B %d, %Y')} for {request.request_type} request."
         
         link_url = f"/admin/requests/request/{request.id}/change/"
@@ -181,11 +235,21 @@ def generate_for_group_checkins():
     window_end = today + timedelta(days=5)
     created_count = 0
     
+    # Clean up old group check-in notifications from previous days
+    old_checkin_notifications = Notification.objects.filter(
+        notification_type='deadline',
+        title__icontains='Group info sheet reminder',
+        created_at__date__lt=today
+    ).delete()
+    if old_checkin_notifications[0] > 0:
+        logger.info(f"Cleaned up {old_checkin_notifications[0]} old group check-in notifications")
+    
     # Get requests with check-in dates in the next 5 days
-    # Include only confirmed/paid requests that need info sheets (NOT Partially Paid)
+    # EXCLUDE Event with Rooms and Series Group requests as they have their own alert systems
     group_requests = BookingRequest.objects.filter(
         check_in_date__range=[today, window_end],
-        status__in=['Confirmed', 'Paid']  # Only confirmed/paid requests (exclude Partially Paid)
+        status__in=['Confirmed', 'Paid'],  # Only confirmed/paid requests (exclude Partially Paid)
+        request_type='Group Accommodation'  # Only Group Accommodation (Series Group uses arrival_date alerts)
     ).select_related('account')
     
     for request in group_requests:
@@ -215,6 +279,14 @@ def generate_for_agreements():
     today = timezone.localdate()
     window_end = today + timedelta(days=5)
     created_count = 0
+    
+    # Clean up old agreement notifications from previous days
+    old_agreement_notifications = Notification.objects.filter(
+        notification_type='agreement',
+        created_at__date__lt=today
+    ).delete()
+    if old_agreement_notifications[0] > 0:
+        logger.info(f"Cleaned up {old_agreement_notifications[0]} old agreement notifications")
     
     # Get agreements with return deadlines in the next 5 days
     agreements_with_deadlines = Agreement.objects.filter(
@@ -275,10 +347,20 @@ def generate_for_event_beo_reminders():
     created_count = 0
     
     # Get event agendas with event dates in the next 5 days
+    # EXCLUDE Event with Rooms requests as they are handled by the consolidated function
     event_agendas = EventAgenda.objects.filter(
         event_date__range=[today, window_end],
-        request__status__in=['Confirmed', 'Paid']  # Only confirmed/paid events (exclude Partially Paid)
+        request__status__in=['Confirmed', 'Paid'],  # Only confirmed/paid events (exclude Partially Paid)
+        request__request_type='Event without Rooms'  # Only Event without Rooms (exclude Event with Rooms)
     ).select_related('request', 'request__account')
+    
+    # Clean up old BEO notifications for events that are no longer in the 5-day window
+    old_beo_notifications = Notification.objects.filter(
+        notification_type='beo',
+        created_at__date__lt=today
+    ).delete()
+    if old_beo_notifications[0] > 0:
+        logger.info(f"Cleaned up {old_beo_notifications[0]} old BEO notifications")
     
     for agenda in event_agendas:
         recipients = get_recipients(agenda.request)
@@ -307,6 +389,14 @@ def generate_for_series_group_arrivals():
     today = timezone.localdate()
     window_end = today + timedelta(days=5)
     created_count = 0
+    
+    # Clean up old series group arrival notifications from previous days
+    old_arrival_notifications = Notification.objects.filter(
+        notification_type='arrival',
+        created_at__date__lt=today
+    ).delete()
+    if old_arrival_notifications[0] > 0:
+        logger.info(f"Cleaned up {old_arrival_notifications[0]} old series arrival notifications")
     
     # Get series group entries with arrival dates in the next 5 days
     series_entries = SeriesGroupEntry.objects.filter(
@@ -337,63 +427,88 @@ def generate_for_series_group_arrivals():
 
 
 def generate_for_event_with_rooms():
-    """Generate alerts for Event with Rooms requests (both check-in and event start dates)."""
+    """Generate comprehensive alerts for Event with Rooms requests (consolidated alert)."""
     today = timezone.localdate()
     window_end = today + timedelta(days=5)
     created_count = 0
+    
+    # Clean up old event with rooms notifications from previous days
+    old_event_checkin_notifications = Notification.objects.filter(
+        notification_type='event_checkin',
+        created_at__date__lt=today
+    ).delete()
+    old_event_start_notifications = Notification.objects.filter(
+        notification_type='event_start',
+        created_at__date__lt=today
+    ).delete()
+    old_beo_notifications = Notification.objects.filter(
+        notification_type='beo',
+        created_at__date__lt=today
+    ).delete()
+    old_deadline_notifications = Notification.objects.filter(
+        notification_type='deadline',
+        title__icontains='Group info sheet reminder',
+        created_at__date__lt=today
+    ).delete()
+    total_cleaned = (old_event_checkin_notifications[0] + old_event_start_notifications[0] + 
+                    old_beo_notifications[0] + old_deadline_notifications[0])
+    if total_cleaned > 0:
+        logger.info(f"Cleaned up {total_cleaned} old event with rooms notifications")
     
     # Get Event with Rooms requests with check-in dates in the next 5 days
     event_room_requests = BookingRequest.objects.filter(
         request_type='Event with Rooms',
         check_in_date__range=[today, window_end],
         status__in=['Confirmed', 'Paid']  # Only confirmed/paid events (exclude Partially Paid)
-    ).select_related('account')
+    ).select_related('account').prefetch_related('event_agendas')
     
     for request in event_room_requests:
         recipients = get_recipients(request)
-        days_before = (request.check_in_date - today).days
+        
+        # Get the earliest event date from event agendas
+        earliest_event = request.event_agendas.order_by('event_date').first()
+        event_date = earliest_event.event_date if earliest_event else request.check_in_date
+        
+        # Determine which date is closer to today (check-in or event start)
+        checkin_days = (request.check_in_date - today).days
+        event_days = (event_date - today).days if earliest_event else None
+        
+        # Use the closer date for the alert timing
+        if event_days is not None and abs(event_days) < abs(checkin_days):
+            days_before = event_days
+            date_type = "event start"
+            date_value = event_date
+        else:
+            days_before = checkin_days
+            date_type = "check-in"
+            date_value = request.check_in_date
+        
         priority = 'urgent' if days_before == 0 else ('high' if days_before <= 1 else 'medium')
         
-        # Check-in alert
+        # Create comprehensive message
         if days_before == 0:
-            title = f"URGENT: Event with Rooms check-in TODAY - {request.account.name}"
-            message = f"Guests check in today for event with accommodation - Prepare rooms and event details."
+            title = f"URGENT: Event with Accommodation TODAY - {request.account.name}"
+            message = f"Event with Accommodation is TODAY!\n"
+            message += f"• Check-in: {request.check_in_date.strftime('%B %d, %Y')}\n"
+            if earliest_event:
+                message += f"• Event starts: {event_date.strftime('%B %d, %Y')}\n"
+            message += f"• Prepare rooms, event coordination, and send BEO details to operations team."
         else:
-            title = f"Event with Rooms check-in - {days_before} day{'s' if days_before > 1 else ''} - {request.account.name}"
-            message = f"Guests check in on {request.check_in_date.strftime('%B %d, %Y')} - Prepare rooms and event coordination."
+            title = f"Event with Accommodation - {days_before} day{'s' if days_before > 1 else ''} - {request.account.name}"
+            message = f"Event with Accommodation approaching:\n"
+            message += f"• Check-in: {request.check_in_date.strftime('%B %d, %Y')}\n"
+            if earliest_event:
+                message += f"• Event starts: {event_date.strftime('%B %d, %Y')}\n"
+            message += f"• Prepare rooms, event coordination, group information sheet, and BEO details."
         
         link_url = f"/admin/requests/request/{request.id}/change/"
         
+        # Use a single notification type for consolidated alerts
         for user in recipients:
-            if create_notification_if_absent(user, request, title, message, 'event_checkin', priority, link_url, 'View Event'):
+            if create_notification_if_absent(user, request, title, message, 'event_comprehensive', priority, link_url, 'View Event'):
                 created_count += 1
     
-    # Also generate alerts for the actual event start dates
-    event_with_rooms_agendas = EventAgenda.objects.filter(
-        event_date__range=[today, window_end],
-        request__request_type='Event with Rooms',
-        request__status__in=['Confirmed', 'Paid']  # Only confirmed/paid events (exclude Partially Paid)
-    ).select_related('request', 'request__account')
-    
-    for agenda in event_with_rooms_agendas:
-        recipients = get_recipients(agenda.request)
-        days_before = (agenda.event_date - today).days
-        priority = 'urgent' if days_before == 0 else ('high' if days_before <= 1 else 'medium')
-        
-        if days_before == 0:
-            title = f"URGENT: Event starts TODAY - {agenda.request.account.name}"
-            message = f"Event with Rooms starts today - Coordinate with accommodation and event teams."
-        else:
-            title = f"Event with Rooms starts in {days_before} day{'s' if days_before > 1 else ''} - {agenda.request.account.name}"
-            message = f"Event starts on {agenda.event_date.strftime('%B %d, %Y')} - Coordinate accommodation and event logistics."
-        
-        link_url = f"/admin/requests/request/{agenda.request.id}/change/"
-        
-        for user in recipients:
-            if create_notification_if_absent(user, agenda.request, title, message, 'event_start', priority, link_url, 'View Event'):
-                created_count += 1
-    
-    logger.info(f"Created {created_count} Event with Rooms notifications")
+    logger.info(f"Created {created_count} consolidated Event with Rooms notifications")
     return created_count
 
 

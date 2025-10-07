@@ -18,7 +18,7 @@
                     <a href="{% url 'admin:requests_accommodationrequest_add' %}" class="btn btn-outline-primary btn-sm">
                         <i class="fas fa-bed me-2"></i>Accommodation Request
                     </a>
-                    <a href="{% url 'admin:requests_eventonlyrequest_add' %}" class="btn btn-outline-primary btn-sm">
+                    <a href="/event-management/#createEventModal" class="btn btn-outline-primary btn-sm" onclick="openEventModal()">
                         <i class="fas fa-calendar-check me-2"></i>Event Only Request
                     </a>
                     <a href="{% url 'admin:requests_eventwithroomsrequest_add' %}" class="btn btn-outline-primary btn-sm">
@@ -44,6 +44,9 @@
                 </a>
                 <a href="/calendar/" class="btn btn-outline-secondary btn-sm">
                     <i class="fas fa-calendar me-2"></i>Calendar
+                </a>
+                <a href="/event-management/" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-calendar-check me-2"></i>Event Management
                 </a>
             </div>
         </div>
@@ -113,5 +116,18 @@ document.addEventListener('DOMContentLoaded', function() {
         // Save state
         localStorage.setItem('quickActionsCollapsed', collapsed);
     });
+    
+    // Function to open Event Management modal
+    window.openEventModal = function() {
+        // Check if we're on the Event Management page
+        if (window.location.pathname === '/event-management/') {
+            // Open the modal directly
+            const modal = new bootstrap.Modal(document.getElementById('createEventModal'));
+            modal.show();
+        } else {
+            // Redirect to Event Management page with modal hash
+            window.location.href = '/event-management/#createEventModal';
+        }
+    };
 });
 </script>

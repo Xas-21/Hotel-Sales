@@ -18,6 +18,11 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.namespace == 'event_management' %}active{% endif %}" href="{% url 'event_management:dashboard' %}">
+                    <i class="fas fa-calendar-check me-1"></i>Event Management
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.namespace == 'configuration' %}active{% endif %}" href="{% url 'configuration:dashboard' %}">
                     <i class="fas fa-sliders-h me-1"></i>Configuration
                 </a>
@@ -403,6 +408,8 @@ class NotificationManager {
     }
     
     init() {
+        console.log('NotificationManager initializing...');
+        
         // Start polling for notifications
         this.startPolling();
         
@@ -410,6 +417,7 @@ class NotificationManager {
         this.bindEvents();
         
         // Initial load
+        console.log('Calling updateUnreadCount...');
         this.updateUnreadCount();
     }
     
@@ -463,11 +471,17 @@ class NotificationManager {
     
     async updateUnreadCount() {
         try {
+            console.log('Fetching unread notification count...');
             const response = await fetch('/api/notifications/unread-count/');
             const data = await response.json();
             
+            console.log('Notification API response:', data);
+            
             if (data.success) {
+                console.log('Updating badge with count:', data.unread_count);
                 this.updateBadge(data.unread_count);
+            } else {
+                console.error('API returned error:', data.error);
             }
         } catch (error) {
             console.error('Failed to fetch unread count:', error);
@@ -475,16 +489,24 @@ class NotificationManager {
     }
     
     updateBadge(count) {
+        console.log('updateBadge called with count:', count);
         const badge = document.getElementById('notification-badge');
         const countSpan = document.getElementById('notification-count');
         
+        console.log('Badge element:', badge);
+        console.log('Count span element:', countSpan);
+        
         if (badge && countSpan) {
             if (count > 0) {
+                console.log('Showing badge with count:', count);
                 badge.style.display = 'inline-block';
                 countSpan.textContent = count > 99 ? '99+' : count;
             } else {
+                console.log('Hiding badge (count is 0)');
                 badge.style.display = 'none';
             }
+        } else {
+            console.error('Badge or count span element not found!');
         }
     }
     

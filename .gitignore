@@ -57,3 +57,11 @@ Thumbs.db
 # Deployment
 *.pid
 *.sock
+
+# Development files
+.debug_admin_login.html
+.env.example
+.replit
+CLEANUP_PLAN.md
+CLEANUP_REPORT.md
+test_system.py

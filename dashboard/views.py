@@ -41,7 +41,7 @@ def dashboard_view(request):
     cancelled_requests = BookingRequest.objects.filter(status='Cancelled').count()
     paid_requests = BookingRequest.objects.filter(Q(status='Paid') | Q(status='Actual')).count()
     
-    # Financial metrics - Total revenue includes both paid and unpaid amounts
+    # Financial metrics - Dashboard Metrics cards show ALL revenue (rooms + events)
     total_revenue = BookingRequest.objects.exclude(status='Cancelled').aggregate(
         total=Sum('total_cost'))['total'] or 0
     pending_revenue = BookingRequest.objects.filter(
@@ -102,7 +102,8 @@ def dashboard_view(request):
     }
     
     # Recent activity (show more and use scroll in UI)
-    recent_requests = BookingRequest.objects.order_by('-created_at')[:20]
+    # Include event start date for event-type requests
+    recent_requests = BookingRequest.objects.select_related('account').prefetch_related('event_agendas').order_by('-created_at')[:20]
     recent_sales_calls = SalesCall.objects.order_by('-visit_date')[:20]
     recent_agreements = Agreement.objects.order_by('-created_at')[:20]
     recent_accounts = Account.objects.order_by('-created_at')[:20]
@@ -375,19 +376,40 @@ def dashboard_view(request):
         check_in_date__lte=yoy_end
     ).select_related('account')
     
-    # Calculate current period metrics
+    # Calculate current period metrics - using room-only costs for Event with Accommodation
     current_period_bookings = current_period_requests.count()
-    current_period_revenue = current_period_requests.aggregate(total=Sum('total_cost'))['total'] or Decimal('0.00')
+    current_period_revenue = Decimal('0.00')
+    for req in current_period_requests:
+        if req.request_type == 'Event with Rooms':
+            # For Event with Accommodation, use only room + transport costs
+            current_period_revenue += req.get_room_total() + req.get_transportation_total()
+        else:
+            # For other request types, use total cost
+            current_period_revenue += req.total_cost
     current_period_avg_value = current_period_revenue / current_period_bookings if current_period_bookings > 0 else Decimal('0.00')
     
-    # Calculate previous period metrics for MoM comparison
+    # Calculate previous period metrics for MoM comparison - using room-only costs for Event with Accommodation
     mom_bookings = mom_requests.count()
-    mom_revenue = mom_requests.aggregate(total=Sum('total_cost'))['total'] or Decimal('0.00')
+    mom_revenue = Decimal('0.00')
+    for req in mom_requests:
+        if req.request_type == 'Event with Rooms':
+            # For Event with Accommodation, use only room + transport costs
+            mom_revenue += req.get_room_total() + req.get_transportation_total()
+        else:
+            # For other request types, use total cost
+            mom_revenue += req.total_cost
     mom_avg_value = mom_revenue / mom_bookings if mom_bookings > 0 else Decimal('0.00')
     
-    # Calculate same period last year metrics for YoY comparison
+    # Calculate same period last year metrics for YoY comparison - using room-only costs for Event with Accommodation
     yoy_bookings = yoy_requests.count()
-    yoy_revenue = yoy_requests.aggregate(total=Sum('total_cost'))['total'] or Decimal('0.00')
+    yoy_revenue = Decimal('0.00')
+    for req in yoy_requests:
+        if req.request_type == 'Event with Rooms':
+            # For Event with Accommodation, use only room + transport costs
+            yoy_revenue += req.get_room_total() + req.get_transportation_total()
+        else:
+            # For other request types, use total cost
+            yoy_revenue += req.total_cost
     yoy_avg_value = yoy_revenue / yoy_bookings if yoy_bookings > 0 else Decimal('0.00')
     
     # Calculate MoM changes
@@ -410,8 +432,8 @@ def dashboard_view(request):
     
     # Account type breakdown for current period
     account_type_breakdown = {}
-    for request in current_period_requests:
-        account_type = request.account.account_type
+    for req in current_period_requests:
+        account_type = req.account.account_type
         if account_type not in account_type_breakdown:
             account_type_breakdown[account_type] = {
                 'bookings': 0,
@@ -419,7 +441,12 @@ def dashboard_view(request):
                 'avg_value': Decimal('0.00')
             }
         account_type_breakdown[account_type]['bookings'] += 1
-        account_type_breakdown[account_type]['revenue'] += request.total_cost
+        
+        # Use room-only costs for Event with Accommodation
+        if req.request_type == 'Event with Rooms':
+            account_type_breakdown[account_type]['revenue'] += req.get_room_total() + req.get_transportation_total()
+        else:
+            account_type_breakdown[account_type]['revenue'] += req.total_cost
     
     # Calculate averages for account types
     for account_type in account_type_breakdown:
@@ -431,24 +458,58 @@ def dashboard_view(request):
     
     # Property breakdown (using account names as properties)
     property_breakdown = {}
-    for request in current_period_requests:
-        property_name = request.account.name
+    for req in current_period_requests:
+        property_name = req.account.name
         if property_name not in property_breakdown:
             property_breakdown[property_name] = {
                 'bookings': 0,
                 'revenue': Decimal('0.00'),
                 'avg_value': Decimal('0.00'),
-                'account_type': request.account.account_type
+                'account_type': req.account.account_type
             }
         property_breakdown[property_name]['bookings'] += 1
-        property_breakdown[property_name]['revenue'] += request.total_cost
+        
+        # Use room-only costs for Event with Accommodation
+        if req.request_type == 'Event with Rooms':
+            property_breakdown[property_name]['revenue'] += req.get_room_total() + req.get_transportation_total()
+        else:
+            property_breakdown[property_name]['revenue'] += req.total_cost
     
-    # Calculate averages for properties
+    # Calculate averages and MoM for properties
     for property_name in property_breakdown:
         if property_breakdown[property_name]['bookings'] > 0:
             property_breakdown[property_name]['avg_value'] = (
                 property_breakdown[property_name]['revenue'] / 
                 property_breakdown[property_name]['bookings']
+            )
+        
+        # Calculate MoM percentage for this property
+        current_revenue = property_breakdown[property_name]['revenue']
+        previous_revenue = Decimal('0.00')
+        
+        # Get previous period revenue for this property
+        previous_requests = mom_requests.filter(account__name=property_name)
+        for prev_request in previous_requests:
+            # Use room-only costs for Event with Accommodation (consistent with current period)
+            if prev_request.request_type == 'Event with Rooms':
+                previous_revenue += prev_request.get_room_total() + prev_request.get_transportation_total()
+            else:
+                previous_revenue += prev_request.total_cost
+        
+        if previous_revenue > 0:
+            mom_percentage = float(((current_revenue - previous_revenue) / previous_revenue) * 100)
+        else:
+            mom_percentage = 100.0 if current_revenue > 0 else 0.0
+        
+        property_breakdown[property_name]['mom_percentage'] = mom_percentage
+        
+        # Apply currency conversion if needed
+        if current_currency == 'USD':
+            property_breakdown[property_name]['revenue'] = convert_currency(
+                property_breakdown[property_name]['revenue'], 'SAR', 'USD'
+            )
+            property_breakdown[property_name]['avg_value'] = convert_currency(
+                property_breakdown[property_name]['avg_value'], 'SAR', 'USD'
             )
     
     # Revenue trend data - dynamic based on selected period
@@ -807,42 +868,100 @@ def api_property_performance(request):
         return JsonResponse({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=400)
 
     account_query = request.GET.get('account', '').strip()
+    
+    # Get current currency setting
+    current_currency = request.session.get('currency', 'SAR')
 
-    # Use same status filter as main analytics (Confirmed, Paid, Actual)
-    requests_qs = BookingRequest.objects.filter(
+    # Calculate previous period for MoM comparison
+    period_days = (end_date_val - start_date_val).days
+    mom_start_date = start_date_val - timedelta(days=period_days + 1)
+    mom_end_date = start_date_val - timedelta(days=1)
+
+    # Current period requests
+    current_requests_qs = BookingRequest.objects.filter(
         (Q(status='Confirmed') | Q(status='Paid') | Q(status='Actual')) &
         Q(check_in_date__gte=start_date_val) & Q(check_in_date__lte=end_date_val)
     ).select_related('account')
 
-    if account_query:
-        requests_qs = requests_qs.filter(account__name__icontains=account_query)
+    # Previous period requests for MoM calculation
+    previous_requests_qs = BookingRequest.objects.filter(
+        (Q(status='Confirmed') | Q(status='Paid') | Q(status='Actual')) &
+        Q(check_in_date__gte=mom_start_date) & Q(check_in_date__lte=mom_end_date)
+    ).select_related('account')
 
-    # Build breakdown
-    breakdown = {}
-    for req in requests_qs:
+    if account_query:
+        current_requests_qs = current_requests_qs.filter(account__name__icontains=account_query)
+        previous_requests_qs = previous_requests_qs.filter(account__name__icontains=account_query)
+
+    # Build current period breakdown
+    current_breakdown = {}
+    for req in current_requests_qs:
         property_name = req.account.name
-        if property_name not in breakdown:
-            breakdown[property_name] = {
+        if property_name not in current_breakdown:
+            current_breakdown[property_name] = {
                 'bookings': 0,
                 'revenue': Decimal('0.00'),
-                'avg_value': Decimal('0.00'),
                 'account_type': req.account.account_type,
             }
-        breakdown[property_name]['bookings'] += 1
-        breakdown[property_name]['revenue'] += req.total_cost
+        current_breakdown[property_name]['bookings'] += 1
+        
+        # Use room-only costs for Event with Accommodation
+        if req.request_type == 'Event with Rooms':
+            room_cost = req.get_room_total()
+            transport_cost = req.get_transportation_total()
+            request_revenue = room_cost + transport_cost
+        else:
+            request_revenue = req.total_cost
+        
+        current_breakdown[property_name]['revenue'] += request_revenue
 
-    # Finalize averages
+    # Build previous period breakdown for MoM calculation
+    previous_breakdown = {}
+    for req in previous_requests_qs:
+        property_name = req.account.name
+        if property_name not in previous_breakdown:
+            previous_breakdown[property_name] = {
+                'bookings': 0,
+                'revenue': Decimal('0.00'),
+            }
+        previous_breakdown[property_name]['bookings'] += 1
+        
+        # Use room-only costs for Event with Accommodation
+        if req.request_type == 'Event with Rooms':
+            room_cost = req.get_room_total()
+            transport_cost = req.get_transportation_total()
+            request_revenue = room_cost + transport_cost
+        else:
+            request_revenue = req.total_cost
+        
+        previous_breakdown[property_name]['revenue'] += request_revenue
+
+    # Finalize results with MoM calculations
     results = []
-    for name, data in breakdown.items():
+    for name, data in current_breakdown.items():
         bookings = data['bookings']
         revenue = data['revenue']
         avg_value = (revenue / bookings) if bookings else Decimal('0.00')
+        
+        # Calculate MoM percentage
+        previous_revenue = previous_breakdown.get(name, {}).get('revenue', Decimal('0.00'))
+        if previous_revenue > 0:
+            mom_percentage = float(((revenue - previous_revenue) / previous_revenue) * 100)
+        else:
+            mom_percentage = 100.0 if revenue > 0 else 0.0
+        
+        # Convert currency if needed
+        if current_currency == 'USD':
+            revenue = convert_currency(revenue, 'SAR', 'USD')
+            avg_value = convert_currency(avg_value, 'SAR', 'USD')
+        
         results.append({
             'account_name': name,
             'account_type': data['account_type'],
             'bookings': bookings,
             'revenue': float(revenue),
             'avg_value': float(avg_value),
+            'mom_percentage': mom_percentage,
         })
 
     # Sort by revenue desc
@@ -941,7 +1060,7 @@ def api_calendar_events(request):
             'start': agenda.event_date.isoformat(),
             'allDay': True,
             'color': '#fd7e14',
-            'url': f'/admin/requests/eventagenda/{agenda.id}/change/'
+            'url': f'/admin/requests/request/{agenda.request.id}/change/'
         })
     
     # 4. Sales Calls (based on visit dates)
@@ -1177,3 +1296,111 @@ def api_generate_notifications(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@login_required
+def calendar_view(request):
+    """
+    Calendar view for displaying all events and requests.
+    """
+    return render(request, 'dashboard/calendar.html')
+
+
+@login_required
+def api_calendar_events(request):
+    """
+    API endpoint for calendar events data with date range filtering
+    """
+    # Get date range from query parameters (expected from FullCalendar)
+    start_str = request.GET.get('start')
+    end_str = request.GET.get('end')
+    
+    if not start_str or not end_str:
+        return JsonResponse({'error': 'Missing start or end date parameters'}, status=400)
+    
+    try:
+        # Parse date strings in YYYY-MM-DD format from FullCalendar
+        # Handle both with and without time components
+        start_date = datetime.fromisoformat(start_str.split('T')[0]).date()
+        end_date = datetime.fromisoformat(end_str.split('T')[0]).date()
+    except (ValueError, AttributeError):
+        try:
+            # Fallback for simple YYYY-MM-DD format
+            start_date = datetime.strptime(start_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_str, '%Y-%m-%d').date()
+        except ValueError:
+            return JsonResponse({'error': 'Invalid date format'}, status=400)
+    
+    events = []
+    
+    # 1. Group Accommodation requests (based on arrival/check-in dates)
+    # Use gte/lt for proper exclusive end range semantics
+    group_requests = BookingRequest.objects.filter(
+        request_type='Group Accommodation',
+        check_in_date__gte=start_date,
+        check_in_date__lt=end_date
+    ).exclude(status='Cancelled').select_related('account')
+    
+    for req in group_requests:
+        events.append({
+            'id': f'group_{req.id}',
+            'type': 'group',
+            'title': f'Group: {req.account.name}',
+            'start': req.check_in_date.isoformat(),
+            'allDay': True,
+            'color': '#0d6efd',
+            'url': f'/admin/requests/request/{req.id}/change/'
+        })
+    
+    # 2. Series Group entries (based on arrival dates) - exclude cancelled requests
+    series_entries = SeriesGroupEntry.objects.filter(
+        arrival_date__gte=start_date,
+        arrival_date__lt=end_date
+    ).exclude(request__status='Cancelled').select_related('request__account')
+    
+    for entry in series_entries:
+        events.append({
+            'id': f'series_{entry.id}',
+            'type': 'series',
+            'title': f'Series: {entry.request.account.name}',
+            'start': entry.arrival_date.isoformat(),
+            'allDay': True,
+            'color': '#6f42c1',
+            'url': f'/admin/requests/seriesgroupentry/{entry.id}/change/'
+        })
+    
+    # 3. Event agendas (query directly for efficiency) - one calendar item per agenda date
+    event_agendas = EventAgenda.objects.filter(
+        event_date__gte=start_date,
+        event_date__lt=end_date
+    ).exclude(request__status='Cancelled').select_related('request__account')
+    
+    for agenda in event_agendas:
+        events.append({
+            'id': f'agenda_{agenda.id}',
+            'type': 'event',
+            'title': f'Event: {agenda.request.account.name}',
+            'start': agenda.event_date.isoformat(),
+            'allDay': True,
+            'color': '#fd7e14',
+            'url': f'/admin/requests/request/{agenda.request.id}/change/'
+        })
+    
+    # 4. Sales Calls (based on visit dates)
+    sales_calls = SalesCall.objects.filter(
+        visit_date__gte=start_date,
+        visit_date__lt=end_date
+    ).select_related('account')
+    
+    for call in sales_calls:
+        events.append({
+            'id': f'salescall_{call.id}',
+            'type': 'salescall',
+            'title': f'Sales Call: {call.account.name}',
+            'start': call.visit_date.isoformat(),
+            'allDay': True,
+            'color': '#198754',
+            'url': f'/admin/sales_calls/salescall/{call.id}/change/'
+        })
+    
+    return JsonResponse(events, safe=False)

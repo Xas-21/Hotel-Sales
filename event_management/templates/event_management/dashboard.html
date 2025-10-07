@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Management & Space Booking</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+    <style>
+        .card-hover {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .room-availability {
+            height: 300px;
+            overflow-y: auto;
+        }
+        .room-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+        .room-available {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .room-booked {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .room-tentative {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .calendar-container {
+            height: 600px;
+            min-height: 600px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+        }
+        /* Fix calendar event styling in month view */
+        .fc-daygrid-event {
+            background-color: #fd7e14 !important; /* Orange background */
+            border-color: #fd7e14 !important;
+            color: white !important;
+        }
+        .fc-daygrid-event .fc-event-title {
+            color: white !important;
+        }
+        .fc-daygrid-event .fc-event-time {
+            color: white !important;
+        }
+        .event-form {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .metrics-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .metrics-card .card-body {
+            padding: 1.5rem;
+        }
+        .room-selection {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .room-group {
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+        }
+        .room-group h6 {
+            margin-bottom: 10px;
+            color: #495057;
+        }
+        .form-check {
+            margin-bottom: 5px;
+        }
+        .availability-status {
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+            text-align: center;
+        }
+        .status-available {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-conflict {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <!-- Include Persistent Navigation -->
+    {% include 'components/topnav.html' %}
+    
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="mb-0">
+                        <i class="fas fa-calendar-alt me-2"></i>Event Management & Space Booking
+                    </h1>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createEventModal">
+                            <i class="fas fa-plus me-1"></i>Create Event
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="refreshCalendar()">
+                            <i class="fas fa-sync-alt me-1"></i>Refresh
+                        </button>
+                        <button class="btn btn-outline-info" onclick="testCalendar()">
+                            <i class="fas fa-bug me-1"></i>Test Calendar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metrics Dashboard -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card metrics-card card-hover">
+                    <div class="card-body text-center">
+                        <i class="fas fa-calendar-check fa-2x mb-2"></i>
+                        <h3 class="mb-1">{{ event_metrics.total_events }}</h3>
+                        <p class="mb-0">Total Events</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card metrics-card card-hover">
+                    <div class="card-body text-center">
+                        <i class="fas fa-coins fa-2x mb-2"></i>
+                        <h3 class="mb-1">{{ currency_symbol }} {{ event_metrics.total_revenue|floatformat:0 }}</h3>
+                        <p class="mb-0">Event Revenue</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card metrics-card card-hover">
+                    <div class="card-body text-center">
+                        <i class="fas fa-users fa-2x mb-2"></i>
+                        <h3 class="mb-1">{{ event_metrics.total_attendees }}</h3>
+                        <p class="mb-0">Total Attendees</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card metrics-card card-hover">
+                    <div class="card-body text-center">
+                        <i class="fas fa-chart-line fa-2x mb-2"></i>
+                        <h3 class="mb-1">{{ currency_symbol }} {{ event_metrics.average_revenue_per_event|floatformat:0 }}</h3>
+                        <p class="mb-0">Avg Revenue/Event</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="row">
+            <!-- Left Column: Room Availability & Event Creation -->
+            <div class="col-md-4">
+                <!-- Room Availability -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-door-open me-2"></i>Room Availability
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <!-- Date Filter -->
+                        <div class="mb-3">
+                            <label class="form-label">Check Availability for Date:</label>
+                            <div class="input-group">
+                                <input type="date" class="form-control" id="availabilityDate">
+                                <button class="btn btn-outline-primary" type="button" onclick="checkRoomAvailability()">
+                                    <i class="fas fa-search me-1"></i>Check
+                                </button>
+                            </div>
+                        </div>
+                        <div id="room-availability-results" class="room-availability">
+                        {% for room_name, room_data in room_availability.items %}
+                        <div class="mb-3">
+                            <h6 class="mb-2">{{ room_data.room.display_name }}</h6>
+                            <div class="small text-muted mb-2">
+                                Capacity: {{ room_data.room.capacity }} | 
+                                Type: {{ room_data.room.get_room_type_display }}
+                            </div>
+                            {% for event in room_data.events %}
+                            <div class="room-status room-{{ event.status|lower }}">
+                                {{ event.event_name }} ({{ event.start_time }}-{{ event.end_time }})
+                                {% if event.type == 'request' %}
+                                    <small class="text-muted">[Admin Panel]</small>
+                                {% endif %}
+                            </div>
+                            {% empty %}
+                            <div class="room-status room-available">Available</div>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Event Creation -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-plus-circle me-2"></i>Quick Event Creation
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <form id="quickEventForm">
+                            <div class="mb-3">
+                                <label class="form-label">Event Name</label>
+                                <input type="text" class="form-control" name="event_name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Account</label>
+                                <div class="input-group">
+                                    <select class="form-select" name="account" id="accountSelect" required>
+                                        <option value="">Select Account</option>
+                                        {% for account in accounts %}
+                                        <option value="{{ account.id }}">{{ account.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="button" class="btn btn-outline-primary" id="addNewAccountBtn">
+                                        <i class="fas fa-plus"></i> Add New
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Deadline Fields -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Request Received Date</label>
+                                        <input type="date" class="form-control" name="request_received_date">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Offer Acceptance Deadline</label>
+                                        <input type="date" class="form-control" name="offer_acceptance_deadline">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Deposit Deadline</label>
+                                        <input type="date" class="form-control" name="deposit_deadline">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Full Payment Deadline</label>
+                                        <input type="date" class="form-control" name="full_payment_deadline">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Event Days Section -->
+                            <div class="mb-3">
+                                <h6 class="text-primary">Event Days</h6>
+                                <div id="event-days-container">
+                                    <div class="event-day-row mb-3 p-3 border rounded">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <label class="form-label">Date</label>
+                                                    <input type="date" class="form-control event-date" name="event_dates[]" required>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="mb-3">
+                                                    <label class="form-label">Start Time</label>
+                                                    <input type="time" class="form-control event-start-time" name="start_times[]" required>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="mb-3">
+                                                    <label class="form-label">End Time</label>
+                                                    <input type="time" class="form-control event-end-time" name="end_times[]" required>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="mb-3">
+                                                    <label class="form-label">&nbsp;</label>
+                                                    <button type="button" class="btn btn-danger btn-sm w-100 remove-day" style="display: none;">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary btn-sm" id="add-event-day">
+                                    <i class="fas fa-plus me-1"></i>Add Another Day
+                                </button>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Meeting Rooms</label>
+                                <div class="room-selection">
+                                    <!-- Combined Rooms -->
+                                    <div class="room-group">
+                                        <h6>Main Halls (Can be combined)</h6>
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" name="meeting_rooms" value="all_halls" id="all_halls">
+                                            <label class="form-check-label" for="all_halls">All Halls (IKMA + HEGRA + DADAN + ALJADIDA)</label>
+                                        </div>
+                                        {% for room in combined_rooms %}
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" name="meeting_rooms" value="{{ room.id }}" id="room_{{ room.id }}">
+                                            <label class="form-check-label" for="room_{{ room.id }}">{{ room.display_name }}</label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    
+                                    <!-- Separate Rooms -->
+                                    <div class="room-group">
+                                        <h6>Separate Rooms</h6>
+                                        {% for room in separate_rooms %}
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" name="meeting_rooms" value="{{ room.id }}" id="room_{{ room.id }}">
+                                            <label class="form-check-label" for="room_{{ room.id }}">{{ room.display_name }}</label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Event Details Section -->
+                            <div class="mb-3">
+                                <h6 class="text-primary">Event Details</h6>
+                            </div>
+
+                            <!-- Style Selection -->
+                            <div class="mb-3">
+                                <label class="form-label">Style</label>
+                                <select class="form-select" name="style">
+                                    <option value="Classroom">Classroom</option>
+                                    <option value="Theatre">Theatre</option>
+                                    <option value="U Shape">U Shape</option>
+                                    <option value="Board">Board</option>
+                                    <option value="Banquet">Banquet</option>
+                                    <option value="Reception">Reception</option>
+                                </select>
+                            </div>
+
+                            <!-- Timing Details -->
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Coffee Break Time</label>
+                                        <input type="time" class="form-control" name="coffee_break_time">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Lunch Time</label>
+                                        <input type="time" class="form-control" name="lunch_time">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Dinner Time</label>
+                                        <input type="time" class="form-control" name="dinner_time">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Financial Details -->
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Rate per Person</label>
+                                        <input type="number" class="form-control" name="rate_per_person" step="0.01" min="0" value="0">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Total Persons</label>
+                                        <input type="number" class="form-control" name="total_persons" min="0" value="0">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Rental Fees per Day</label>
+                                        <input type="number" class="form-control" name="rental_fees_per_day" step="0.01" min="0" value="0">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Package Selection -->
+                            <div class="mb-3">
+                                <label class="form-label">Packages</label>
+                                <select class="form-select" name="packages">
+                                    <option value="">Select Package</option>
+                                    <option value="coffee_only">Coffee Break only</option>
+                                    <option value="coffee_lunch">Coffee Break and lunch</option>
+                                    <option value="coffee_lunch_dinner">Coffee Break and Lunch and Dinner</option>
+                                    <option value="two_coffee">2 Coffee Break</option>
+                                    <option value="two_coffee_meal">2 Coffee Break and lunch or dinner</option>
+                                    <option value="lunch">Lunch</option>
+                                    <option value="dinner">Dinner</option>
+                                    <option value="lunch_dinner">Lunch and Dinner</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Financial Summary (Auto-Calculated) -->
+                            <div class="mb-3 p-3 bg-light rounded">
+                                <h6 class="text-success mb-3">
+                                    <i class="fas fa-calculator me-2"></i>Financial Summary (Auto-Calculated)
+                                </h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-2">
+                                            <strong>Cost per Day:</strong>
+                                            <span id="cost-per-day" class="text-primary ms-2">{{ currency_symbol }} 0.00</span>
+                                        </div>
+                                        <div class="mb-2">
+                                            <strong>Total Event Cost:</strong>
+                                            <span id="total-event-cost" class="text-success ms-2">{{ currency_symbol }} 0.00</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-2">
+                                            <strong>Number of Days:</strong>
+                                            <span id="number-of-days" class="text-info ms-2">0</span>
+                                        </div>
+                                        <div class="mb-2">
+                                            <strong>Total Attendees:</strong>
+                                            <span id="total-attendees" class="text-warning ms-2">0</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Notes</label>
+                                <textarea class="form-control" name="notes" rows="2"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <div id="availability-status" class="availability-status" style="display: none;"></div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-calendar-plus me-1"></i>Create Event
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Calendar & Analytics -->
+            <div class="col-md-8">
+                <!-- Calendar -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-calendar-alt me-2"></i>Event Calendar
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="calendar" class="calendar-container"></div>
+                    </div>
+                </div>
+
+                <!-- Event Analytics -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Room Performance</h6>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="roomChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Account Performance</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Account</th>
+                                                <th>Events</th>
+                                                <th>Revenue</th>
+                                                <th>MoM %</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for account_name, data in event_metrics.account_performance.items %}
+                                            <tr>
+                                                <td>
+                                                    <strong>{{ account_name }}</strong>
+                                                    <br><small class="text-muted">{{ data.account_type }}</small>
+                                                </td>
+                                                <td>{{ data.events }}</td>
+                                                <td><span class="currency-symbol">{{ currency_symbol }}</span>{{ data.revenue|floatformat:0 }}</td>
+                                                <td>
+                                                    <span class="badge {% if data.mom_percentage >= 0 %}bg-success{% else %}bg-danger{% endif %}">
+                                                        {% if data.mom_percentage >= 0 %}+{% endif %}{{ data.mom_percentage|floatformat:1 }}%
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Event Modal -->
+    <div class="modal fade" id="createEventModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Event</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="modalEventForm">
+                        <!-- Event Name -->
+                        <div class="mb-3">
+                            <label class="form-label">Event Name</label>
+                            <input type="text" class="form-control" name="event_name" required>
+                        </div>
+                        
+                        <!-- Account Selection with Add New Button -->
+                        <div class="mb-3">
+                            <label class="form-label">Account</label>
+                            <div class="input-group">
+                                <select class="form-select" name="account" id="modalAccountSelect" required>
+                                    <option value="">Select Account</option>
+                                    {% for account in accounts %}
+                                    <option value="{{ account.id }}">{{ account.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button" class="btn btn-outline-primary" id="modalAddNewAccountBtn">
+                                    <i class="fas fa-plus"></i> Add New
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Deadline Fields -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Request Received Date</label>
+                                    <input type="date" class="form-control" name="request_received_date">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Offer Acceptance Deadline</label>
+                                    <input type="date" class="form-control" name="offer_acceptance_deadline">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Deposit Deadline</label>
+                                    <input type="date" class="form-control" name="deposit_deadline">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Full Payment Deadline</label>
+                                    <input type="date" class="form-control" name="full_payment_deadline">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Event Days Section -->
+                        <div class="mb-3">
+                            <h6 class="text-primary">Event Days</h6>
+                            <div id="modal-event-days-container">
+                                <div class="event-day-row mb-3 p-3 border rounded">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">Date</label>
+                                                <input type="date" class="form-control modal-event-date" name="event_dates[]" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">Start Time</label>
+                                                <input type="time" class="form-control modal-event-start-time" name="start_times[]" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">End Time</label>
+                                                <input type="time" class="form-control modal-event-end-time" name="end_times[]" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="mb-3">
+                                                <label class="form-label">&nbsp;</label>
+                                                <button type="button" class="btn btn-danger btn-sm w-100 modal-remove-day" style="display: none;">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="modal-add-event-day">
+                                <i class="fas fa-plus me-1"></i>Add Another Day
+                            </button>
+                        </div>
+                        
+                        <!-- Meeting Rooms -->
+                        <div class="mb-3">
+                            <label class="form-label">Meeting Rooms</label>
+                            <div class="room-selection">
+                                <!-- Combined Rooms -->
+                                <div class="room-group">
+                                    <h6>Main Halls (Can be combined)</h6>
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" name="meeting_rooms" value="all_halls" id="modal_all_halls">
+                                        <label class="form-check-label" for="modal_all_halls">All Halls (IKMA + HEGRA + DADAN + ALJADIDA)</label>
+                                    </div>
+                                    {% for room in combined_rooms %}
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" name="meeting_rooms" value="{{ room.id }}" id="modal_room_{{ room.id }}">
+                                        <label class="form-check-label" for="modal_room_{{ room.id }}">{{ room.display_name }}</label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                
+                                <!-- Separate Rooms -->
+                                <div class="room-group">
+                                    <h6>Separate Rooms</h6>
+                                    {% for room in separate_rooms %}
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" name="meeting_rooms" value="{{ room.id }}" id="modal_room_{{ room.id }}">
+                                        <label class="form-check-label" for="modal_room_{{ room.id }}">{{ room.display_name }}</label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Event Details Section -->
+                        <div class="mb-3">
+                            <h6 class="text-primary">Event Details</h6>
+                        </div>
+
+                        <!-- Style Selection -->
+                        <div class="mb-3">
+                            <label class="form-label">Style</label>
+                            <select class="form-select" name="style">
+                                <option value="Classroom">Classroom</option>
+                                <option value="Theatre">Theatre</option>
+                                <option value="U Shape">U Shape</option>
+                                <option value="Board">Board</option>
+                                <option value="Banquet">Banquet</option>
+                                <option value="Reception">Reception</option>
+                            </select>
+                        </div>
+
+                        <!-- Timing Details -->
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Coffee Break Time</label>
+                                    <input type="time" class="form-control" name="coffee_break_time">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Lunch Time</label>
+                                    <input type="time" class="form-control" name="lunch_time">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Dinner Time</label>
+                                    <input type="time" class="form-control" name="dinner_time">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Financial Details -->
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Rate per Person</label>
+                                    <input type="number" class="form-control" name="rate_per_person" step="0.01" min="0" value="0">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Total Persons</label>
+                                    <input type="number" class="form-control" name="total_persons" min="0" value="0">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Rental Fees per Day</label>
+                                    <input type="number" class="form-control" name="rental_fees_per_day" step="0.01" min="0" value="0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Package Selection -->
+                        <div class="mb-3">
+                            <label class="form-label">Packages</label>
+                            <select class="form-select" name="packages">
+                                <option value="">Select Package</option>
+                                <option value="coffee_only">Coffee Break only</option>
+                                <option value="coffee_lunch">Coffee Break and lunch</option>
+                                <option value="coffee_lunch_dinner">Coffee Break and Lunch and Dinner</option>
+                                <option value="two_coffee">2 Coffee Break</option>
+                                <option value="two_coffee_meal">2 Coffee Break and lunch or dinner</option>
+                                <option value="lunch">Lunch</option>
+                                <option value="dinner">Dinner</option>
+                                <option value="lunch_dinner">Lunch and Dinner</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Financial Summary (Auto-Calculated) -->
+                        <div class="mb-3 p-3 bg-light rounded">
+                            <h6 class="text-success mb-3">
+                                <i class="fas fa-calculator me-2"></i>Financial Summary (Auto-Calculated)
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <strong>Cost per Day:</strong>
+                                        <span id="modal-cost-per-day" class="text-primary ms-2">{{ currency_symbol }} 0.00</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Total Event Cost:</strong>
+                                        <span id="modal-total-event-cost" class="text-success ms-2">{{ currency_symbol }} 0.00</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <strong>Number of Days:</strong>
+                                        <span id="modal-number-of-days" class="text-info ms-2">0</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Total Attendees:</strong>
+                                        <span id="modal-total-attendees" class="text-warning ms-2">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" name="notes" rows="3"></textarea>
+                        </div>
+                        
+                        <!-- Availability Status -->
+                        <div class="mb-3">
+                            <div id="modal-availability-status" class="availability-status" style="display: none;"></div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="submitEventForm()">Create Event</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include Quick Actions Panel -->
+    {% include 'dashboard/quick_actions.html' %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Timezone Detection Component -->
+    {% include 'components/timezone_detection.html' %}
+    <script>
+        // Check if FullCalendar is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded');
+            console.log('FullCalendar available:', typeof FullCalendar !== 'undefined');
+            
+            // Set availability date to today by default
+            const availabilityDateInput = document.getElementById('availabilityDate');
+            if (availabilityDateInput && !availabilityDateInput.value) {
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                availabilityDateInput.value = `${year}-${month}-${day}`;
+            }
+            
+            // Check if we should open the modal from URL hash
+            if (window.location.hash === '#createEventModal') {
+                const modal = new bootstrap.Modal(document.getElementById('createEventModal'));
+                modal.show();
+                // Remove the hash from URL without refreshing
+                history.replaceState(null, null, window.location.pathname);
+            }
+            
+            if (typeof FullCalendar === 'undefined') {
+                console.error('FullCalendar library not loaded!');
+                return;
+            }
+            
+            // Clear all caches on page load to prevent stale duplicates
+            window.eventCache = new Map();
+            window.pendingRequests = new Set();
+            
+            // Initialize FullCalendar
+            console.log('Initializing FullCalendar...');
+            const calendarEl = document.getElementById('calendar');
+            console.log('Calendar element found:', calendarEl);
+            
+            if (!calendarEl) {
+                console.error('Calendar element not found!');
+                return;
+            }
+            
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                eventSources: [
+                    {
+                        url: '/event-management/api/calendar-events/',
+                        method: 'GET',
+                        extraParams: function() {
+                            return {
+                                _t: Date.now()  // Prevent caching
+                            };
+                        },
+                        success: function(data) {
+                            console.log('Events loaded from API:', data.length);
+                            return data;
+                        },
+                        failure: function(error) {
+                            console.error('Error loading events:', error);
+                            alert('Failed to load events!');
+                        }
+                    }
+                ],
+                eventDataTransform: function(event) {
+                    // This runs for EACH event before rendering
+                    // Use this to ensure uniqueness
+                    console.log('Transforming event:', event.id, event.title);
+                    return event;
+                },
+                lazyFetching: false, // Always refetch events
+                eventOrder: 'start', // Sort by start time to prevent visual duplicates
+                eventDidMount: function(info) {
+                    console.log('Event mounted:', info.event.id, info.event.title, info.event.start);
+                },
+                eventClick: function(info) {
+                    info.jsEvent.preventDefault(); // Prevent default FullCalendar behavior
+                    if (info.event.url) {
+                        window.open(info.event.url, '_blank'); // Open in new tab, keep current page
+                    }
+                },
+                dateClick: function(info) {
+                    // Set date in form when clicking on calendar
+                    const dateInput = document.querySelector('.event-date');
+                    if (dateInput) {
+                        dateInput.value = info.dateStr;
+                    }
+                },
+                loading: function(bool) {
+                    if (bool) {
+                        console.log('Loading calendar events...');
+                    } else {
+                        console.log('Calendar events loaded');
+                    }
+                }
+            });
+            
+            console.log('Rendering calendar...');
+            calendar.render();
+            console.log('Calendar rendered successfully');
+            
+            // Initialize room performance chart
+            initializeRoomChart();
+            
+            // Initialize form handlers
+            initializeFormHandlers();
+            
+            // Load initial room availability
+            checkRoomAvailability();
+        });
+
+        // Room Performance Chart
+        function initializeRoomChart() {
+            const ctx = document.getElementById('roomChart').getContext('2d');
+            const roomData = {{ event_metrics.room_metrics|safe }};
+            
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(roomData),
+                    datasets: [{
+                        data: Object.values(roomData),
+                        backgroundColor: [
+                            '#FF6384',
+                            '#36A2EB',
+                            '#FFCE56',
+                            '#4BC0C0',
+                            '#9966FF',
+                            '#FF9F40',
+                            '#FF6384'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Form Handlers
+        function initializeFormHandlers() {
+            // Check availability when form changes
+            const form = document.getElementById('quickEventForm');
+            const inputs = form.querySelectorAll('input, select');
+            
+            inputs.forEach(input => {
+                input.addEventListener('change', checkAvailability);
+            });
+            
+            // Add form submit handler
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                submitEventForm();
+            });
+        }
+
+        // Check Room Availability
+        async function checkAvailability() {
+            const form = document.getElementById('quickEventForm');
+            const formData = new FormData(form);
+            
+            const date = formData.get('event_date');
+            const startTime = formData.get('start_time');
+            const endTime = formData.get('end_time');
+            const rooms = formData.getAll('meeting_rooms');
+            
+            if (!date || !startTime || !endTime || rooms.length === 0) {
+                document.getElementById('availability-status').style.display = 'none';
+                return;
+            }
+            
+            try {
+                const params = new URLSearchParams();
+                params.append('date', date);
+                params.append('start_time', startTime);
+                params.append('end_time', endTime);
+                rooms.forEach(room => params.append('rooms', room));
+                
+                const response = await fetch(`/event-management/api/check-availability/?${params}`);
+                const data = await response.json();
+                
+                const statusEl = document.getElementById('availability-status');
+                statusEl.style.display = 'block';
+                
+                if (data.available) {
+                    statusEl.className = 'availability-status status-available';
+                    statusEl.textContent = '✅ Rooms Available';
+                } else {
+                    statusEl.className = 'availability-status status-conflict';
+                    statusEl.textContent = '⚠️ Room Conflict Detected';
+                }
+            } catch (error) {
+                console.error('Error checking availability:', error);
+            }
+        }
+
+        // Multi-day Event Functions
+        function addEventDay() {
+            const container = document.getElementById('event-days-container');
+            const firstRow = container.querySelector('.event-day-row');
+            
+            // Get values from first row to auto-fill new row
+            const firstDate = firstRow.querySelector('.event-date').value;
+            const firstStartTime = firstRow.querySelector('.event-start-time').value;
+            const firstEndTime = firstRow.querySelector('.event-end-time').value;
+            
+            // Calculate next date (add 1 day)
+            let nextDate = '';
+            if (firstDate) {
+                const date = new Date(firstDate);
+                date.setDate(date.getDate() + 1);
+                nextDate = date.toISOString().split('T')[0];
+            }
+            
+            const newDayRow = document.createElement('div');
+            newDayRow.className = 'event-day-row mb-3 p-3 border rounded';
+            newDayRow.innerHTML = `
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Date</label>
+                            <input type="date" class="form-control event-date" name="event_dates[]" value="${nextDate}" required>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Start Time</label>
+                            <input type="time" class="form-control event-start-time" name="start_times[]" value="${firstStartTime}" required>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">End Time</label>
+                            <input type="time" class="form-control event-end-time" name="end_times[]" value="${firstEndTime}" required>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="button" class="btn btn-danger btn-sm w-100 remove-day">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(newDayRow);
+            
+            // Show remove buttons for all rows
+            updateRemoveButtons();
+        }
+
+        function removeEventDay(button) {
+            button.closest('.event-day-row').remove();
+            updateRemoveButtons();
+        }
+
+        function updateRemoveButtons() {
+            const rows = document.querySelectorAll('.event-day-row');
+            const removeButtons = document.querySelectorAll('.remove-day');
+            
+            // Show remove buttons only if there's more than one row
+            removeButtons.forEach(btn => {
+                btn.style.display = rows.length > 1 ? 'block' : 'none';
+            });
+            
+            // Update calculations when rows change
+            updateFinancialCalculations();
+        }
+        
+        // Auto-calculate financial summary
+        function updateFinancialCalculations() {
+            const ratePerPerson = parseFloat(document.querySelector('input[name="rate_per_person"]')?.value) || 0;
+            const totalPersons = parseInt(document.querySelector('input[name="total_persons"]')?.value) || 0;
+            const rentalFeesPerDay = parseFloat(document.querySelector('input[name="rental_fees_per_day"]')?.value) || 0;
+            const eventDayRows = document.querySelectorAll('.event-day-row');
+            
+            // Calculate cost per day
+            const costPerDay = (ratePerPerson * totalPersons) + rentalFeesPerDay;
+            
+            // Calculate total event cost
+            const numberOfDays = eventDayRows.length;
+            const totalEventCost = costPerDay * numberOfDays;
+            
+            // Update display
+            const costPerDayEl = document.getElementById('cost-per-day');
+            const totalEventCostEl = document.getElementById('total-event-cost');
+            const numberOfDaysEl = document.getElementById('number-of-days');
+            const totalAttendeesEl = document.getElementById('total-attendees');
+            
+            if (costPerDayEl) costPerDayEl.textContent = '{{ currency_symbol }} ' + costPerDay.toFixed(2);
+            if (totalEventCostEl) totalEventCostEl.textContent = '{{ currency_symbol }} ' + totalEventCost.toFixed(2);
+            if (numberOfDaysEl) numberOfDaysEl.textContent = numberOfDays;
+            if (totalAttendeesEl) totalAttendeesEl.textContent = totalPersons;
+        }
+        
+        // Check room availability in real-time
+        async function checkRoomAvailability() {
+            const eventDayRows = document.querySelectorAll('.event-day-row');
+            const selectedRooms = Array.from(document.querySelectorAll('input[name="meeting_rooms"]:checked')).map(cb => cb.value);
+            
+            if (selectedRooms.length === 0) {
+                hideAvailabilityStatus();
+                return;
+            }
+            
+            for (const row of eventDayRows) {
+                const eventDate = row.querySelector('.event-date').value;
+                const startTime = row.querySelector('.event-start-time').value;
+                const endTime = row.querySelector('.event-end-time').value;
+                
+                if (eventDate && startTime && endTime) {
+                    try {
+                        const response = await fetch(`/event-management/api/room-availability/?date=${eventDate}&start_time=${startTime}&end_time=${endTime}&rooms=${selectedRooms.join(',')}`);
+                        const data = await response.json();
+                        
+                        if (data.conflicts && data.conflicts.length > 0) {
+                            showAvailabilityStatus(`⚠️ Room conflict detected for ${eventDate} at ${startTime}-${endTime}. Conflicting rooms: ${data.conflicts.join(', ')}`, 'danger');
+                            return;
+                        }
+                    } catch (error) {
+                        console.error('Error checking availability:', error);
+                    }
+                }
+            }
+            
+            hideAvailabilityStatus();
+        }
+        
+        // Show availability status
+        function showAvailabilityStatus(message, type = 'warning') {
+            const statusEl = document.getElementById('availability-status');
+            if (statusEl) {
+                statusEl.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>`;
+                statusEl.style.display = 'block';
+            }
+        }
+        
+        // Hide availability status
+        function hideAvailabilityStatus() {
+            const statusEl = document.getElementById('availability-status');
+            if (statusEl) {
+                statusEl.style.display = 'none';
+            }
+        }
+
+        // Initialize multi-day functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const addDayBtn = document.getElementById('add-event-day');
+            if (addDayBtn) {
+                addDayBtn.addEventListener('click', addEventDay);
+            }
+            
+            // Add event delegation for remove buttons
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('.remove-day')) {
+                    removeEventDay(e.target.closest('.remove-day'));
+                }
+            });
+            
+            // Listen for changes in financial fields for auto-calculation
+            const financialFields = [
+                'input[name="rate_per_person"]',
+                'input[name="total_persons"]',
+                'input[name="rental_fees_per_day"]'
+            ];
+            
+            financialFields.forEach(selector => {
+                const field = document.querySelector(selector);
+                if (field) {
+                    field.addEventListener('input', updateFinancialCalculations);
+                }
+            });
+            
+            // Listen for changes in date/time fields for availability checking
+            document.addEventListener('change', function(e) {
+                if (e.target.matches('.event-date, .event-start-time, .event-end-time, input[name="meeting_rooms"]')) {
+                    checkRoomAvailability();
+                }
+            });
+            
+            // Initial calculation and availability check
+            updateFinancialCalculations();
+            checkRoomAvailability();
+        });
+
+        // Submit Event Form (handles both quick form and modal form)
+        function submitEventForm() {
+            // Determine which form is being submitted
+            const quickForm = document.getElementById('quickEventForm');
+            const modalForm = document.getElementById('modalEventForm');
+            const isModal = modalForm && modalForm.querySelector('input[name="event_name"]').value;
+            
+            const form = isModal ? modalForm : quickForm;
+            const formData = new FormData(form);
+            
+            // Show loading state
+            let submitBtn, originalText;
+            if (isModal) {
+                submitBtn = document.querySelector('#createEventModal .btn-primary');
+                originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Creating...';
+                submitBtn.disabled = true;
+            } else {
+                submitBtn = form.querySelector('button[type="submit"]');
+                originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Creating...';
+                submitBtn.disabled = true;
+            }
+            
+            console.log('Submitting event form...', isModal ? '(Modal)' : '(Quick)');
+            console.log('Form data:', Object.fromEntries(formData));
+            
+            fetch('/event-management/create/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Response data:', data);
+                if (data.success) {
+                    alert(`Event created successfully! Request ID: ${data.request_id}`);
+                    form.reset();
+                    if (isModal) {
+                        // Close modal
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('createEventModal'));
+                        modal.hide();
+                    }
+                    location.reload();
+                } else {
+                    alert(`Error: ${data.error || 'Unknown error'}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error creating event: ' + error.message);
+            })
+            .finally(() => {
+                // Restore button state
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            });
+        }
+
+        // Refresh Calendar
+        function refreshCalendar() {
+            location.reload();
+        }
+        
+        // Test Calendar
+        function testCalendar() {
+            console.log('Testing calendar...');
+            // Use a wider date range to catch all events
+            fetch('/event-management/api/calendar-events/?start=2025-01-01&end=2025-12-31')
+                .then(response => {
+                    console.log('API Response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('API Response data:', data);
+                    if (data.length === 0) {
+                        alert('No events found in the system');
+                    } else {
+                        alert(`Found ${data.length} events: ${data.map(e => e.title).join(', ')}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('API Error:', error);
+                    alert('API Error: ' + error.message);
+                });
+        }
+
+        // Modal-specific functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Modal Add Another Day functionality
+            const modalAddDayBtn = document.getElementById('modal-add-event-day');
+            if (modalAddDayBtn) {
+                modalAddDayBtn.addEventListener('click', function() {
+                    const container = document.getElementById('modal-event-days-container');
+                    const dayRows = container.querySelectorAll('.event-day-row');
+                    
+                    // Show remove buttons for existing rows
+                    dayRows.forEach(row => {
+                        const removeBtn = row.querySelector('.modal-remove-day');
+                        if (removeBtn) removeBtn.style.display = 'block';
+                    });
+                    
+                    // Create new day row
+                    const newRow = document.createElement('div');
+                    newRow.className = 'event-day-row mb-3 p-3 border rounded';
+                    newRow.innerHTML = `
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Date</label>
+                                    <input type="date" class="form-control modal-event-date" name="event_dates[]" required>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">Start Time</label>
+                                    <input type="time" class="form-control modal-event-start-time" name="start_times[]" required>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">End Time</label>
+                                    <input type="time" class="form-control modal-event-end-time" name="end_times[]" required>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button type="button" class="btn btn-danger btn-sm w-100 modal-remove-day">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    container.appendChild(newRow);
+                    
+                    // Add remove functionality to new row
+                    const removeBtn = newRow.querySelector('.modal-remove-day');
+                    removeBtn.addEventListener('click', function() {
+                        newRow.remove();
+                        updateModalFinancialCalculations();
+                    });
+                    
+                    // Add change listeners for financial calculations
+                    const inputs = newRow.querySelectorAll('input');
+                    inputs.forEach(input => {
+                        input.addEventListener('change', updateModalFinancialCalculations);
+                    });
+                    
+                    updateModalFinancialCalculations();
+                });
+            }
+            
+            // Modal financial calculations
+            function updateModalFinancialCalculations() {
+                const form = document.getElementById('modalEventForm');
+                if (!form) return;
+                
+                const ratePerPerson = parseFloat(form.querySelector('input[name="rate_per_person"]').value) || 0;
+                const totalPersons = parseInt(form.querySelector('input[name="total_persons"]').value) || 0;
+                const rentalFeesPerDay = parseFloat(form.querySelector('input[name="rental_fees_per_day"]').value) || 0;
+                
+                // Count number of days
+                const dayRows = document.querySelectorAll('#modal-event-days-container .event-day-row');
+                const numberOfDays = dayRows.length;
+                
+                // Calculate costs
+                const costPerDay = (ratePerPerson * totalPersons) + rentalFeesPerDay;
+                const totalEventCost = costPerDay * numberOfDays;
+                const totalAttendees = totalPersons * numberOfDays;
+                
+                // Update display
+                const costPerDaySpan = document.getElementById('modal-cost-per-day');
+                const totalEventCostSpan = document.getElementById('modal-total-event-cost');
+                const numberOfDaysSpan = document.getElementById('modal-number-of-days');
+                const totalAttendeesSpan = document.getElementById('modal-total-attendees');
+                
+                if (costPerDaySpan) costPerDaySpan.textContent = `{{ currency_symbol }} ${costPerDay.toFixed(2)}`;
+                if (totalEventCostSpan) totalEventCostSpan.textContent = `{{ currency_symbol }} ${totalEventCost.toFixed(2)}`;
+                if (numberOfDaysSpan) numberOfDaysSpan.textContent = numberOfDays;
+                if (totalAttendeesSpan) totalAttendeesSpan.textContent = totalAttendees;
+            }
+            
+            // Add event listeners for modal financial calculations
+            const modalForm = document.getElementById('modalEventForm');
+            if (modalForm) {
+                const financialInputs = modalForm.querySelectorAll('input[name="rate_per_person"], input[name="total_persons"], input[name="rental_fees_per_day"]');
+                financialInputs.forEach(input => {
+                    input.addEventListener('input', updateModalFinancialCalculations);
+                });
+                
+                // Add change listeners for date/time inputs
+                const dateTimeInputs = modalForm.querySelectorAll('.modal-event-date, .modal-event-start-time, .modal-event-end-time');
+                dateTimeInputs.forEach(input => {
+                    input.addEventListener('change', updateModalFinancialCalculations);
+                });
+            }
+            
+            // Modal Add New Account functionality
+            const modalAddAccountBtn = document.getElementById('modalAddNewAccountBtn');
+            if (modalAddAccountBtn) {
+                modalAddAccountBtn.addEventListener('click', function() {
+                    // Open the same account modal as Quick Creation
+                    const addAccountModal = new bootstrap.Modal(document.getElementById('addAccountModal'));
+                    addAccountModal.show();
+                });
+            }
+        });
+
+        // Check Room Availability for Specific Date
+        async function checkRoomAvailability() {
+            const dateInput = document.getElementById('availabilityDate');
+            const resultsDiv = document.getElementById('room-availability-results');
+            
+            if (!dateInput.value) {
+                alert('Please select a date');
+                return;
+            }
+            
+            try {
+                // Show loading
+                resultsDiv.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Checking availability...</div>';
+                
+                // Fetch room availability for the selected date
+                const response = await fetch(`/event-management/api/room-availability/?date=${dateInput.value}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayRoomAvailability(data.availability, resultsDiv);
+                } else {
+                    resultsDiv.innerHTML = '<div class="text-danger">Error loading room availability</div>';
+                }
+            } catch (error) {
+                console.error('Error checking room availability:', error);
+                resultsDiv.innerHTML = '<div class="text-danger">Error checking room availability</div>';
+            }
+        }
+
+        // Display Room Availability Results
+        function displayRoomAvailability(availability, container) {
+            let html = '';
+            
+            for (const [roomName, roomData] of Object.entries(availability)) {
+                html += `<div class="mb-3">`;
+                html += `<h6 class="mb-2">${roomData.room.display_name}</h6>`;
+                html += `<div class="small text-muted mb-2">`;
+                html += `Capacity: ${roomData.room.capacity} | Type: ${roomData.room.room_type}`;
+                html += `</div>`;
+                
+                if (roomData.events.length > 0) {
+                    for (const event of roomData.events) {
+                        const statusClass = event.status.toLowerCase().replace(' ', '-');
+                        html += `<div class="room-status room-${statusClass}">`;
+                        html += `${event.event_name} (${event.start_time}-${event.end_time})`;
+                        if (event.type === 'request') {
+                            html += ` <small class="text-muted">[Admin Panel]</small>`;
+                        }
+                        html += `</div>`;
+                    }
+                } else {
+                    html += `<div class="room-status room-available">Available</div>`;
+                }
+                
+                html += `</div>`;
+            }
+            
+            container.innerHTML = html;
+        }
+
+        // Helper function to get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Add New Account functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const addNewAccountBtn = document.getElementById('addNewAccountBtn');
+            const addAccountModal = new bootstrap.Modal(document.getElementById('addAccountModal'));
+            const saveNewAccountBtn = document.getElementById('saveNewAccountBtn');
+            const accountSelect = document.getElementById('accountSelect');
+
+            // Open modal when "Add New" button is clicked
+            if (addNewAccountBtn) {
+                addNewAccountBtn.addEventListener('click', function() {
+                    addAccountModal.show();
+                });
+            }
+
+            // Save new account
+            if (saveNewAccountBtn) {
+                saveNewAccountBtn.addEventListener('click', function() {
+                    const form = document.getElementById('newAccountForm');
+                    const formData = new FormData(form);
+                    
+                    // Show loading state
+                    const originalText = saveNewAccountBtn.innerHTML;
+                    saveNewAccountBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
+                    saveNewAccountBtn.disabled = true;
+
+                    fetch('/event-management/api/create-account/', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Add new account to both select dropdowns
+                            const newOption = document.createElement('option');
+                            newOption.value = data.account_id;
+                            newOption.textContent = data.account_name;
+                            newOption.selected = true;
+                            accountSelect.appendChild(newOption);
+                            
+                            // Also add to modal account select if it exists
+                            const modalAccountSelect = document.getElementById('modalAccountSelect');
+                            if (modalAccountSelect) {
+                                const modalNewOption = document.createElement('option');
+                                modalNewOption.value = data.account_id;
+                                modalNewOption.textContent = data.account_name;
+                                modalAccountSelect.appendChild(modalNewOption);
+                            }
+                            
+                            // Close modal and reset form
+                            addAccountModal.hide();
+                            form.reset();
+                            
+                            alert('Account created successfully!');
+                        } else {
+                            alert('Error creating account: ' + (data.error || 'Unknown error'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error creating account: ' + error.message);
+                    })
+                    .finally(() => {
+                        // Restore button state
+                        saveNewAccountBtn.innerHTML = originalText;
+                        saveNewAccountBtn.disabled = false;
+                    });
+                });
+            }
+        });
+    </script>
+
+    <!-- Add New Account Modal -->
+    <div class="modal fade" id="addAccountModal" tabindex="-1" aria-labelledby="addAccountModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addAccountModalLabel">
+                        <i class="fas fa-building me-2"></i>Add New Account
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="newAccountForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Company Name *</label>
+                                    <input type="text" class="form-control" name="name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Account Type *</label>
+                                    <select class="form-select" name="account_type" required>
+                                        <option value="">Select Type</option>
+                                        <option value="Company">Company</option>
+                                        <option value="Government">Government</option>
+                                        <option value="Travel Agency">Travel Agency</option>
+                                        <option value="Medical">Medical</option>
+                                        <option value="Pharmaceuticals">Pharmaceuticals</option>
+                                        <option value="Education">Education</option>
+                                        <option value="Training and Consulting">Training and Consulting</option>
+                                        <option value="Hospitality">Hospitality</option>
+                                        <option value="Technology">Technology</option>
+                                        <option value="Finance">Finance</option>
+                                        <option value="Manufacturing">Manufacturing</option>
+                                        <option value="Real Estate">Real Estate</option>
+                                        <option value="Retail">Retail</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Contact Person</label>
+                                    <input type="text" class="form-control" name="contact_person">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Position</label>
+                                    <input type="text" class="form-control" name="position">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Phone</label>
+                                    <input type="tel" class="form-control" name="phone">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" class="form-control" name="email">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">City</label>
+                                    <input type="text" class="form-control" name="city">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Website</label>
+                                    <input type="url" class="form-control" name="website">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Address</label>
+                            <textarea class="form-control" name="address" rows="2"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" name="notes" rows="2"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveNewAccountBtn">
+                        <i class="fas fa-save me-1"></i>Save Account
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

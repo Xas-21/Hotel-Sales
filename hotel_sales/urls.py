@@ -14,6 +14,7 @@ from dashboard.api_views import (
     mark_all_read, clear_all_notifications, generate_notifications
 )
 from hotel_sales.currency_views import toggle_currency, get_currency_status
+from hotel_sales.timezone_views import detect_timezone, get_current_timezone, set_timezone
 
 # Configure admin site headers
 admin.site.site_header = "Hotel Sales Management System"
@@ -49,8 +50,14 @@ urlpatterns = [
     path('api/currency/toggle/', toggle_currency, name='api_currency_toggle'),
     path('api/currency/status/', get_currency_status, name='api_currency_status'),
     
+    # Timezone detection endpoints
+    path('api/timezone/detect/', detect_timezone, name='api_timezone_detect'),
+    path('api/timezone/current/', get_current_timezone, name='api_timezone_current'),
+    path('api/timezone/set/', set_timezone, name='api_timezone_set'),
+    
     path('logout/', logout_view, name='logout'),
     path('configuration/', include('requests.configuration_urls')),
+    path('event-management/', include('event_management.urls')),
     path('admin/', admin.site.urls),
 ]
 

@@ -62,7 +62,7 @@ class EventAgendaInline(admin.TabularInline):
     model = EventAgenda
     extra = 0
     fields = [
-        'event_date', 'meeting_room_name', 'style', 'start_time', 'end_time', 
+        'event_date', 'event_name', 'meeting_room_name', 'style', 'start_time', 'end_time', 
         'coffee_break_time', 'lunch_time', 'dinner_time',
         'rate_per_person', 'total_persons', 'rental_fees_per_day',
         'packages', 'agenda_details'
@@ -251,7 +251,7 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     def get_event_total_display(self, obj):
         """Display event cost breakdown"""
         if obj:
-            event_entries = obj.event_agenda_entries.all()
+            event_entries = obj.event_agendas.all()
             if event_entries:
                 total_cost = sum(entry.get_total_event_cost() for entry in event_entries)
                 return f"{format_currency(total_cost)} from {event_entries.count()} events"
@@ -347,8 +347,9 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
             total_deposit += float(req.deposit_amount or 0)
             status_counts[status] = status_counts.get(status, 0) + 1
         
-        # Calculate ADR
-        average_adr = (total_revenue / total_room_nights) if total_room_nights > 0 else 0
+        # Calculate ADR (room costs only, excluding event costs)
+        total_room_costs = sum(float(req.get_room_total() or 0) for req in queryset)
+        average_adr = (total_room_costs / total_room_nights) if total_room_nights > 0 else 0
         
         # Add comprehensive summary section
         writer.writerow([])
@@ -492,7 +493,7 @@ class AccommodationRequestAdmin(BaseRequestAdmin):
     def get_event_total_display(self, obj):
         """Display event cost breakdown"""
         if obj:
-            event_entries = obj.event_agenda_entries.all()
+            event_entries = obj.event_agendas.all()
             if event_entries:
                 total_cost = sum(entry.get_total_event_cost() for entry in event_entries)
                 return f"{format_currency(total_cost)} from {event_entries.count()} events"
@@ -602,8 +603,9 @@ class AccommodationRequestAdmin(BaseRequestAdmin):
             total_deposit += float(req.deposit_amount or 0)
             status_counts[status] = status_counts.get(status, 0) + 1
         
-        # Calculate ADR
-        average_adr = (total_revenue / total_room_nights) if total_room_nights > 0 else 0
+        # Calculate ADR (room costs only, excluding event costs)
+        total_room_costs = sum(float(req.get_room_total() or 0) for req in queryset)
+        average_adr = (total_room_costs / total_room_nights) if total_room_nights > 0 else 0
         
         # Add comprehensive summary section
         writer.writerow([])
@@ -732,7 +734,7 @@ class EventOnlyRequestAdmin(BaseRequestAdmin):
     def get_event_total_display(self, obj):
         """Display event cost breakdown"""
         if obj:
-            event_entries = obj.event_agenda_entries.all()
+            event_entries = obj.event_agendas.all()
             if event_entries:
                 total_cost = sum(entry.get_total_event_cost() for entry in event_entries)
                 return f"{format_currency(total_cost)} from {event_entries.count()} events"
@@ -895,7 +897,7 @@ class EventWithRoomsRequestAdmin(BaseRequestAdmin):
     def get_event_total_display(self, obj):
         """Display event cost breakdown"""
         if obj:
-            event_entries = obj.event_agenda_entries.all()
+            event_entries = obj.event_agendas.all()
             if event_entries:
                 total_cost = sum(entry.get_total_event_cost() for entry in event_entries)
                 return f"{format_currency(total_cost)} from {event_entries.count()} events"
@@ -1068,7 +1070,7 @@ class SeriesGroupRequestAdmin(BaseRequestAdmin):
     def get_event_total_display(self, obj):
         """Display event cost breakdown"""
         if obj:
-            event_entries = obj.event_agenda_entries.all()
+            event_entries = obj.event_agendas.all()
             if event_entries:
                 total_cost = sum(entry.get_total_event_cost() for entry in event_entries)
                 return f"{format_currency(total_cost)} from {event_entries.count()} events"

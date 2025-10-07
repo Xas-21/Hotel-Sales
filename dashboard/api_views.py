@@ -142,8 +142,8 @@ def generate_deadline_notifications(user):
     # Find agreements with deadlines in the next 5 days
     upcoming_deadline = timezone.now().date() + timedelta(days=5)
     approaching_agreements = Agreement.objects.filter(
-        deadline_date__lte=upcoming_deadline,
-        deadline_date__gte=timezone.now().date(),
+        return_deadline__lte=upcoming_deadline,
+        return_deadline__gte=timezone.now().date(),
         status__in=['Draft', 'Sent']
     ).exclude(
         # Don't create duplicate notifications
@@ -155,7 +155,7 @@ def generate_deadline_notifications(user):
     )
     
     for agreement in approaching_agreements:
-        days_until = (agreement.deadline_date - timezone.now().date()).days
+        days_until = (agreement.return_deadline - timezone.now().date()).days
         
         if days_until <= 1:
             priority = 'urgent'
@@ -196,32 +196,36 @@ def generate_request_status_deadline_notifications(user):
     today = timezone.now().date()
     alert_date = today + timedelta(days=5)  # Check next 5 days
     
-    # Get existing notifications for today to avoid duplicates
-    existing_notifications = Notification.objects.filter(
-        user=user,
-        notification_type='deadline',
-        created_at__date=today
-    ).values_list('object_id', flat=True)
-    
     # Draft status: Alert on offer acceptance deadline
     draft_requests = BookingRequest.objects.filter(
         status='Draft',
         offer_acceptance_deadline__lte=alert_date,
         offer_acceptance_deadline__gte=today
-    ).exclude(id__in=existing_notifications).select_related('account')
+    ).select_related('account')
     
     for request in draft_requests:
+        # Clean up any existing deadline notifications for this specific request first
+        content_type = ContentType.objects.get_for_model(BookingRequest)
+        existing_deadline_notifications = Notification.objects.filter(
+            user=user,
+            content_type=content_type,
+            object_id=request.id,
+            notification_type='deadline'
+        )
+        if existing_deadline_notifications.exists():
+            existing_deadline_notifications.delete()
+        
         days_until = (request.offer_acceptance_deadline - today).days
         
         if days_until <= 1:
             priority = 'urgent'
-            title = f"⚠️ Offer acceptance deadline TODAY: {request.account.name}"
+            title = f"⚠️ Offer acceptance deadline TODAY - {request.account.name} - {request.request_type}"
         elif days_until <= 3:
             priority = 'high'
-            title = f"⚠️ Offer acceptance deadline in {days_until} days: {request.account.name}"
+            title = f"⚠️ Offer acceptance deadline in {days_until} days - {request.account.name} - {request.request_type}"
         else:
             priority = 'medium'
-            title = f"Offer acceptance deadline approaching: {request.account.name}"
+            title = f"Offer acceptance deadline approaching - {request.account.name} - {request.request_type}"
         
         # Create notification
         Notification.objects.create(
@@ -232,7 +236,7 @@ def generate_request_status_deadline_notifications(user):
             priority=priority,
             link_url=reverse('admin:requests_request_change', args=[request.id]),
             link_text='View Request',
-            content_type=ContentType.objects.get_for_model(BookingRequest),
+            content_type=content_type,
             object_id=request.id
         )
         notifications_created += 1
@@ -242,20 +246,31 @@ def generate_request_status_deadline_notifications(user):
         status='Pending',
         deposit_deadline__lte=alert_date,
         deposit_deadline__gte=today
-    ).exclude(id__in=existing_notifications).select_related('account')
+    ).select_related('account')
     
     for request in pending_requests:
+        # Clean up any existing deadline notifications for this specific request first
+        content_type = ContentType.objects.get_for_model(BookingRequest)
+        existing_deadline_notifications = Notification.objects.filter(
+            user=user,
+            content_type=content_type,
+            object_id=request.id,
+            notification_type='deadline'
+        )
+        if existing_deadline_notifications.exists():
+            existing_deadline_notifications.delete()
+        
         days_until = (request.deposit_deadline - today).days
         
         if days_until <= 1:
             priority = 'urgent'
-            title = f"⚠️ Deposit deadline TODAY: {request.account.name}"
+            title = f"⚠️ Deposit deadline TODAY - {request.account.name} - {request.request_type}"
         elif days_until <= 3:
             priority = 'high'
-            title = f"⚠️ Deposit deadline in {days_until} days: {request.account.name}"
+            title = f"⚠️ Deposit deadline in {days_until} days - {request.account.name} - {request.request_type}"
         else:
             priority = 'medium'
-            title = f"Deposit deadline approaching: {request.account.name}"
+            title = f"Deposit deadline approaching - {request.account.name} - {request.request_type}"
         
         # Create notification
         Notification.objects.create(
@@ -266,7 +281,7 @@ def generate_request_status_deadline_notifications(user):
             priority=priority,
             link_url=reverse('admin:requests_request_change', args=[request.id]),
             link_text='View Request',
-            content_type=ContentType.objects.get_for_model(BookingRequest),
+            content_type=content_type,
             object_id=request.id
         )
         notifications_created += 1
@@ -276,17 +291,28 @@ def generate_request_status_deadline_notifications(user):
         status='Partially Paid',
         full_payment_deadline__lte=alert_date,
         full_payment_deadline__gte=today
-    ).exclude(id__in=existing_notifications).select_related('account')
+    ).select_related('account')
     
     for request in partially_paid_requests:
+        # Clean up any existing deadline notifications for this specific request first
+        content_type = ContentType.objects.get_for_model(BookingRequest)
+        existing_deadline_notifications = Notification.objects.filter(
+            user=user,
+            content_type=content_type,
+            object_id=request.id,
+            notification_type='deadline'
+        )
+        if existing_deadline_notifications.exists():
+            existing_deadline_notifications.delete()
+        
         days_until = (request.full_payment_deadline - today).days
         
         if days_until <= 1:
             priority = 'urgent'
-            title = f"⚠️ Full payment deadline TODAY: {request.account.name}"
+            title = f"⚠️ Full payment deadline TODAY - {request.account.name} - {request.request_type}"
         elif days_until <= 3:
             priority = 'high'
-            title = f"⚠️ Full payment deadline in {days_until} days: {request.account.name}"
+            title = f"⚠️ Full payment deadline in {days_until} days - {request.account.name} - {request.request_type}"
         else:
             priority = 'medium'
             title = f"Full payment deadline approaching: {request.account.name}"
