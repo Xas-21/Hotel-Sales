@@ -6,18 +6,38 @@ for managing all system sections and fields dynamically.
 """
 
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseForbidden
 from django.contrib import messages
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import user_passes_test
 from django.apps import apps
 from django.core.exceptions import FieldDoesNotExist
 import json
+from functools import wraps
 
 from .models import DynamicModel, DynamicField
 from .services.existing_model_bridge import ExistingModelBridge
 from .services.schema_manager import SchemaManager
+
+
+def superuser_required(view_func):
+    """
+    Decorator to restrict access to superusers only.
+    Returns 403 Forbidden if user is not a superuser.
+    """
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            from django.contrib.auth.views import redirect_to_login
+            return redirect_to_login(request.get_full_path())
+        if not request.user.is_superuser:
+            return HttpResponseForbidden(
+                "Access Denied: Only system administrators can access the Configuration panel."
+            )
+        return view_func(request, *args, **kwargs)
+    return wrapper
 
 
 def _get_or_create_extension_model(section_name):
@@ -49,7 +69,7 @@ def _get_or_create_extension_model(section_name):
     return extension_model
 
 
-@staff_member_required
+@superuser_required
 def configuration_dashboard(request):
     """Main configuration dashboard showing Core Sections and Custom Sections"""
     from requests.services.admin_model_detector import AdminModelDetector
@@ -117,7 +137,7 @@ def configuration_dashboard(request):
     return render(request, 'configuration/dashboard.html', context)
 
 
-@staff_member_required  
+@superuser_required
 def section_fields(request, section_id):
     """Show and manage fields for a specific section (DynamicSection or legacy DynamicModel)"""
     from requests.models import DynamicSection
@@ -248,7 +268,7 @@ def _normalize_choices_data(choices):
         return '{}'  # Empty JSON object as string
 
 
-@staff_member_required
+@superuser_required
 @require_POST
 def add_field(request, section_id):
     """Add a new field to a section"""
@@ -417,7 +437,7 @@ def add_field(request, section_id):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
-@staff_member_required
+@superuser_required
 @require_POST
 def update_field(request, field_id):
     """Update an existing field (both core and custom fields)"""
@@ -461,7 +481,7 @@ def update_field(request, field_id):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
-@staff_member_required
+@superuser_required
 @require_POST
 def delete_field(request, field_id):
     """Delete a field"""
@@ -476,8 +496,8 @@ def delete_field(request, field_id):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
-@staff_member_required
-@require_POST  
+@superuser_required
+@require_POST
 def create_section(request):
     """Create a new dynamic section/model"""
     try:
@@ -524,7 +544,7 @@ def create_section(request):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
-@staff_member_required
+@superuser_required
 @require_POST
 def delete_section(request, section_id):
     """Delete a dynamic section (handles both DynamicSection and legacy DynamicModel)"""
