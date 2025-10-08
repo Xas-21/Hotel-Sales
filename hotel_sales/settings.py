@@ -193,15 +193,17 @@ if (CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET) or F
         'STATIC_FILES_EXTENSIONS': ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf', 'odt', 'ods', 'odp'],
         'MEDIA_FILE_MATCHER': r'^media/',
         'EXCLUDE_DELETE_ORPHANED_MEDIA': True,
+        'PREFIX': 'media/',  # Add prefix to organize files
+        'INVALIDATE_ON_UPLOAD': True,  # Invalidate CDN cache on upload
     }
     
     # Use Cloudinary for file storage
-    DEFAULT_FILE_STORAGE = 'hotel_sales.cloudinary_storage.PublicMediaCloudinaryStorage'
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
     
     # Configure all file storage to use Cloudinary
     STORAGES = {
         "default": {
-            "BACKEND": "hotel_sales.cloudinary_storage.PublicMediaCloudinaryStorage",
+            "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
         },
         "staticfiles": {
             "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
