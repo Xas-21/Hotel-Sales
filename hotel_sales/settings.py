@@ -221,7 +221,7 @@ else:
     MEDIA_ROOT = BASE_DIR / 'media'
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
     if DEBUG:
-        print("[WARNING] Using local file storage (Cloudinary credentials not found)")
+        print("[WARNING] Using local file storage - Cloudinary credentials not found")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

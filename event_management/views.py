@@ -640,11 +640,26 @@ def get_room_availability(start_date, end_date):
     """
     availability = {}
     
+    # Map MeetingRoom names to EventAgenda room names
+    room_name_mapping = {
+        'All Halls': 'All Halls',
+        'IKMA': 'IKMA',
+        'HEGRA': 'HEGRA',
+        'DADAN': 'DADAN',
+        'ALJADIDA': 'AL JADIDA',  # Map no space to space
+        'Board Room': 'Board Room',
+        'Al Badia': 'Al Badiya',  # Map different spelling
+        'La Palma': 'La Palma'
+    }
+    
     for room in MeetingRoom.objects.filter(is_active=True):
+        # Get the correct room name for EventAgenda lookup
+        agenda_room_name = room_name_mapping.get(room.name, room.name)
+        
         # Get events from EventAgenda only (source of truth, prevents duplicates)
         from requests.models import EventAgenda
         existing_events = EventAgenda.objects.filter(
-            meeting_room_name=room.name,
+            meeting_room_name=agenda_room_name,
             event_date__gte=start_date,
             event_date__lte=end_date,
             request__status__in=['Confirmed', 'Paid', 'Actual', 'Draft', 'Tentative']
