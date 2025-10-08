@@ -190,15 +190,18 @@ if (CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET) or F
         'SECURE': True,
         'STATIC_IMAGES_EXTENSIONS': ['jpg', 'jpe', 'jpeg', 'jpc', 'jp2', 'j2k', 'wdp', 'jxr', 'hdp', 'png', 'gif', 'webp', 'bmp', 'tiff', 'tif', 'ico', 'svg', 'psd'],
         'STATIC_VIDEOS_EXTENSIONS': ['mp4', 'webm', 'flv', 'mov', 'avi', 'wmv', 'mpg', 'mpeg', 'm2v', 'm4v', '3gp', '3g2', 'm2ts', 'mts', 'vob', 'ogv', 'ogg', 'drc', 'gif', 'gifv', 'mng', 'avi', 'mov', 'qt', 'wmv', 'yuv', 'rm', 'rmvb', 'asf', 'amv', 'mp4', 'm4p', 'm4v', 'mpg', 'mp2', 'mpeg', 'mpe', 'mpv', 'mpg', 'mpeg', 'm2v', 'm4v', 'msvideo', 'x-msvideo'],
+        'STATIC_FILES_EXTENSIONS': ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf', 'odt', 'ods', 'odp'],
+        'MEDIA_FILE_MATCHER': r'^media/',
+        'EXCLUDE_DELETE_ORPHANED_MEDIA': True,
     }
     
     # Use Cloudinary for file storage
-    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    DEFAULT_FILE_STORAGE = 'hotel_sales.cloudinary_storage.PublicMediaCloudinaryStorage'
     
     # Configure all file storage to use Cloudinary
     STORAGES = {
         "default": {
-            "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+            "BACKEND": "hotel_sales.cloudinary_storage.PublicMediaCloudinaryStorage",
         },
         "staticfiles": {
             "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
