@@ -65,3 +65,5 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+elif settings.MEDIA_ROOT:  # Only serve media files if using local storage (not Cloudinary)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

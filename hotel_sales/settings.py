@@ -185,6 +185,8 @@ if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
         'API_KEY': CLOUDINARY_API_KEY,
         'API_SECRET': CLOUDINARY_API_SECRET,
         'SECURE': True,
+        'STATIC_IMAGES_EXTENSIONS': ['jpg', 'jpe', 'jpeg', 'jpc', 'jp2', 'j2k', 'wdp', 'jxr', 'hdp', 'png', 'gif', 'webp', 'bmp', 'tiff', 'tif', 'ico', 'svg', 'psd'],
+        'STATIC_VIDEOS_EXTENSIONS': ['mp4', 'webm', 'flv', 'mov', 'avi', 'wmv', 'mpg', 'mpeg', 'm2v', 'm4v', '3gp', '3g2', 'm2ts', 'mts', 'vob', 'ogv', 'ogg', 'drc', 'gif', 'gifv', 'mng', 'avi', 'mov', 'qt', 'wmv', 'yuv', 'rm', 'rmvb', 'asf', 'amv', 'mp4', 'm4p', 'm4v', 'mpg', 'mp2', 'mpeg', 'mpe', 'mpv', 'mpg', 'mpeg', 'm2v', 'm4v', 'msvideo', 'x-msvideo'],
     }
     
     # Use Cloudinary for file storage
@@ -192,10 +194,16 @@ if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
     
     # Media files will be served from Cloudinary CDN
     MEDIA_ROOT = None  # Not needed when using Cloudinary
+    
+    # Print debug info in development
+    if DEBUG:
+        print(f"✅ Cloudinary configured with cloud name: {CLOUDINARY_CLOUD_NAME}")
 else:
     # Use local storage for development
     MEDIA_ROOT = BASE_DIR / 'media'
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+    if DEBUG:
+        print("⚠️ Using local file storage (Cloudinary credentials not found)")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
