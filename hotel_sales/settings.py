@@ -177,8 +177,11 @@ CLOUDINARY_CLOUD_NAME = os.getenv('CLOUDINARY_CLOUD_NAME')
 CLOUDINARY_API_KEY = os.getenv('CLOUDINARY_API_KEY')
 CLOUDINARY_API_SECRET = os.getenv('CLOUDINARY_API_SECRET')
 
-# Use Cloudinary for media storage if credentials are provided
-if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
+# Force Cloudinary usage on production (Render)
+FORCE_CLOUDINARY = os.getenv('FORCE_CLOUDINARY', 'False').lower() == 'true'
+
+# Use Cloudinary for media storage if credentials are provided or forced
+if (CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET) or FORCE_CLOUDINARY:
     # Cloudinary storage configuration
     CLOUDINARY_STORAGE = {
         'CLOUD_NAME': CLOUDINARY_CLOUD_NAME,
@@ -192,18 +195,28 @@ if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
     # Use Cloudinary for file storage
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
     
+    # Configure all file storage to use Cloudinary
+    STORAGES = {
+        "default": {
+            "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+    
     # Media files will be served from Cloudinary CDN
     MEDIA_ROOT = None  # Not needed when using Cloudinary
     
     # Print debug info in development
     if DEBUG:
-        print(f"✅ Cloudinary configured with cloud name: {CLOUDINARY_CLOUD_NAME}")
+        print(f"[SUCCESS] Cloudinary configured with cloud name: {CLOUDINARY_CLOUD_NAME}")
 else:
     # Use local storage for development
     MEDIA_ROOT = BASE_DIR / 'media'
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
     if DEBUG:
-        print("⚠️ Using local file storage (Cloudinary credentials not found)")
+        print("[WARNING] Using local file storage (Cloudinary credentials not found)")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
