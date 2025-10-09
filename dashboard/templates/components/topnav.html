@@ -8,7 +8,7 @@
         <!-- Navigation Links -->
         <ul class="navbar-nav me-auto">
             <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' and request.resolver_match.namespace != 'configuration' and request.resolver_match.namespace != 'admin' %}active{% endif %}" href="{% url 'dashboard' %}">
+                <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' and request.resolver_match.namespace != 'configuration' and request.resolver_match.namespace != 'admin' and request.resolver_match.namespace != 'event_management' %}active{% endif %}" href="{% url 'dashboard' %}">
                     <i class="fas fa-chart-bar me-1"></i>Dashboard
                 </a>
             </li>
