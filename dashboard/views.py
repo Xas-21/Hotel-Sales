@@ -392,15 +392,15 @@ def dashboard_view(request):
     current_accommodation = BookingRequest.objects.filter(
         Q(status='Confirmed') | Q(status='Paid') | Q(status='Actual'),
         request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
-        check_in_date__gte=start_date,
-        check_in_date__lte=end_date
+        check_in_date__lt=end_date,
+        check_out_date__gt=start_date
     ).select_related('account')
     
     current_series_ids = SeriesGroupEntry.objects.filter(
         request__status__in=['Confirmed', 'Paid', 'Actual'],
         request__request_type='Series Group',
-        arrival_date__gte=start_date,
-        arrival_date__lte=end_date
+        arrival_date__lt=end_date,
+        departure_date__gt=start_date
     ).values_list('request_id', flat=True).distinct()
     current_series = BookingRequest.objects.filter(id__in=current_series_ids).select_related('account')
     
@@ -410,15 +410,15 @@ def dashboard_view(request):
     mom_accommodation = BookingRequest.objects.filter(
         Q(status='Confirmed') | Q(status='Paid') | Q(status='Actual'),
         request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
-        check_in_date__gte=mom_start,
-        check_in_date__lte=mom_end
+        check_in_date__lt=mom_end,
+        check_out_date__gt=mom_start
     ).select_related('account')
     
     mom_series_ids = SeriesGroupEntry.objects.filter(
         request__status__in=['Confirmed', 'Paid', 'Actual'],
         request__request_type='Series Group',
-        arrival_date__gte=mom_start,
-        arrival_date__lte=mom_end
+        arrival_date__lt=mom_end,
+        departure_date__gt=mom_start
     ).values_list('request_id', flat=True).distinct()
     mom_series = BookingRequest.objects.filter(id__in=mom_series_ids).select_related('account')
     
@@ -428,15 +428,15 @@ def dashboard_view(request):
     yoy_accommodation = BookingRequest.objects.filter(
         Q(status='Confirmed') | Q(status='Paid') | Q(status='Actual'),
         request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
-        check_in_date__gte=yoy_start,
-        check_in_date__lte=yoy_end
+        check_in_date__lt=yoy_end,
+        check_out_date__gt=yoy_start
     ).select_related('account')
     
     yoy_series_ids = SeriesGroupEntry.objects.filter(
         request__status__in=['Confirmed', 'Paid', 'Actual'],
         request__request_type='Series Group',
-        arrival_date__gte=yoy_start,
-        arrival_date__lte=yoy_end
+        arrival_date__lt=yoy_end,
+        departure_date__gt=yoy_start
     ).values_list('request_id', flat=True).distinct()
     yoy_series = BookingRequest.objects.filter(id__in=yoy_series_ids).select_related('account')
     
@@ -447,14 +447,41 @@ def dashboard_view(request):
     current_period_revenue = Decimal('0.00')
     for req in current_period_requests:
         if req.request_type == 'Series Group':
-            # For Series Group: calculate revenue from SeriesGroupEntry
+            # For Series Group: calculate revenue PER NIGHT that falls within period
             for series_entry in req.series_entries.all():
-                current_period_revenue += series_entry.get_total_cost()
-            # Add transportation costs if any
-            current_period_revenue += req.get_transportation_total()
+                total_entry_cost = series_entry.get_total_cost()
+                nights = series_entry.nights
+                revenue_per_night = total_entry_cost / nights if nights > 0 else Decimal('0.00')
+                
+                # Count nights within the period
+                current_night = series_entry.arrival_date
+                while current_night < series_entry.departure_date:
+                    if start_date <= current_night <= end_date:
+                        current_period_revenue += revenue_per_night
+                    current_night += timedelta(days=1)
+            
+            # Add transportation costs (only once for first entry in period)
+            if req.series_entries.exists():
+                first_entry = req.series_entries.order_by('arrival_date').first()
+                if first_entry and start_date <= first_entry.arrival_date <= end_date:
+                    current_period_revenue += req.get_transportation_total()
         else:
-            # For other accommodation requests: use room + transportation costs only
-            current_period_revenue += req.get_room_total() + req.get_transportation_total()
+            # For other accommodation requests: calculate revenue PER NIGHT that falls within period
+            if req.check_in_date and req.check_out_date and req.nights:
+                total_room_cost = req.get_room_total()
+                nights = req.nights
+                revenue_per_night = total_room_cost / nights if nights > 0 else Decimal('0.00')
+                
+                # Count nights within the period
+                current_night = req.check_in_date
+                while current_night < req.check_out_date:
+                    if start_date <= current_night <= end_date:
+                        current_period_revenue += revenue_per_night
+                    current_night += timedelta(days=1)
+                
+                # Add transportation costs (only once for check-in date in period)
+                if start_date <= req.check_in_date <= end_date:
+                    current_period_revenue += req.get_transportation_total()
     current_period_avg_value = current_period_revenue / current_period_bookings if current_period_bookings > 0 else Decimal('0.00')
     
     # Calculate previous period metrics for MoM comparison - using accommodation revenue only
@@ -462,14 +489,41 @@ def dashboard_view(request):
     mom_revenue = Decimal('0.00')
     for req in mom_requests:
         if req.request_type == 'Series Group':
-            # For Series Group: calculate revenue from SeriesGroupEntry
+            # For Series Group: calculate revenue PER NIGHT that falls within period
             for series_entry in req.series_entries.all():
-                mom_revenue += series_entry.get_total_cost()
-            # Add transportation costs if any
-            mom_revenue += req.get_transportation_total()
+                total_entry_cost = series_entry.get_total_cost()
+                nights = series_entry.nights
+                revenue_per_night = total_entry_cost / nights if nights > 0 else Decimal('0.00')
+                
+                # Count nights within the MoM period
+                current_night = series_entry.arrival_date
+                while current_night < series_entry.departure_date:
+                    if mom_start <= current_night <= mom_end:
+                        mom_revenue += revenue_per_night
+                    current_night += timedelta(days=1)
+            
+            # Add transportation costs (only once for first entry in period)
+            if req.series_entries.exists():
+                first_entry = req.series_entries.order_by('arrival_date').first()
+                if first_entry and mom_start <= first_entry.arrival_date <= mom_end:
+                    mom_revenue += req.get_transportation_total()
         else:
-            # For other accommodation requests: use room + transportation costs only
-            mom_revenue += req.get_room_total() + req.get_transportation_total()
+            # For other accommodation requests: calculate revenue PER NIGHT that falls within MoM period
+            if req.check_in_date and req.check_out_date and req.nights:
+                total_room_cost = req.get_room_total()
+                nights = req.nights
+                revenue_per_night = total_room_cost / nights if nights > 0 else Decimal('0.00')
+                
+                # Count nights within the MoM period
+                current_night = req.check_in_date
+                while current_night < req.check_out_date:
+                    if mom_start <= current_night <= mom_end:
+                        mom_revenue += revenue_per_night
+                    current_night += timedelta(days=1)
+                
+                # Add transportation costs (only once for check-in date in period)
+                if mom_start <= req.check_in_date <= mom_end:
+                    mom_revenue += req.get_transportation_total()
     mom_avg_value = mom_revenue / mom_bookings if mom_bookings > 0 else Decimal('0.00')
     
     # Calculate same period last year metrics for YoY comparison - using accommodation revenue only
@@ -477,14 +531,41 @@ def dashboard_view(request):
     yoy_revenue = Decimal('0.00')
     for req in yoy_requests:
         if req.request_type == 'Series Group':
-            # For Series Group: calculate revenue from SeriesGroupEntry
+            # For Series Group: calculate revenue PER NIGHT that falls within period
             for series_entry in req.series_entries.all():
-                yoy_revenue += series_entry.get_total_cost()
-            # Add transportation costs if any
-            yoy_revenue += req.get_transportation_total()
+                total_entry_cost = series_entry.get_total_cost()
+                nights = series_entry.nights
+                revenue_per_night = total_entry_cost / nights if nights > 0 else Decimal('0.00')
+                
+                # Count nights within the YoY period
+                current_night = series_entry.arrival_date
+                while current_night < series_entry.departure_date:
+                    if yoy_start <= current_night <= yoy_end:
+                        yoy_revenue += revenue_per_night
+                    current_night += timedelta(days=1)
+            
+            # Add transportation costs (only once for first entry in period)
+            if req.series_entries.exists():
+                first_entry = req.series_entries.order_by('arrival_date').first()
+                if first_entry and yoy_start <= first_entry.arrival_date <= yoy_end:
+                    yoy_revenue += req.get_transportation_total()
         else:
-            # For other accommodation requests: use room + transportation costs only
-            yoy_revenue += req.get_room_total() + req.get_transportation_total()
+            # For other accommodation requests: calculate revenue PER NIGHT that falls within YoY period
+            if req.check_in_date and req.check_out_date and req.nights:
+                total_room_cost = req.get_room_total()
+                nights = req.nights
+                revenue_per_night = total_room_cost / nights if nights > 0 else Decimal('0.00')
+                
+                # Count nights within the YoY period
+                current_night = req.check_in_date
+                while current_night < req.check_out_date:
+                    if yoy_start <= current_night <= yoy_end:
+                        yoy_revenue += revenue_per_night
+                    current_night += timedelta(days=1)
+                
+                # Add transportation costs (only once for check-in date in period)
+                if yoy_start <= req.check_in_date <= yoy_end:
+                    yoy_revenue += req.get_transportation_total()
     yoy_avg_value = yoy_revenue / yoy_bookings if yoy_bookings > 0 else Decimal('0.00')
     
     # Calculate MoM changes
@@ -519,14 +600,41 @@ def dashboard_view(request):
         
         # Calculate accommodation revenue based on request type
         if req.request_type == 'Series Group':
-            # For Series Group: calculate revenue from SeriesGroupEntry
+            # For Series Group: calculate revenue PER NIGHT that falls within period
             for series_entry in req.series_entries.all():
-                account_type_breakdown[account_type]['revenue'] += series_entry.get_total_cost()
-            # Add transportation costs if any
-            account_type_breakdown[account_type]['revenue'] += req.get_transportation_total()
+                total_entry_cost = series_entry.get_total_cost()
+                nights = series_entry.nights
+                revenue_per_night = total_entry_cost / nights if nights > 0 else Decimal('0.00')
+                
+                # Count nights within the period
+                current_night = series_entry.arrival_date
+                while current_night < series_entry.departure_date:
+                    if start_date <= current_night <= end_date:
+                        account_type_breakdown[account_type]['revenue'] += revenue_per_night
+                    current_night += timedelta(days=1)
+            
+            # Add transportation costs (only once for first entry in period)
+            if req.series_entries.exists():
+                first_entry = req.series_entries.order_by('arrival_date').first()
+                if first_entry and start_date <= first_entry.arrival_date <= end_date:
+                    account_type_breakdown[account_type]['revenue'] += req.get_transportation_total()
         else:
-            # For other accommodation requests: use room + transportation costs only (NO events)
-            account_type_breakdown[account_type]['revenue'] += req.get_room_total() + req.get_transportation_total()
+            # For other accommodation requests: calculate revenue PER NIGHT that falls within period
+            if req.check_in_date and req.check_out_date and req.nights:
+                total_room_cost = req.get_room_total()
+                nights = req.nights
+                revenue_per_night = total_room_cost / nights if nights > 0 else Decimal('0.00')
+                
+                # Count nights within the period
+                current_night = req.check_in_date
+                while current_night < req.check_out_date:
+                    if start_date <= current_night <= end_date:
+                        account_type_breakdown[account_type]['revenue'] += revenue_per_night
+                    current_night += timedelta(days=1)
+                
+                # Add transportation costs (only once for check-in date in period)
+                if start_date <= req.check_in_date <= end_date:
+                    account_type_breakdown[account_type]['revenue'] += req.get_transportation_total()
     
     # Calculate averages for account types
     for account_type in account_type_breakdown:
@@ -551,14 +659,41 @@ def dashboard_view(request):
         
         # Calculate accommodation revenue based on request type
         if req.request_type == 'Series Group':
-            # For Series Group: calculate revenue from SeriesGroupEntry
+            # For Series Group: calculate revenue PER NIGHT that falls within period
             for series_entry in req.series_entries.all():
-                property_breakdown[property_name]['revenue'] += series_entry.get_total_cost()
-            # Add transportation costs if any
-            property_breakdown[property_name]['revenue'] += req.get_transportation_total()
+                total_entry_cost = series_entry.get_total_cost()
+                nights = series_entry.nights
+                revenue_per_night = total_entry_cost / nights if nights > 0 else Decimal('0.00')
+                
+                # Count nights within the period
+                current_night = series_entry.arrival_date
+                while current_night < series_entry.departure_date:
+                    if start_date <= current_night <= end_date:
+                        property_breakdown[property_name]['revenue'] += revenue_per_night
+                    current_night += timedelta(days=1)
+            
+            # Add transportation costs (only once for first entry in period)
+            if req.series_entries.exists():
+                first_entry = req.series_entries.order_by('arrival_date').first()
+                if first_entry and start_date <= first_entry.arrival_date <= end_date:
+                    property_breakdown[property_name]['revenue'] += req.get_transportation_total()
         else:
-            # For other accommodation requests: use room + transportation costs only (NO events)
-            property_breakdown[property_name]['revenue'] += req.get_room_total() + req.get_transportation_total()
+            # For other accommodation requests: calculate revenue PER NIGHT that falls within period
+            if req.check_in_date and req.check_out_date and req.nights:
+                total_room_cost = req.get_room_total()
+                nights = req.nights
+                revenue_per_night = total_room_cost / nights if nights > 0 else Decimal('0.00')
+                
+                # Count nights within the period
+                current_night = req.check_in_date
+                while current_night < req.check_out_date:
+                    if start_date <= current_night <= end_date:
+                        property_breakdown[property_name]['revenue'] += revenue_per_night
+                    current_night += timedelta(days=1)
+                
+                # Add transportation costs (only once for check-in date in period)
+                if start_date <= req.check_in_date <= end_date:
+                    property_breakdown[property_name]['revenue'] += req.get_transportation_total()
     
     # Calculate averages and MoM for properties
     for property_name in property_breakdown:
@@ -577,14 +712,41 @@ def dashboard_view(request):
         for prev_request in previous_requests:
             # Calculate accommodation revenue based on request type
             if prev_request.request_type == 'Series Group':
-                # For Series Group: calculate revenue from SeriesGroupEntry
+                # For Series Group: calculate revenue PER NIGHT that falls within MoM period
                 for series_entry in prev_request.series_entries.all():
-                    previous_revenue += series_entry.get_total_cost()
-                # Add transportation costs if any
-                previous_revenue += prev_request.get_transportation_total()
+                    total_entry_cost = series_entry.get_total_cost()
+                    nights = series_entry.nights
+                    revenue_per_night = total_entry_cost / nights if nights > 0 else Decimal('0.00')
+                    
+                    # Count nights within the MoM period
+                    current_night = series_entry.arrival_date
+                    while current_night < series_entry.departure_date:
+                        if mom_start <= current_night <= mom_end:
+                            previous_revenue += revenue_per_night
+                        current_night += timedelta(days=1)
+                
+                # Add transportation costs (only once for first entry in period)
+                if prev_request.series_entries.exists():
+                    first_entry = prev_request.series_entries.order_by('arrival_date').first()
+                    if first_entry and mom_start <= first_entry.arrival_date <= mom_end:
+                        previous_revenue += prev_request.get_transportation_total()
             else:
-                # For other accommodation requests: use room + transportation costs only (NO events)
-                previous_revenue += prev_request.get_room_total() + prev_request.get_transportation_total()
+                # For other accommodation requests: calculate revenue PER NIGHT that falls within MoM period
+                if prev_request.check_in_date and prev_request.check_out_date and prev_request.nights:
+                    total_room_cost = prev_request.get_room_total()
+                    nights = prev_request.nights
+                    revenue_per_night = total_room_cost / nights if nights > 0 else Decimal('0.00')
+                    
+                    # Count nights within the MoM period
+                    current_night = prev_request.check_in_date
+                    while current_night < prev_request.check_out_date:
+                        if mom_start <= current_night <= mom_end:
+                            previous_revenue += revenue_per_night
+                        current_night += timedelta(days=1)
+                    
+                    # Add transportation costs (only once for check-in date in period)
+                    if mom_start <= prev_request.check_in_date <= mom_end:
+                        previous_revenue += prev_request.get_transportation_total()
         
         if previous_revenue > 0:
             mom_percentage = float(((current_revenue - previous_revenue) / previous_revenue) * 100)
@@ -620,21 +782,23 @@ def dashboard_view(request):
     # Calculate number of periods to show based on period type and view granularity
     if view_type == 'day':
         # For day view, show daily data
-        periods_to_show = (end_date - start_date).days + 1
+            periods_to_show = (end_date - start_date).days + 1
     elif view_type == 'week':
         # For week view, show weekly data
-        periods_to_show = ((end_date - start_date).days // 7) + 1
+            periods_to_show = ((end_date - start_date).days // 7) + 1
     else:  # month view
         # For month view, show monthly data
-        periods_to_show = max(1, (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1)
-        # Ensure we don't show too many months (cap at 24 for performance)
-        periods_to_show = min(periods_to_show, 24)
+            periods_to_show = max(1, (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1)
+            # Ensure we don't show too many months (cap at 24 for performance)
+            periods_to_show = min(periods_to_show, 24)
     
     for i in range(periods_to_show):
         # Calculate period start and end based on view type
         if view_type == 'day':
             # For day view, each period is a single day
             period_start = start_date + timedelta(days=i)
+            # For day view, period_end is the same as period_start (single day)
+            # We'll use period_start for both start and end when counting nights
             period_end = period_start
         elif view_type == 'week':
             # For week view, each period is a week (Monday to Sunday)
@@ -663,20 +827,26 @@ def dashboard_view(request):
         # Comprehensive Booking Analytics Dashboard shows room accommodations only
         # Events are tracked separately in Event Management page
         
-        # Group Accommodation, Individual Accommodation, Event with Rooms (use check_in_date)
+        # For day view: use <= to include same-day check-ins/arrivals
+        # For other views: use < to match the broader period
+        # Determine the filtering end date based on view type
+        filter_end_date = period_end if view_type != 'day' else period_end + timedelta(days=1)
+        
+        # Group Accommodation, Individual Accommodation, Event with Rooms
+        # Check if ANY night of the stay falls within the period (not just check-in date)
         accommodation_requests = BookingRequest.objects.filter(
             Q(status='Confirmed') | Q(status='Paid') | Q(status='Actual'),
             request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
-            check_in_date__gte=period_start,
-            check_in_date__lte=period_end
+            check_in_date__lt=filter_end_date,  # Check-in before filter end
+            check_out_date__gt=period_start  # Check-out after period starts
         )
         
-        # Series Group (use arrival_date from SeriesGroupEntry)
+        # Series Group (check if ANY night of the stay falls within the period)
         series_group_request_ids = SeriesGroupEntry.objects.filter(
             request__status__in=['Confirmed', 'Paid', 'Actual'],
             request__request_type='Series Group',
-            arrival_date__gte=period_start,
-            arrival_date__lte=period_end
+            arrival_date__lt=filter_end_date,  # Arrival before filter end
+            departure_date__gt=period_start  # Departure after period starts
         ).values_list('request_id', flat=True).distinct()
         series_group_requests = BookingRequest.objects.filter(id__in=series_group_request_ids)
         
@@ -684,18 +854,20 @@ def dashboard_view(request):
         period_requests = accommodation_requests | series_group_requests
         
         # Get all request statuses for the same period (ACCOMMODATION only - no Event Only)
+        # Use filter_end_date for all queries to ensure consistent filtering
+        
         # Draft requests
         draft_accommodation = BookingRequest.objects.filter(
             status='Draft',
             request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
-            check_in_date__gte=period_start,
-            check_in_date__lte=period_end
+            check_in_date__lt=filter_end_date,
+            check_out_date__gt=period_start
         )
         draft_series_ids = SeriesGroupEntry.objects.filter(
             request__status='Draft',
             request__request_type='Series Group',
-            arrival_date__gte=period_start,
-            arrival_date__lte=period_end
+            arrival_date__lt=filter_end_date,
+            departure_date__gt=period_start
         ).values_list('request_id', flat=True).distinct()
         draft_series = BookingRequest.objects.filter(id__in=draft_series_ids)
         period_draft_requests = draft_accommodation | draft_series
@@ -704,14 +876,14 @@ def dashboard_view(request):
         pending_accommodation = BookingRequest.objects.filter(
             status='Pending',
             request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
-            check_in_date__gte=period_start,
-            check_in_date__lte=period_end
+            check_in_date__lt=filter_end_date,
+            check_out_date__gt=period_start
         )
         pending_series_ids = SeriesGroupEntry.objects.filter(
             request__status='Pending',
             request__request_type='Series Group',
-            arrival_date__gte=period_start,
-            arrival_date__lte=period_end
+            arrival_date__lt=filter_end_date,
+            departure_date__gt=period_start
         ).values_list('request_id', flat=True).distinct()
         pending_series = BookingRequest.objects.filter(id__in=pending_series_ids)
         period_pending_requests = pending_accommodation | pending_series
@@ -720,14 +892,14 @@ def dashboard_view(request):
         partially_paid_accommodation = BookingRequest.objects.filter(
             status='Partially Paid',
             request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
-            check_in_date__gte=period_start,
-            check_in_date__lte=period_end
+            check_in_date__lt=filter_end_date,
+            check_out_date__gt=period_start
         )
         partially_paid_series_ids = SeriesGroupEntry.objects.filter(
             request__status='Partially Paid',
             request__request_type='Series Group',
-            arrival_date__gte=period_start,
-            arrival_date__lte=period_end
+            arrival_date__lt=filter_end_date,
+            departure_date__gt=period_start
         ).values_list('request_id', flat=True).distinct()
         partially_paid_series = BookingRequest.objects.filter(id__in=partially_paid_series_ids)
         period_partially_paid_requests = partially_paid_accommodation | partially_paid_series
@@ -736,14 +908,14 @@ def dashboard_view(request):
         paid_accommodation = BookingRequest.objects.filter(
             status='Paid',
             request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
-            check_in_date__gte=period_start,
-            check_in_date__lte=period_end
+            check_in_date__lt=filter_end_date,
+            check_out_date__gt=period_start
         )
         paid_series_ids = SeriesGroupEntry.objects.filter(
             request__status='Paid',
             request__request_type='Series Group',
-            arrival_date__gte=period_start,
-            arrival_date__lte=period_end
+            arrival_date__lt=filter_end_date,
+            departure_date__gt=period_start
         ).values_list('request_id', flat=True).distinct()
         paid_series = BookingRequest.objects.filter(id__in=paid_series_ids)
         period_paid_requests = paid_accommodation | paid_series
@@ -752,14 +924,14 @@ def dashboard_view(request):
         confirmed_accommodation = BookingRequest.objects.filter(
             status='Confirmed',
             request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
-            check_in_date__gte=period_start,
-            check_in_date__lte=period_end
+            check_in_date__lt=filter_end_date,
+            check_out_date__gt=period_start
         )
         confirmed_series_ids = SeriesGroupEntry.objects.filter(
             request__status='Confirmed',
             request__request_type='Series Group',
-            arrival_date__gte=period_start,
-            arrival_date__lte=period_end
+            arrival_date__lt=filter_end_date,
+            departure_date__gt=period_start
         ).values_list('request_id', flat=True).distinct()
         confirmed_series = BookingRequest.objects.filter(id__in=confirmed_series_ids)
         period_confirmed_requests = confirmed_accommodation | confirmed_series
@@ -768,14 +940,14 @@ def dashboard_view(request):
         actual_accommodation = BookingRequest.objects.filter(
             status='Actual',
             request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
-            check_in_date__gte=period_start,
-            check_in_date__lte=period_end
+            check_in_date__lt=filter_end_date,
+            check_out_date__gt=period_start
         )
         actual_series_ids = SeriesGroupEntry.objects.filter(
             request__status='Actual',
             request__request_type='Series Group',
-            arrival_date__gte=period_start,
-            arrival_date__lte=period_end
+            arrival_date__lt=filter_end_date,
+            departure_date__gt=period_start
         ).values_list('request_id', flat=True).distinct()
         actual_series = BookingRequest.objects.filter(id__in=actual_series_ids)
         period_actual_requests = actual_accommodation | actual_series
@@ -784,14 +956,14 @@ def dashboard_view(request):
         cancelled_accommodation = BookingRequest.objects.filter(
             status='Cancelled',
             request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
-            check_in_date__gte=period_start,
-            check_in_date__lte=period_end
+            check_in_date__lt=filter_end_date,
+            check_out_date__gt=period_start
         )
         cancelled_series_ids = SeriesGroupEntry.objects.filter(
             request__status='Cancelled',
             request__request_type='Series Group',
-            arrival_date__gte=period_start,
-            arrival_date__lte=period_end
+            arrival_date__lt=filter_end_date,
+            departure_date__gt=period_start
         ).values_list('request_id', flat=True).distinct()
         cancelled_series = BookingRequest.objects.filter(id__in=cancelled_series_ids)
         period_cancelled_requests = cancelled_accommodation | cancelled_series
@@ -800,32 +972,72 @@ def dashboard_view(request):
         period_revenue = Decimal('0.00')
         for req in period_requests:
             if req.request_type == 'Series Group':
-                # For Series Group: calculate revenue from SeriesGroupEntry that fall within this period
+                # For Series Group: calculate revenue PER NIGHT, not just on arrival date
                 for series_entry in req.series_entries.all():
-                    # Check if this series entry's arrival date falls within the current period
-                    if period_start <= series_entry.arrival_date <= period_end:
-                        period_revenue += series_entry.get_total_cost()
-                # Add transportation costs if any (only once per request, not per entry)
-                period_revenue += req.get_transportation_total()
+                    # Calculate revenue per night for this entry
+                    total_entry_cost = series_entry.get_total_cost()
+                    nights = series_entry.nights
+                    revenue_per_night = total_entry_cost / nights if nights > 0 else Decimal('0.00')
+                    
+                    # Loop through each night of the stay
+                    current_night = series_entry.arrival_date
+                    while current_night < series_entry.departure_date:
+                        # If this night falls within the current period, add revenue for this night
+                        if period_start <= current_night <= period_end:
+                            period_revenue += revenue_per_night
+                        current_night += timedelta(days=1)
+                
+                # Add transportation costs proportionally if any (only once, distributed across all nights)
+                # For simplicity, we'll add transportation to the first period that contains any entry
+                # This ensures it's counted once and not duplicated
+                if req.series_entries.exists():
+                    first_entry = req.series_entries.order_by('arrival_date').first()
+                    if first_entry and period_start <= first_entry.arrival_date <= period_end:
+                        period_revenue += req.get_transportation_total()
             else:
-                # For other accommodation requests: use room + transportation costs only
-                accommodation_revenue = req.get_room_total() + req.get_transportation_total()
-                period_revenue += accommodation_revenue
+                # For other accommodation requests: calculate revenue PER NIGHT that falls within this period
+                if req.check_in_date and req.check_out_date and req.nights:
+                    total_room_cost = req.get_room_total()
+                    nights = req.nights
+                    revenue_per_night = total_room_cost / nights if nights > 0 else Decimal('0.00')
+                    
+                    # Loop through each night of the stay
+                    current_night = req.check_in_date
+                    while current_night < req.check_out_date:
+                        # If this night falls within the current period, add revenue for this night
+                        if period_start <= current_night <= period_end:
+                            period_revenue += revenue_per_night
+                        current_night += timedelta(days=1)
+                    
+                    # Add transportation costs (only once for check-in date in period)
+                    if period_start <= req.check_in_date <= period_end:
+                        period_revenue += req.get_transportation_total()
         
         period_bookings = period_requests.count()
         
-        # Calculate rooms correctly - Series Group entries count individually by arrival date
+        # Calculate rooms correctly - ALL requests count PER NIGHT, not just check-in/arrival date
         period_rooms = 0
         for req in period_requests:
             if req.request_type == 'Series Group':
-                # For Series Group: count rooms from SeriesGroupEntry that fall within this period
+                # For Series Group: count rooms for EACH NIGHT of the stay that falls within this period
                 for series_entry in req.series_entries.all():
-                    # Check if this series entry's arrival date falls within the current period
-                    if period_start <= series_entry.arrival_date <= period_end:
-                        period_rooms += series_entry.number_of_rooms
+                    # Get all nights of this entry's stay
+                    current_night = series_entry.arrival_date
+                    # Loop through each night of the stay
+                    while current_night < series_entry.departure_date:
+                        # If this night falls within the current period, count the rooms
+                        if period_start <= current_night <= period_end:
+                            period_rooms += series_entry.number_of_rooms
+                        current_night += timedelta(days=1)
             else:
-                # For other accommodation requests: use total_rooms from Request
-                period_rooms += req.total_rooms or 0
+                # For other accommodation requests: count rooms for EACH NIGHT that falls within this period
+                if req.check_in_date and req.check_out_date:
+                    current_night = req.check_in_date
+                    while current_night < req.check_out_date:
+                        # If this night falls within the current period, count the rooms
+                        if period_start <= current_night <= period_end:
+                            period_rooms += req.total_rooms or 0
+                        current_night += timedelta(days=1)
         
         # Count each status
         period_draft = period_draft_requests.count()
@@ -1007,7 +1219,7 @@ def api_property_performance(request):
         return JsonResponse({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=400)
 
     account_query = request.GET.get('account', '').strip()
-    
+
     # Get current currency setting
     current_currency = request.session.get('currency', 'SAR')
 
