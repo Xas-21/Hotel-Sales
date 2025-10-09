@@ -1,11 +1,16 @@
 <!-- Quick Actions Component - Can be included on any page -->
 <div class="position-fixed" id="quick-actions-panel" style="bottom: 20px; right: 20px; z-index: 1000;">
     <div class="card shadow-lg border-0" style="min-width: 250px;">
-        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center" id="quick-actions-drag-handle">
             <h6 class="mb-0"><i class="fas fa-rocket me-2"></i>Quick Actions</h6>
-            <button class="btn btn-sm btn-outline-light" id="toggle-quick-actions" title="Toggle Panel">
-                <i class="fas fa-chevron-down" id="toggle-icon"></i>
-            </button>
+            <div class="d-flex gap-1">
+                <button class="btn btn-sm btn-outline-light" id="flip-quick-actions" title="Move to other side">
+                    <i class="fas fa-exchange-alt" id="flip-icon"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-light" id="toggle-quick-actions" title="Toggle Panel">
+                    <i class="fas fa-chevron-down" id="toggle-icon"></i>
+                </button>
+            </div>
         </div>
         <div class="card-body" id="quick-actions-body">
             <div class="d-grid gap-2">
@@ -56,6 +61,7 @@
 <style>
 #quick-actions-panel {
     transition: all 0.3s ease;
+    cursor: move;
 }
 
 #quick-actions-panel.collapsed #quick-actions-body {
@@ -75,10 +81,45 @@
     transform: translateY(-2px);
 }
 
+#quick-actions-drag-handle {
+    cursor: move;
+    user-select: none;
+}
+
+#quick-actions-drag-handle:active {
+    cursor: grabbing;
+}
+
+#quick-actions-panel.dragging {
+    transition: none;
+    z-index: 9999;
+    transform: rotate(2deg) scale(1.02);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+#quick-actions-panel.position-left {
+    left: 20px !important;
+    right: auto !important;
+}
+
+#quick-actions-panel.position-right {
+    right: 20px !important;
+    left: auto !important;
+}
+
 @media (max-width: 768px) {
     #quick-actions-panel {
         bottom: 10px;
-        right: 10px;
+    }
+    
+    #quick-actions-panel.position-left {
+        left: 10px !important;
+        right: auto !important;
+    }
+    
+    #quick-actions-panel.position-right {
+        right: 10px !important;
+        left: auto !important;
     }
     
     #quick-actions-panel .card {
@@ -91,9 +132,25 @@
 document.addEventListener('DOMContentLoaded', function() {
     const toggleBtn = document.getElementById('toggle-quick-actions');
     const toggleIcon = document.getElementById('toggle-icon');
+    const flipBtn = document.getElementById('flip-quick-actions');
     const panel = document.getElementById('quick-actions-panel');
+    const dragHandle = document.getElementById('quick-actions-drag-handle');
     
-    // Check saved state
+    // Initialize position from localStorage
+    const savedPosition = localStorage.getItem('quickActionsPosition') || 'right';
+    console.log('Initializing with position:', savedPosition);
+    panel.classList.add(`position-${savedPosition}`);
+    
+    // Ensure the panel starts with the correct position
+    if (savedPosition === 'left') {
+        panel.style.left = '20px';
+        panel.style.right = 'auto';
+    } else {
+        panel.style.right = '20px';
+        panel.style.left = 'auto';
+    }
+    
+    // Check saved collapsed state
     const isCollapsed = localStorage.getItem('quickActionsCollapsed') === 'true';
     if (isCollapsed) {
         panel.classList.add('collapsed');
@@ -101,6 +158,7 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleIcon.classList.add('fa-chevron-up');
     }
     
+    // Toggle panel visibility
     toggleBtn.addEventListener('click', function() {
         panel.classList.toggle('collapsed');
         const collapsed = panel.classList.contains('collapsed');
@@ -115,6 +173,115 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Save state
         localStorage.setItem('quickActionsCollapsed', collapsed);
+    });
+    
+    // Flip panel position (left/right)
+    flipBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const isLeft = panel.classList.contains('position-left');
+        console.log('Current position:', isLeft ? 'left' : 'right');
+        
+        panel.classList.remove('position-left', 'position-right');
+        
+        if (isLeft) {
+            panel.classList.add('position-right');
+            panel.style.right = '20px';
+            panel.style.left = 'auto';
+            localStorage.setItem('quickActionsPosition', 'right');
+            console.log('Moved to right');
+        } else {
+            panel.classList.add('position-left');
+            panel.style.left = '20px';
+            panel.style.right = 'auto';
+            localStorage.setItem('quickActionsPosition', 'left');
+            console.log('Moved to left');
+        }
+    });
+    
+    // Dragging functionality
+    let isDragging = false;
+    let dragOffset = { x: 0, y: 0 };
+    
+    dragHandle.addEventListener('mousedown', function(e) {
+        // Don't start drag if clicking on buttons
+        if (e.target.closest('button')) return;
+        
+        isDragging = true;
+        panel.classList.add('dragging');
+        
+        const rect = panel.getBoundingClientRect();
+        dragOffset.x = e.clientX - rect.left;
+        dragOffset.y = e.clientY - rect.top;
+        
+        e.preventDefault();
+    });
+    
+    document.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        
+        const newX = e.clientX - dragOffset.x;
+        const newY = e.clientY - dragOffset.y;
+        
+        // Keep panel within viewport bounds
+        const maxX = window.innerWidth - panel.offsetWidth;
+        const maxY = window.innerHeight - panel.offsetHeight;
+        
+        const clampedX = Math.max(0, Math.min(newX, maxX));
+        const clampedY = Math.max(0, Math.min(newY, maxY));
+        
+        panel.style.left = `${clampedX}px`;
+        panel.style.top = `${clampedY}px`;
+        panel.style.right = 'auto';
+        panel.style.bottom = 'auto';
+        
+        // Remove position classes when dragging
+        panel.classList.remove('position-left', 'position-right');
+    });
+    
+    document.addEventListener('mouseup', function() {
+        if (!isDragging) return;
+        
+        isDragging = false;
+        panel.classList.remove('dragging');
+        
+        // Snap to nearest side
+        const rect = panel.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const viewportCenter = window.innerWidth / 2;
+        
+        panel.classList.remove('position-left', 'position-right');
+        
+        if (centerX < viewportCenter) {
+            panel.classList.add('position-left');
+            localStorage.setItem('quickActionsPosition', 'left');
+        } else {
+            panel.classList.add('position-right');
+            localStorage.setItem('quickActionsPosition', 'right');
+        }
+        
+        // Reset to bottom positioning
+        panel.style.top = 'auto';
+        panel.style.left = '';
+        panel.style.right = '';
+        
+        // Apply correct bottom positioning
+        const currentPosition = panel.classList.contains('position-left') ? 'left' : 'right';
+        panel.style.bottom = '20px';
+        
+        if (currentPosition === 'left') {
+            panel.style.left = '20px';
+            panel.style.right = 'auto';
+        } else {
+            panel.style.right = '20px';
+            panel.style.left = 'auto';
+        }
+    });
+    
+    // Prevent text selection while dragging
+    dragHandle.addEventListener('selectstart', function(e) {
+        e.preventDefault();
     });
     
     // Function to open Event Management modal
