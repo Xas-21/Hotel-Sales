@@ -8,7 +8,7 @@
         <!-- Navigation Links -->
         <ul class="navbar-nav me-auto">
             <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' and request.resolver_match.namespace != 'configuration' and request.resolver_match.namespace != 'admin' and request.resolver_match.namespace != 'event_management' %}active{% endif %}" href="{% url 'dashboard' %}">
+                <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' and request.resolver_match.namespace != 'configuration' and request.resolver_match.namespace != 'admin' %}active{% endif %}" href="{% url 'dashboard' %}">
                     <i class="fas fa-chart-bar me-1"></i>Dashboard
                 </a>
             </li>
@@ -22,13 +22,11 @@
                     <i class="fas fa-calendar-check me-1"></i>Event Management
                 </a>
             </li>
-            {% if request.user.is_superuser %}
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.namespace == 'configuration' %}active{% endif %}" href="{% url 'configuration:dashboard' %}">
                     <i class="fas fa-sliders-h me-1"></i>Configuration
                 </a>
             </li>
-            {% endif %}
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.namespace == 'admin' %}active{% endif %}" href="{% url 'admin:index' %}">
                     <i class="fas fa-cog me-1"></i>Admin Panel
@@ -95,24 +93,18 @@
                                 <div class="user-full-name">{{ user.get_full_name|default:user.username }}</div>
                                 <div class="user-email">{{ user.email }}</div>
                                 <div class="mt-1">
-                                    {% if user.is_superuser %}
+                                    {% if user.profile.role_label == "Admin" %}
+                                        <span class="role-badge role-admin"><i class="fas fa-crown me-1"></i>Admin</span>
+                                    {% elif user.profile.role_label == "Director" %}
+                                        <span class="role-badge role-director"><i class="fas fa-user-tie me-1"></i>Director</span>
+                                    {% elif user.profile.role_label == "Sales Manager" %}
+                                        <span class="role-badge role-manager"><i class="fas fa-user-cog me-1"></i>Sales Manager</span>
+                                    {% elif user.profile.role_label == "Sales Executive" %}
+                                        <span class="role-badge role-executive"><i class="fas fa-briefcase me-1"></i>Sales Executive</span>
+                                    {% elif user.profile.role_label == "Sales Coordinator" %}
+                                        <span class="role-badge role-coordinator"><i class="fas fa-users me-1"></i>Sales Coordinator</span>
+                                    {% elif user.is_superuser %}
                                         <span class="role-badge role-admin"><i class="fas fa-crown me-1"></i>Superuser</span>
-                                    {% elif user.groups.all %}
-                                        {% for group in user.groups.all %}
-                                            {% if group.name == "Director" %}
-                                                <span class="role-badge role-director"><i class="fas fa-user-tie me-1"></i>Director</span>
-                                            {% elif group.name == "Sales Manager" %}
-                                                <span class="role-badge role-manager"><i class="fas fa-user-cog me-1"></i>Sales Manager</span>
-                                            {% elif group.name == "Sales Executive" %}
-                                                <span class="role-badge role-executive"><i class="fas fa-briefcase me-1"></i>Sales Executive</span>
-                                            {% elif group.name == "Sales Coordinator" %}
-                                                <span class="role-badge role-coordinator"><i class="fas fa-users me-1"></i>Sales Coordinator</span>
-                                            {% elif group.name == "Admin" %}
-                                                <span class="role-badge role-admin"><i class="fas fa-crown me-1"></i>Admin</span>
-                                            {% else %}
-                                                <span class="role-badge role-staff"><i class="fas fa-id-badge me-1"></i>{{ group.name }}</span>
-                                            {% endif %}
-                                        {% endfor %}
                                     {% elif user.is_staff %}
                                         <span class="role-badge role-staff"><i class="fas fa-id-badge me-1"></i>Staff</span>
                                     {% else %}
@@ -416,8 +408,6 @@ class NotificationManager {
     }
     
     init() {
-        console.log('NotificationManager initializing...');
-        
         // Start polling for notifications
         this.startPolling();
         
@@ -425,7 +415,6 @@ class NotificationManager {
         this.bindEvents();
         
         // Initial load
-        console.log('Calling updateUnreadCount...');
         this.updateUnreadCount();
     }
     
@@ -479,17 +468,11 @@ class NotificationManager {
     
     async updateUnreadCount() {
         try {
-            console.log('Fetching unread notification count...');
             const response = await fetch('/api/notifications/unread-count/');
             const data = await response.json();
             
-            console.log('Notification API response:', data);
-            
             if (data.success) {
-                console.log('Updating badge with count:', data.unread_count);
                 this.updateBadge(data.unread_count);
-            } else {
-                console.error('API returned error:', data.error);
             }
         } catch (error) {
             console.error('Failed to fetch unread count:', error);
@@ -497,24 +480,16 @@ class NotificationManager {
     }
     
     updateBadge(count) {
-        console.log('updateBadge called with count:', count);
         const badge = document.getElementById('notification-badge');
         const countSpan = document.getElementById('notification-count');
         
-        console.log('Badge element:', badge);
-        console.log('Count span element:', countSpan);
-        
         if (badge && countSpan) {
             if (count > 0) {
-                console.log('Showing badge with count:', count);
                 badge.style.display = 'inline-block';
                 countSpan.textContent = count > 99 ? '99+' : count;
             } else {
-                console.log('Hiding badge (count is 0)');
                 badge.style.display = 'none';
             }
-        } else {
-            console.error('Badge or count span element not found!');
         }
     }
     

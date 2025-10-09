@@ -98,8 +98,6 @@
                                             <div class="btn-group flex-wrap" role="group">
                                                 <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'this_month' %}active{% endif %}" data-period="this_month">This Month</button>
                                                 <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'last_month' %}active{% endif %}" data-period="last_month">Last Month</button>
-                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'last_3_months' %}active{% endif %}" data-period="last_3_months">Last 3 Months</button>
-                                                <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'last_6_months' %}active{% endif %}" data-period="last_6_months">Last 6 Months</button>
                                                 <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'this_year' %}active{% endif %}" data-period="this_year">This Year</button>
                                                 <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'next_year' %}active{% endif %}" data-period="next_year">Next Year</button>
                                                 <button type="button" class="btn btn-outline-primary btn-sm {% if date_range.period_type == 'last_year' %}active{% endif %}" data-period="last_year">Last Year</button>
@@ -1836,6 +1834,12 @@
                     legend: { display: false }
                 },
                 scales: {
+                    x: {
+                        offset: true,
+                        ticks: {
+                            maxTicksLimit: 12
+                        }
+                    },
                     y: {
                         beginAtZero: true,
                         ticks: {
@@ -1996,6 +2000,12 @@
                     legend: { display: false }
                 },
                 scales: {
+                    x: {
+                        offset: true,
+                        ticks: {
+                            maxTicksLimit: 12
+                        }
+                    },
                     y: {
                         beginAtZero: true,
                         ticks: { precision: 0, stepSize: 1 }

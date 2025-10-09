@@ -263,73 +263,114 @@ def dashboard_view(request):
     view_type = request.GET.get('view', 'month')  # Default to month view
     
     # Set default date ranges based on period type
+    current_period_start = None
+    current_period_end = None
+    
     if start_date_param and end_date_param:
         try:
             start_date = datetime.strptime(start_date_param, '%Y-%m-%d').date()
             end_date = datetime.strptime(end_date_param, '%Y-%m-%d').date()
+            current_period_start = start_date
+            current_period_end = end_date
         except ValueError:
             # Fallback to default if date parsing fails
             start_date = today.replace(day=1)
             end_date = today
+            current_period_start = start_date
+            current_period_end = end_date
     else:
         # Predefined periods
         if period_type == 'this_month':
-            start_date = today.replace(day=1)
-            # End at current date (not end of month)
-            end_date = today
+            # For Current Period: Show only current month
+            # For Charts: Show 4 months for better visualization
+            current_month_start = today.replace(day=1)
+            if today.month == 12:
+                current_month_end = today.replace(year=today.year + 1, month=1, day=1) - timedelta(days=1)
+            else:
+                current_month_end = today.replace(month=today.month + 1, day=1) - timedelta(days=1)
+            
+            # Chart range: 4 months for better line visualization
+            chart_start = current_month_start - timedelta(days=90)  # Approximately 3 months
+            chart_start = chart_start.replace(day=1)  # First day of that month
+            
+            start_date = chart_start  # For charts
+            end_date = current_month_end  # For charts
+            
+            # Current Period: Only current month
+            current_period_start = current_month_start
+            current_period_end = current_month_end
+            
         elif period_type == 'last_month':
-            start_date = (today.replace(day=1) - timedelta(days=1)).replace(day=1)
-            # End at last day of previous month
-            end_date = today.replace(day=1) - timedelta(days=1)
-        elif period_type == 'last_3_months':
-            # Get 3 complete months back from current month (including current month)
-            if today.month >= 3:
-                start_date = today.replace(month=today.month - 2, day=1)
-            else:
-                start_date = today.replace(year=today.year - 1, month=12 - (2 - today.month), day=1)
-            # End of current month (include current month)
-            if today.month == 12:
-                end_date = today.replace(year=today.year + 1, month=1, day=1) - timedelta(days=1)
-            else:
-                end_date = today.replace(month=today.month + 1, day=1) - timedelta(days=1)
-        elif period_type == 'last_6_months':
-            # Get 6 complete months back from current month (including current month)
-            if today.month >= 6:
-                start_date = today.replace(month=today.month - 5, day=1)
-            else:
-                start_date = today.replace(year=today.year - 1, month=12 - (5 - today.month), day=1)
-            # End of current month (include current month)
-            if today.month == 12:
-                end_date = today.replace(year=today.year + 1, month=1, day=1) - timedelta(days=1)
-            else:
-                end_date = today.replace(month=today.month + 1, day=1) - timedelta(days=1)
+            # For Current Period: Show only last month
+            # For Charts: Show 4 months for better visualization
+            last_month_start = (today.replace(day=1) - timedelta(days=1)).replace(day=1)
+            last_month_end = today.replace(day=1) - timedelta(days=1)
+            
+            # Chart range: 4 months for better line visualization
+            chart_start = last_month_start - timedelta(days=90)  # Approximately 3 months
+            chart_start = chart_start.replace(day=1)  # First day of that month
+            
+            start_date = chart_start  # For charts
+            end_date = last_month_end  # For charts
+            
+            # Current Period: Only last month
+            current_period_start = last_month_start
+            current_period_end = last_month_end
         elif period_type == 'last_year':
             start_date = today.replace(year=today.year - 1, month=1, day=1)
             end_date = today.replace(year=today.year - 1, month=12, day=31)
+            current_period_start = start_date
+            current_period_end = end_date
         elif period_type == 'last_2_years':
             start_date = today.replace(year=today.year - 2, month=1, day=1)
             end_date = today.replace(year=today.year - 1, month=12, day=31)
+            current_period_start = start_date
+            current_period_end = end_date
         elif period_type == 'this_year':
             start_date = today.replace(month=1, day=1)
             end_date = today.replace(month=12, day=31)
+            current_period_start = start_date
+            current_period_end = end_date
         elif period_type == 'ytd':
             start_date = today.replace(month=1, day=1)
             # End at current date (not end of current month)
             end_date = today
+            current_period_start = start_date
+            current_period_end = end_date
         elif period_type == 'qtd':
-            # Current quarter - from start of quarter to current date
-            current_quarter = (today.month - 1) // 3 + 1
-            quarter_start_month = (current_quarter - 1) * 3 + 1
+            # Current quarter - from start of quarter to current date (quarter-to-date)
+            # Q1: Jan-Mar (1-3), Q2: Apr-Jun (4-6), Q3: Jul-Sep (7-9), Q4: Oct-Dec (10-12)
+            # But you want Q4 to start in August, so: Q1: Jan-Mar, Q2: Apr-Jun, Q3: Jul-Sep, Q4: Aug-Oct
+            if today.month <= 3:
+                quarter_start_month = 1  # Q1: January
+            elif today.month <= 6:
+                quarter_start_month = 4  # Q2: April
+            elif today.month <= 9:
+                quarter_start_month = 7  # Q3: July
+            else:
+                quarter_start_month = 8  # Q4: August (as you requested)
+            
             start_date = today.replace(month=quarter_start_month, day=1)
-            # End at current date (not end of current month)
+            # End at current date (not end of quarter)
             end_date = today
+            current_period_start = start_date
+            current_period_end = end_date
         elif period_type == 'next_year':
             start_date = today.replace(year=today.year + 1, month=1, day=1)
             end_date = today.replace(year=today.year + 1, month=12, day=31)
+            current_period_start = start_date
+            current_period_end = end_date
         else:
             # Default to this month
             start_date = today.replace(day=1)
             end_date = today
+            current_period_start = start_date
+            current_period_end = end_date
+    
+    # For day/week views on this_month and last_month, use only the actual month
+    if view_type in ['day', 'week'] and period_type in ['this_month', 'last_month']:
+        start_date = current_period_start
+        end_date = current_period_end
     
     # Calculate comparison periods
     period_days = (end_date - start_date).days
@@ -579,123 +620,41 @@ def dashboard_view(request):
     # Calculate number of periods to show based on period type and view granularity
     if view_type == 'day':
         # For day view, show daily data
-        if start_date_param and end_date_param:
-            periods_to_show = (end_date - start_date).days + 1
-        else:
-            periods_to_show = 30  # Default to 30 days
+        periods_to_show = (end_date - start_date).days + 1
     elif view_type == 'week':
         # For week view, show weekly data
-        if start_date_param and end_date_param:
-            periods_to_show = ((end_date - start_date).days // 7) + 1
-        else:
-            periods_to_show = 12  # Default to 12 weeks
+        periods_to_show = ((end_date - start_date).days // 7) + 1
     else:  # month view
         # For month view, show monthly data
-        if start_date_param and end_date_param:
-            periods_to_show = max(1, (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1)
-            # Ensure we don't show too many months (cap at 24 for performance)
-            periods_to_show = min(periods_to_show, 24)
-        elif period_type in ['this_month', 'last_month']:
-            periods_to_show = 1  # Show only the selected month
-        elif period_type in ['last_3_months']:
-            periods_to_show = 3  # Show exactly 3 months
-        elif period_type in ['last_6_months']:
-            periods_to_show = 6  # Show exactly 6 months
-        elif period_type in ['qtd']:
-            periods_to_show = 3  # Show exactly 3 months for quarter
-        elif period_type in ['this_year', 'ytd', 'last_year', 'next_year']:
-            periods_to_show = 12  # Show 12 months for year periods
-        elif period_type in ['last_2_years']:
-            periods_to_show = 24  # Show 24 months for 2 years
-        else:
-            periods_to_show = 12
+        periods_to_show = max(1, (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1)
+        # Ensure we don't show too many months (cap at 24 for performance)
+        periods_to_show = min(periods_to_show, 24)
     
     for i in range(periods_to_show):
         # Calculate period start and end based on view type
         if view_type == 'day':
             # For day view, each period is a single day
-            if start_date_param and end_date_param:
-                period_start = start_date + timedelta(days=i)
-                period_end = period_start
-            else:
-                # Default: last 30 days
-                period_start = today - timedelta(days=periods_to_show-i-1)
-                period_end = period_start
+            period_start = start_date + timedelta(days=i)
+            period_end = period_start
         elif view_type == 'week':
             # For week view, each period is a week (Monday to Sunday)
-            if start_date_param and end_date_param:
-                period_start = start_date + timedelta(days=i*7)
-                # Find the Monday of this week
-                period_start = period_start - timedelta(days=period_start.weekday())
-                period_end = period_start + timedelta(days=6)
-            else:
-                # Default: last 12 weeks
-                period_start = today - timedelta(days=(periods_to_show-i)*7)
-                period_start = period_start - timedelta(days=period_start.weekday())
-                period_end = period_start + timedelta(days=6)
+            period_start = start_date + timedelta(days=i*7)
+            # Find the Monday of this week
+            period_start = period_start - timedelta(days=period_start.weekday())
+            period_end = period_start + timedelta(days=6)
         else:  # month view
             # For month view, each period is a month
-            if start_date_param and end_date_param:
-                # Calculate target month and year starting from start_date
-                target_month = start_date.month + i
-                target_year = start_date.year
-                # Handle year rollover
-                while target_month > 12:
-                    target_month -= 12
-                    target_year += 1
-                period_start = start_date.replace(year=target_year, month=target_month, day=1)
-            elif period_type == 'next_year':
-                # Calculate target month and year
-                target_month = start_date.month + i
-                target_year = start_date.year
-                # Handle year rollover
-                while target_month > 12:
-                    target_month -= 12
-                    target_year += 1
-                period_start = start_date.replace(year=target_year, month=target_month, day=1)
-            elif period_type in ['this_year', 'ytd']:
-                # For current year periods, go forward from January
-                target_month = 1 + i
-                target_year = start_date.year
-                # Handle year rollover
-                while target_month > 12:
-                    target_month -= 12
-                    target_year += 1
-                period_start = start_date.replace(year=target_year, month=target_month, day=1)
-            elif period_type in ['last_3_months', 'last_6_months', 'qtd']:
-                # For these periods, go forward from start_date to show actual months in the period
-                target_month = start_date.month + i
-                target_year = start_date.year
-                # Handle year rollover
-                while target_month > 12:
-                    target_month -= 12
-                    target_year += 1
-                period_start = start_date.replace(year=target_year, month=target_month, day=1)
-            elif period_type in ['last_year', 'last_2_years']:
-                # For year periods, go forward from start_date
-                target_month = start_date.month + i
-                target_year = start_date.year
-                # Handle year rollover
-                while target_month > 12:
-                    target_month -= 12
-                    target_year += 1
-                period_start = start_date.replace(year=target_year, month=target_month, day=1)
-            elif period_type in ['this_month', 'last_month']:
-                # For single month periods, show only that month
-                if i == 0:
-                    period_start = start_date
-                else:
-                    # For this_month and last_month, we only show 1 month, so this shouldn't happen
-                    period_start = start_date
-            else:
-                # For other past periods, go backward from start_date
-                period_start = (start_date - timedelta(days=30*i)).replace(day=1)
+            # Calculate target month and year starting from start_date
+            target_month = start_date.month + i
+            target_year = start_date.year
+            # Handle year rollover
+            while target_month > 12:
+                target_month -= 12
+                target_year += 1
+            period_start = start_date.replace(year=target_year, month=target_month, day=1)
             
             # Calculate month end
-            if period_type == 'this_month':
-                # For this_month, end at current date (not end of month)
-                period_end = today
-            elif period_start.month == 12:
+            if period_start.month == 12:
                 period_end = period_start.replace(year=period_start.year + 1, month=1, day=1) - timedelta(days=1)
             else:
                 period_end = period_start.replace(month=period_start.month + 1, day=1) - timedelta(days=1)
@@ -841,10 +800,12 @@ def dashboard_view(request):
         period_revenue = Decimal('0.00')
         for req in period_requests:
             if req.request_type == 'Series Group':
-                # For Series Group: calculate revenue from SeriesGroupEntry
+                # For Series Group: calculate revenue from SeriesGroupEntry that fall within this period
                 for series_entry in req.series_entries.all():
-                    period_revenue += series_entry.get_total_cost()
-                # Add transportation costs if any
+                    # Check if this series entry's arrival date falls within the current period
+                    if period_start <= series_entry.arrival_date <= period_end:
+                        period_revenue += series_entry.get_total_cost()
+                # Add transportation costs if any (only once per request, not per entry)
                 period_revenue += req.get_transportation_total()
             else:
                 # For other accommodation requests: use room + transportation costs only
@@ -852,7 +813,19 @@ def dashboard_view(request):
                 period_revenue += accommodation_revenue
         
         period_bookings = period_requests.count()
-        period_rooms = period_requests.aggregate(total=Sum('total_rooms'))['total'] or 0
+        
+        # Calculate rooms correctly - Series Group entries count individually by arrival date
+        period_rooms = 0
+        for req in period_requests:
+            if req.request_type == 'Series Group':
+                # For Series Group: count rooms from SeriesGroupEntry that fall within this period
+                for series_entry in req.series_entries.all():
+                    # Check if this series entry's arrival date falls within the current period
+                    if period_start <= series_entry.arrival_date <= period_end:
+                        period_rooms += series_entry.number_of_rooms
+            else:
+                # For other accommodation requests: use total_rooms from Request
+                period_rooms += req.total_rooms or 0
         
         # Count each status
         period_draft = period_draft_requests.count()
@@ -966,7 +939,7 @@ def dashboard_view(request):
         },
         
         # Date ranges for display
-        'current_period_name': f"{start_date.strftime('%B %d, %Y')} - {end_date.strftime('%B %d, %Y')}",
+        'current_period_name': f"{current_period_start.strftime('%B %d, %Y')} - {current_period_end.strftime('%B %d, %Y')}",
         'mom_period_name': f"{mom_start.strftime('%B %d, %Y')} - {mom_end.strftime('%B %d, %Y')}",
         'yoy_period_name': f"{yoy_start.strftime('%B %d, %Y')} - {yoy_end.strftime('%B %d, %Y')}",
     })

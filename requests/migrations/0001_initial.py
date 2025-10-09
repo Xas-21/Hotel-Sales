@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
             name='Request',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('request_type', models.CharField(choices=[('Group Accommodation', 'Group Accommodation (10+ rooms)'), ('Individual Accommodation', 'Individual Accommodation (1-9 rooms)'), ('Event with Rooms', 'Event with Rooms'), ('Event without Rooms', 'Event without Rooms'), ('Series Group', 'Series Group (multiple dates)')], max_length=30)),
+                ('request_type', models.CharField(choices=[('Group Accommodation', 'Group Accommodation'), ('Individual Accommodation', 'Individual Accommodation (1-9 rooms)'), ('Event with Rooms', 'Event with Rooms'), ('Event without Rooms', 'Event without Rooms'), ('Series Group', 'Series Group')], max_length=30)),
                 ('confirmation_number', models.CharField(blank=True, max_length=50, unique=True)),
                 ('request_received_date', models.DateField(default=django.utils.timezone.localdate)),
                 ('check_in_date', models.DateField(blank=True, null=True)),

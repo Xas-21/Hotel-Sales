@@ -63,3 +63,4 @@ class Command(BaseCommand):
         for group in Group.objects.all().order_by('name'):
             self.stdout.write(f'  • {group.name}')
 
+

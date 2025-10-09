@@ -33,7 +33,7 @@ class Migration(migrations.Migration):
             name='RequestFormLayout',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('request_type', models.CharField(choices=[('Group Accommodation', 'Group Accommodation (10+ rooms)'), ('Individual Accommodation', 'Individual Accommodation (1-9 rooms)'), ('Event with Rooms', 'Event with Rooms'), ('Event without Rooms', 'Event without Rooms'), ('Series Group', 'Series Group (multiple dates)')], max_length=30, unique=True)),
+                ('request_type', models.CharField(choices=[('Group Accommodation', 'Group Accommodation'), ('Individual Accommodation', 'Individual Accommodation (1-9 rooms)'), ('Event with Rooms', 'Event with Rooms'), ('Event without Rooms', 'Event without Rooms'), ('Series Group', 'Series Group')], max_length=30, unique=True)),
                 ('sections', models.JSONField(default=list, help_text="JSON array of sections: [{'name': 'Basic Info', 'fields': ['field1', 'field2'], 'order': 1}]")),
                 ('active', models.BooleanField(default=True, help_text='Layout is active')),
                 ('updated_by', models.CharField(blank=True, help_text='Last updated by', max_length=100)),
@@ -97,7 +97,7 @@ class Migration(migrations.Migration):
             name='RequestFieldRequirement',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('request_type', models.CharField(choices=[('Group Accommodation', 'Group Accommodation (10+ rooms)'), ('Individual Accommodation', 'Individual Accommodation (1-9 rooms)'), ('Event with Rooms', 'Event with Rooms'), ('Event without Rooms', 'Event without Rooms'), ('Series Group', 'Series Group (multiple dates)')], max_length=30)),
+                ('request_type', models.CharField(choices=[('Group Accommodation', 'Group Accommodation'), ('Individual Accommodation', 'Individual Accommodation (1-9 rooms)'), ('Event with Rooms', 'Event with Rooms'), ('Event without Rooms', 'Event without Rooms'), ('Series Group', 'Series Group')], max_length=30)),
                 ('field_name', models.CharField(help_text='Django field name', max_length=100)),
                 ('field_label', models.CharField(help_text='Display label', max_length=200)),
                 ('required', models.BooleanField(default=False, help_text='Field is required')),
