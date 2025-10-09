@@ -482,8 +482,9 @@
 
                 <!-- Event Analytics -->
                 <div class="row">
-                    <div class="col-md-6">
-                        <div class="card">
+                    <!-- Room Performance - Full Width -->
+                    <div class="col-12">
+                        <div class="card mb-4">
                             <div class="card-header">
                                 <h6 class="mb-0">Room Performance</h6>
                             </div>
@@ -492,15 +493,27 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                </div>
+                
+                <!-- Account Performance - Below Room Performance -->
+                <div class="row">
+                    <div class="col-12">
                         <div class="card">
                             <div class="card-header">
-                                <h6 class="mb-0">Account Performance</h6>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">Account Performance</h6>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="date" id="eventAcctStart" class="form-control form-control-sm" style="width: 150px;">
+                                        <input type="date" id="eventAcctEnd" class="form-control form-control-sm" style="width: 150px;">
+                                        <input type="text" id="eventAcctSearch" class="form-control form-control-sm" placeholder="Search account" style="width: 200px;">
+                                        <button id="eventAcctApply" class="btn btn-sm btn-outline-primary">Apply</button>
+                                    </div>
+                                </div>
                             </div>
                             <div class="card-body">
-                                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
-                                    <table class="table table-sm">
-                                        <thead>
+                                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                    <table class="table table-sm" id="eventAccountPerformanceTable">
+                                        <thead class="sticky-top bg-light">
                                             <tr>
                                                 <th>Account</th>
                                                 <th>Events</th>
@@ -508,7 +521,7 @@
                                                 <th>MoM %</th>
                                             </tr>
                                         </thead>
-                                        <tbody>
+                                        <tbody id="eventAccountPerformanceBody">
                                             {% for account_name, data in event_metrics.account_performance.items %}
                                             <tr>
                                                 <td>
@@ -1567,6 +1580,76 @@
                 });
             }
         });
+
+        // Event Account Performance filtering functionality
+        function renderEventAccountTable(rows) {
+            const tbody = document.getElementById('eventAccountPerformanceBody');
+            if (!tbody) return;
+            
+            // Get currency from Django context or default to SAR
+            const currencySymbol = '{{ currency_symbol|default:"SAR" }}';
+            
+            console.log('Rendering event account table with data:', rows);
+            console.log('Using currency symbol:', currencySymbol);
+            
+            tbody.innerHTML = rows.map(r => {
+                console.log('Rendering row for:', r.account_name, 'MoM:', r.mom_percentage);
+                
+                // The API already returns converted amounts, so use them directly
+                const revenue = Math.round(r.revenue);
+                
+                return `
+                    <tr>
+                        <td><strong>${r.account_name}</strong><br><small class="text-muted">${r.account_type || ''}</small></td>
+                        <td>${r.events}</td>
+                        <td><span class="currency-symbol">${currencySymbol}</span>${revenue.toLocaleString()}</td>
+                        <td><span class="badge ${r.mom_percentage >= 0 ? 'bg-success' : 'bg-danger'}">${r.mom_percentage >= 0 ? '+' : ''}${r.mom_percentage.toFixed(1)}%</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function loadEventAccountPerformance() {
+            const s = document.getElementById('eventAcctStart').value;
+            const e = document.getElementById('eventAcctEnd').value;
+            const a = document.getElementById('eventAcctSearch').value;
+            const params = new URLSearchParams();
+            if (s) params.append('start_date', s);
+            if (e) params.append('end_date', e);
+            if (a) params.append('account', a);
+            
+            // Add cache-busting parameter
+            params.append('_t', Date.now());
+            
+            console.log('Loading event account performance with params:', params.toString());
+            
+            try {
+                const resp = await fetch(`/event-management/api/event-account-performance/?${params.toString()}`);
+                
+                if (!resp.ok) {
+                    throw new Error(`HTTP error! status: ${resp.status}`);
+                }
+                
+                const data = await resp.json();
+                console.log('API response:', data);
+                
+                if (data.results && data.results.length > 0) {
+                    renderEventAccountTable(data.results);
+                } else {
+                    console.log('No results from API, keeping existing data');
+                    // Don't clear the table if API returns no results
+                }
+            } catch (error) {
+                console.error('Error loading event account performance:', error);
+                alert('Error loading account performance data. Please try again.');
+            }
+        }
+
+        // Setup event listeners for event account performance filtering
+        const eventAcctApplyBtn = document.getElementById('eventAcctApply');
+        if (eventAcctApplyBtn) {
+            eventAcctApplyBtn.addEventListener('click', loadEventAccountPerformance);
+        }
     </script>
 
     <!-- Add New Account Modal -->

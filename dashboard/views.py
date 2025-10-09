@@ -1199,6 +1199,7 @@ def api_property_performance(request):
     """
     Independent endpoint to compute performance by account profile with its own
     date range and optional account search. Not tied to the main date selector.
+    Uses per-night distribution for all accommodation types including Series Group.
     Query params:
       - start_date (YYYY-MM-DD)
       - end_date (YYYY-MM-DD)
@@ -1228,25 +1229,55 @@ def api_property_performance(request):
     mom_start_date = start_date_val - timedelta(days=period_days + 1)
     mom_end_date = start_date_val - timedelta(days=1)
 
-    # Current period requests
-    current_requests_qs = BookingRequest.objects.filter(
-        (Q(status='Confirmed') | Q(status='Paid') | Q(status='Actual')) &
-        Q(check_in_date__gte=start_date_val) & Q(check_in_date__lte=end_date_val)
+    # Current period requests - accommodation types (using per-night filtering)
+    current_accommodation = BookingRequest.objects.filter(
+        Q(status='Confirmed') | Q(status='Paid') | Q(status='Actual'),
+        request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
+        check_in_date__lt=end_date_val + timedelta(days=1),
+        check_out_date__gt=start_date_val
     ).select_related('account')
-
-    # Previous period requests for MoM calculation
-    previous_requests_qs = BookingRequest.objects.filter(
-        (Q(status='Confirmed') | Q(status='Paid') | Q(status='Actual')) &
-        Q(check_in_date__gte=mom_start_date) & Q(check_in_date__lte=mom_end_date)
-    ).select_related('account')
-
+    
+    # Current period Series Group requests
+    current_series_ids = SeriesGroupEntry.objects.filter(
+        request__status__in=['Confirmed', 'Paid', 'Actual'],
+        request__request_type='Series Group',
+        arrival_date__lt=end_date_val + timedelta(days=1),
+        departure_date__gt=start_date_val
+    ).values_list('request_id', flat=True).distinct()
+    current_series = BookingRequest.objects.filter(id__in=current_series_ids).select_related('account')
+    
+    # Apply account filter if provided
     if account_query:
-        current_requests_qs = current_requests_qs.filter(account__name__icontains=account_query)
-        previous_requests_qs = previous_requests_qs.filter(account__name__icontains=account_query)
+        current_accommodation = current_accommodation.filter(account__name__icontains=account_query)
+        current_series = current_series.filter(account__name__icontains=account_query)
+    
+    # Previous period requests - accommodation types
+    previous_accommodation = BookingRequest.objects.filter(
+        Q(status='Confirmed') | Q(status='Paid') | Q(status='Actual'),
+        request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
+        check_in_date__lt=mom_end_date + timedelta(days=1),
+        check_out_date__gt=mom_start_date
+    ).select_related('account')
+    
+    # Previous period Series Group requests
+    previous_series_ids = SeriesGroupEntry.objects.filter(
+        request__status__in=['Confirmed', 'Paid', 'Actual'],
+        request__request_type='Series Group',
+        arrival_date__lt=mom_end_date + timedelta(days=1),
+        departure_date__gt=mom_start_date
+    ).values_list('request_id', flat=True).distinct()
+    previous_series = BookingRequest.objects.filter(id__in=previous_series_ids).select_related('account')
+    
+    # Apply account filter if provided
+    if account_query:
+        previous_accommodation = previous_accommodation.filter(account__name__icontains=account_query)
+        previous_series = previous_series.filter(account__name__icontains=account_query)
 
-    # Build current period breakdown
+    # Build current period breakdown using per-night distribution
     current_breakdown = {}
-    for req in current_requests_qs:
+    
+    # Process accommodation requests
+    for req in current_accommodation:
         property_name = req.account.name
         if property_name not in current_breakdown:
             current_breakdown[property_name] = {
@@ -1256,19 +1287,58 @@ def api_property_performance(request):
             }
         current_breakdown[property_name]['bookings'] += 1
         
-        # Use room-only costs for Event with Accommodation
-        if req.request_type == 'Event with Rooms':
-            room_cost = req.get_room_total()
-            transport_cost = req.get_transportation_total()
-            request_revenue = room_cost + transport_cost
-        else:
-            request_revenue = req.total_cost
+        # Calculate revenue PER NIGHT that falls within period
+        if req.check_in_date and req.check_out_date and req.nights:
+            total_room_cost = req.get_room_total()
+            nights = req.nights
+            revenue_per_night = total_room_cost / nights if nights > 0 else Decimal('0.00')
+            
+            # Count nights within the period
+            current_night = req.check_in_date
+            while current_night < req.check_out_date:
+                if start_date_val <= current_night <= end_date_val:
+                    current_breakdown[property_name]['revenue'] += revenue_per_night
+                current_night += timedelta(days=1)
+            
+            # Add transportation costs (only once for check-in date in period)
+            if start_date_val <= req.check_in_date <= end_date_val:
+                current_breakdown[property_name]['revenue'] += req.get_transportation_total()
+    
+    # Process Series Group requests
+    for req in current_series:
+        property_name = req.account.name
+        if property_name not in current_breakdown:
+            current_breakdown[property_name] = {
+                'bookings': 0,
+                'revenue': Decimal('0.00'),
+                'account_type': req.account.account_type,
+            }
+        current_breakdown[property_name]['bookings'] += 1
         
-        current_breakdown[property_name]['revenue'] += request_revenue
+        # Calculate revenue PER NIGHT for each series entry
+        for series_entry in req.series_entries.all():
+            total_entry_cost = series_entry.get_total_cost()
+            nights = series_entry.nights
+            revenue_per_night = total_entry_cost / nights if nights > 0 else Decimal('0.00')
+            
+            # Count nights within the period
+            current_night = series_entry.arrival_date
+            while current_night < series_entry.departure_date:
+                if start_date_val <= current_night <= end_date_val:
+                    current_breakdown[property_name]['revenue'] += revenue_per_night
+                current_night += timedelta(days=1)
+        
+        # Add transportation costs (only once for first entry in period)
+        if req.series_entries.exists():
+            first_entry = req.series_entries.order_by('arrival_date').first()
+            if first_entry and start_date_val <= first_entry.arrival_date <= end_date_val:
+                current_breakdown[property_name]['revenue'] += req.get_transportation_total()
 
-    # Build previous period breakdown for MoM calculation
+    # Build previous period breakdown using per-night distribution
     previous_breakdown = {}
-    for req in previous_requests_qs:
+    
+    # Process accommodation requests
+    for req in previous_accommodation:
         property_name = req.account.name
         if property_name not in previous_breakdown:
             previous_breakdown[property_name] = {
@@ -1277,15 +1347,51 @@ def api_property_performance(request):
             }
         previous_breakdown[property_name]['bookings'] += 1
         
-        # Use room-only costs for Event with Accommodation
-        if req.request_type == 'Event with Rooms':
-            room_cost = req.get_room_total()
-            transport_cost = req.get_transportation_total()
-            request_revenue = room_cost + transport_cost
-        else:
-            request_revenue = req.total_cost
+        # Calculate revenue PER NIGHT that falls within MoM period
+        if req.check_in_date and req.check_out_date and req.nights:
+            total_room_cost = req.get_room_total()
+            nights = req.nights
+            revenue_per_night = total_room_cost / nights if nights > 0 else Decimal('0.00')
+            
+            # Count nights within the MoM period
+            current_night = req.check_in_date
+            while current_night < req.check_out_date:
+                if mom_start_date <= current_night <= mom_end_date:
+                    previous_breakdown[property_name]['revenue'] += revenue_per_night
+                current_night += timedelta(days=1)
+            
+            # Add transportation costs (only once for check-in date in period)
+            if mom_start_date <= req.check_in_date <= mom_end_date:
+                previous_breakdown[property_name]['revenue'] += req.get_transportation_total()
+    
+    # Process Series Group requests
+    for req in previous_series:
+        property_name = req.account.name
+        if property_name not in previous_breakdown:
+            previous_breakdown[property_name] = {
+                'bookings': 0,
+                'revenue': Decimal('0.00'),
+            }
+        previous_breakdown[property_name]['bookings'] += 1
         
-        previous_breakdown[property_name]['revenue'] += request_revenue
+        # Calculate revenue PER NIGHT for each series entry
+        for series_entry in req.series_entries.all():
+            total_entry_cost = series_entry.get_total_cost()
+            nights = series_entry.nights
+            revenue_per_night = total_entry_cost / nights if nights > 0 else Decimal('0.00')
+            
+            # Count nights within the MoM period
+            current_night = series_entry.arrival_date
+            while current_night < series_entry.departure_date:
+                if mom_start_date <= current_night <= mom_end_date:
+                    previous_breakdown[property_name]['revenue'] += revenue_per_night
+                current_night += timedelta(days=1)
+        
+        # Add transportation costs (only once for first entry in period)
+        if req.series_entries.exists():
+            first_entry = req.series_entries.order_by('arrival_date').first()
+            if first_entry and mom_start_date <= first_entry.arrival_date <= mom_end_date:
+                previous_breakdown[property_name]['revenue'] += req.get_transportation_total()
 
     # Finalize results with MoM calculations
     results = []

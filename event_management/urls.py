@@ -11,4 +11,5 @@ urlpatterns = [
     path('api/calendar-events/', views.calendar_events_api, name='calendar_events_api'),
     path('api/room-availability/', views.room_availability_api, name='room_availability_api'),
     path('api/create-account/', views.create_account_api, name='create_account_api'),
+    path('api/event-account-performance/', views.api_event_account_performance, name='api_event_account_performance'),
 ]

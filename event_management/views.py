@@ -786,3 +786,113 @@ def create_account_api(request):
             'success': False,
             'error': f'Error creating account: {str(e)}'
         }, status=500)
+
+
+@login_required
+def api_event_account_performance(request):
+    """
+    API endpoint to compute event account performance with custom date range and account search.
+    Query params:
+      - start_date (YYYY-MM-DD)
+      - end_date (YYYY-MM-DD)
+      - account (substring to filter account name, case-insensitive)
+    """
+    from requests.models import EventAgenda
+    
+    # Parse dates with defaults
+    try:
+        start_date_str = request.GET.get('start_date')
+        end_date_str = request.GET.get('end_date')
+        if start_date_str and end_date_str:
+            start_date_val = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date_val = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        else:
+            # Default to all time
+            start_date_val = date(2020, 1, 1)
+            end_date_val = date(2030, 12, 31)
+    except ValueError:
+        return JsonResponse({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=400)
+
+    account_query = request.GET.get('account', '').strip()
+
+    # Get current currency setting
+    currency_context = get_currency_context(request)
+    current_currency = currency_context['currency_code']
+
+    # Calculate previous period for MoM comparison
+    period_days = (end_date_val - start_date_val).days
+    mom_start_date = start_date_val - timedelta(days=period_days + 1)
+    mom_end_date = start_date_val - timedelta(days=1)
+
+    # Current period event agendas
+    current_event_agendas = EventAgenda.objects.filter(
+        request__status__in=['Draft', 'Confirmed', 'Pending', 'Paid', 'Partially Paid', 'Actual'],
+        event_date__gte=start_date_val,
+        event_date__lte=end_date_val
+    ).select_related('request__account')
+    
+    # Previous period event agendas for MoM
+    previous_event_agendas = EventAgenda.objects.filter(
+        request__status__in=['Draft', 'Confirmed', 'Pending', 'Paid', 'Partially Paid', 'Actual'],
+        event_date__gte=mom_start_date,
+        event_date__lte=mom_end_date
+    ).select_related('request__account')
+
+    # Apply account filter if provided
+    if account_query:
+        current_event_agendas = current_event_agendas.filter(request__account__name__icontains=account_query)
+        previous_event_agendas = previous_event_agendas.filter(request__account__name__icontains=account_query)
+
+    # Build current period account performance
+    current_account_performance = {}
+    for agenda in current_event_agendas:
+        account_name = agenda.request.account.name
+        if account_name not in current_account_performance:
+            current_account_performance[account_name] = {
+                'events': 0,
+                'revenue': Decimal('0.00'),
+                'account_type': agenda.request.account.account_type,
+            }
+        current_account_performance[account_name]['events'] += 1
+        # Full event revenue per day
+        daily_revenue = (agenda.rate_per_person * agenda.total_persons) + agenda.rental_fees_per_day
+        current_account_performance[account_name]['revenue'] += daily_revenue
+
+    # Build previous period account performance
+    previous_account_performance = {}
+    for agenda in previous_event_agendas:
+        account_name = agenda.request.account.name
+        if account_name not in previous_account_performance:
+            previous_account_performance[account_name] = Decimal('0.00')
+        daily_revenue = (agenda.rate_per_person * agenda.total_persons) + agenda.rental_fees_per_day
+        previous_account_performance[account_name] += daily_revenue
+
+    # Finalize results with MoM calculations
+    results = []
+    for account_name, data in current_account_performance.items():
+        events = data['events']
+        revenue = data['revenue']
+        
+        # Calculate MoM percentage
+        previous_revenue = previous_account_performance.get(account_name, Decimal('0.00'))
+        if previous_revenue > 0:
+            mom_percentage = float(((revenue - previous_revenue) / previous_revenue) * 100)
+        else:
+            mom_percentage = 100.0 if revenue > 0 else 0.0
+        
+        # Convert currency if needed
+        if current_currency == 'USD':
+            revenue = convert_currency(revenue, 'SAR', 'USD')
+        
+        results.append({
+            'account_name': account_name,
+            'account_type': data['account_type'],
+            'events': events,
+            'revenue': float(revenue),
+            'mom_percentage': mom_percentage,
+        })
+
+    # Sort by revenue desc
+    results.sort(key=lambda x: x['revenue'], reverse=True)
+
+    return JsonResponse({'results': results})
