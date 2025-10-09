@@ -355,61 +355,83 @@ def dashboard_view(request):
     yoy_start = start_date.replace(year=start_date.year - 1)
     yoy_end = end_date.replace(year=end_date.year - 1)
     
-    # Get current period data
-    current_period_requests = BookingRequest.objects.filter(
+    # Get current period data (ACCOMMODATION ONLY - exclude Event Only)
+    # Include: Group Accommodation, Individual Accommodation, Event with Rooms, Series Group
+    current_accommodation = BookingRequest.objects.filter(
         Q(status='Confirmed') | Q(status='Paid') | Q(status='Actual'),
+        request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
         check_in_date__gte=start_date,
         check_in_date__lte=end_date
     ).select_related('account')
     
+    current_series_ids = SeriesGroupEntry.objects.filter(
+        request__status__in=['Confirmed', 'Paid', 'Actual'],
+        request__request_type='Series Group',
+        arrival_date__gte=start_date,
+        arrival_date__lte=end_date
+    ).values_list('request_id', flat=True).distinct()
+    current_series = BookingRequest.objects.filter(id__in=current_series_ids).select_related('account')
+    
+    current_period_requests = current_accommodation | current_series
+    
     # Get previous period data for MoM comparison
-    mom_requests = BookingRequest.objects.filter(
+    mom_accommodation = BookingRequest.objects.filter(
         Q(status='Confirmed') | Q(status='Paid') | Q(status='Actual'),
+        request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
         check_in_date__gte=mom_start,
         check_in_date__lte=mom_end
     ).select_related('account')
     
+    mom_series_ids = SeriesGroupEntry.objects.filter(
+        request__status__in=['Confirmed', 'Paid', 'Actual'],
+        request__request_type='Series Group',
+        arrival_date__gte=mom_start,
+        arrival_date__lte=mom_end
+    ).values_list('request_id', flat=True).distinct()
+    mom_series = BookingRequest.objects.filter(id__in=mom_series_ids).select_related('account')
+    
+    mom_requests = mom_accommodation | mom_series
+    
     # Get same period last year for YoY comparison
-    yoy_requests = BookingRequest.objects.filter(
+    yoy_accommodation = BookingRequest.objects.filter(
         Q(status='Confirmed') | Q(status='Paid') | Q(status='Actual'),
+        request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
         check_in_date__gte=yoy_start,
         check_in_date__lte=yoy_end
     ).select_related('account')
     
-    # Calculate current period metrics - using room-only costs for Event with Accommodation
+    yoy_series_ids = SeriesGroupEntry.objects.filter(
+        request__status__in=['Confirmed', 'Paid', 'Actual'],
+        request__request_type='Series Group',
+        arrival_date__gte=yoy_start,
+        arrival_date__lte=yoy_end
+    ).values_list('request_id', flat=True).distinct()
+    yoy_series = BookingRequest.objects.filter(id__in=yoy_series_ids).select_related('account')
+    
+    yoy_requests = yoy_accommodation | yoy_series
+    
+    # Calculate current period metrics - using accommodation revenue only (rooms + transportation, NO events)
     current_period_bookings = current_period_requests.count()
     current_period_revenue = Decimal('0.00')
     for req in current_period_requests:
-        if req.request_type == 'Event with Rooms':
-            # For Event with Accommodation, use only room + transport costs
-            current_period_revenue += req.get_room_total() + req.get_transportation_total()
-        else:
-            # For other request types, use total cost
-            current_period_revenue += req.total_cost
+        # All accommodation requests: use room + transportation costs only
+        current_period_revenue += req.get_room_total() + req.get_transportation_total()
     current_period_avg_value = current_period_revenue / current_period_bookings if current_period_bookings > 0 else Decimal('0.00')
     
-    # Calculate previous period metrics for MoM comparison - using room-only costs for Event with Accommodation
+    # Calculate previous period metrics for MoM comparison - using accommodation revenue only
     mom_bookings = mom_requests.count()
     mom_revenue = Decimal('0.00')
     for req in mom_requests:
-        if req.request_type == 'Event with Rooms':
-            # For Event with Accommodation, use only room + transport costs
-            mom_revenue += req.get_room_total() + req.get_transportation_total()
-        else:
-            # For other request types, use total cost
-            mom_revenue += req.total_cost
+        # All accommodation requests: use room + transportation costs only
+        mom_revenue += req.get_room_total() + req.get_transportation_total()
     mom_avg_value = mom_revenue / mom_bookings if mom_bookings > 0 else Decimal('0.00')
     
-    # Calculate same period last year metrics for YoY comparison - using room-only costs for Event with Accommodation
+    # Calculate same period last year metrics for YoY comparison - using accommodation revenue only
     yoy_bookings = yoy_requests.count()
     yoy_revenue = Decimal('0.00')
     for req in yoy_requests:
-        if req.request_type == 'Event with Rooms':
-            # For Event with Accommodation, use only room + transport costs
-            yoy_revenue += req.get_room_total() + req.get_transportation_total()
-        else:
-            # For other request types, use total cost
-            yoy_revenue += req.total_cost
+        # All accommodation requests: use room + transportation costs only
+        yoy_revenue += req.get_room_total() + req.get_transportation_total()
     yoy_avg_value = yoy_revenue / yoy_bookings if yoy_bookings > 0 else Decimal('0.00')
     
     # Calculate MoM changes
@@ -430,7 +452,7 @@ def dashboard_view(request):
     available_room_nights = 1000
     occupancy_rate = (current_period_room_nights / available_room_nights * 100) if available_room_nights > 0 else Decimal('0.00')
     
-    # Account type breakdown for current period
+    # Account type breakdown for current period - accommodation revenue only
     account_type_breakdown = {}
     for req in current_period_requests:
         account_type = req.account.account_type
@@ -442,11 +464,8 @@ def dashboard_view(request):
             }
         account_type_breakdown[account_type]['bookings'] += 1
         
-        # Use room-only costs for Event with Accommodation
-        if req.request_type == 'Event with Rooms':
-            account_type_breakdown[account_type]['revenue'] += req.get_room_total() + req.get_transportation_total()
-        else:
-            account_type_breakdown[account_type]['revenue'] += req.total_cost
+        # All accommodation requests: use room + transportation costs only (NO events)
+        account_type_breakdown[account_type]['revenue'] += req.get_room_total() + req.get_transportation_total()
     
     # Calculate averages for account types
     for account_type in account_type_breakdown:
@@ -456,7 +475,7 @@ def dashboard_view(request):
                 account_type_breakdown[account_type]['bookings']
             )
     
-    # Property breakdown (using account names as properties)
+    # Property breakdown (using account names as properties) - accommodation revenue only
     property_breakdown = {}
     for req in current_period_requests:
         property_name = req.account.name
@@ -469,11 +488,8 @@ def dashboard_view(request):
             }
         property_breakdown[property_name]['bookings'] += 1
         
-        # Use room-only costs for Event with Accommodation
-        if req.request_type == 'Event with Rooms':
-            property_breakdown[property_name]['revenue'] += req.get_room_total() + req.get_transportation_total()
-        else:
-            property_breakdown[property_name]['revenue'] += req.total_cost
+        # All accommodation requests: use room + transportation costs only (NO events)
+        property_breakdown[property_name]['revenue'] += req.get_room_total() + req.get_transportation_total()
     
     # Calculate averages and MoM for properties
     for property_name in property_breakdown:
@@ -487,14 +503,11 @@ def dashboard_view(request):
         current_revenue = property_breakdown[property_name]['revenue']
         previous_revenue = Decimal('0.00')
         
-        # Get previous period revenue for this property
+        # Get previous period revenue for this property - accommodation revenue only
         previous_requests = mom_requests.filter(account__name=property_name)
         for prev_request in previous_requests:
-            # Use room-only costs for Event with Accommodation (consistent with current period)
-            if prev_request.request_type == 'Event with Rooms':
-                previous_revenue += prev_request.get_room_total() + prev_request.get_transportation_total()
-            else:
-                previous_revenue += prev_request.total_cost
+            # All accommodation requests: use room + transportation costs only (NO events)
+            previous_revenue += prev_request.get_room_total() + prev_request.get_transportation_total()
         
         if previous_revenue > 0:
             mom_percentage = float(((current_revenue - previous_revenue) / previous_revenue) * 100)
