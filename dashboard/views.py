@@ -641,48 +641,142 @@ def dashboard_view(request):
             else:
                 period_end = period_start.replace(month=period_start.month + 1, day=1) - timedelta(days=1)
         
-        period_requests = BookingRequest.objects.filter(
+        # Filter ACCOMMODATION requests only (exclude Event Only/Event without Rooms)
+        # Comprehensive Booking Analytics Dashboard shows room accommodations only
+        # Events are tracked separately in Event Management page
+        
+        # Group Accommodation, Individual Accommodation, Event with Rooms (use check_in_date)
+        accommodation_requests = BookingRequest.objects.filter(
             Q(status='Confirmed') | Q(status='Paid') | Q(status='Actual'),
+            request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
             check_in_date__gte=period_start,
             check_in_date__lte=period_end
         )
         
-        # Get all request statuses for the same period
-        period_draft_requests = BookingRequest.objects.filter(
+        # Series Group (use arrival_date from SeriesGroupEntry)
+        series_group_request_ids = SeriesGroupEntry.objects.filter(
+            request__status__in=['Confirmed', 'Paid', 'Actual'],
+            request__request_type='Series Group',
+            arrival_date__gte=period_start,
+            arrival_date__lte=period_end
+        ).values_list('request_id', flat=True).distinct()
+        series_group_requests = BookingRequest.objects.filter(id__in=series_group_request_ids)
+        
+        # Combine accommodation requests only (NO Event Only requests)
+        period_requests = accommodation_requests | series_group_requests
+        
+        # Get all request statuses for the same period (ACCOMMODATION only - no Event Only)
+        # Draft requests
+        draft_accommodation = BookingRequest.objects.filter(
             status='Draft',
+            request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
             check_in_date__gte=period_start,
             check_in_date__lte=period_end
         )
-        period_pending_requests = BookingRequest.objects.filter(
+        draft_series_ids = SeriesGroupEntry.objects.filter(
+            request__status='Draft',
+            request__request_type='Series Group',
+            arrival_date__gte=period_start,
+            arrival_date__lte=period_end
+        ).values_list('request_id', flat=True).distinct()
+        draft_series = BookingRequest.objects.filter(id__in=draft_series_ids)
+        period_draft_requests = draft_accommodation | draft_series
+        
+        # Pending requests
+        pending_accommodation = BookingRequest.objects.filter(
             status='Pending',
+            request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
             check_in_date__gte=period_start,
             check_in_date__lte=period_end
         )
-        period_partially_paid_requests = BookingRequest.objects.filter(
+        pending_series_ids = SeriesGroupEntry.objects.filter(
+            request__status='Pending',
+            request__request_type='Series Group',
+            arrival_date__gte=period_start,
+            arrival_date__lte=period_end
+        ).values_list('request_id', flat=True).distinct()
+        pending_series = BookingRequest.objects.filter(id__in=pending_series_ids)
+        period_pending_requests = pending_accommodation | pending_series
+        
+        # Partially Paid requests
+        partially_paid_accommodation = BookingRequest.objects.filter(
             status='Partially Paid',
+            request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
             check_in_date__gte=period_start,
             check_in_date__lte=period_end
         )
-        period_paid_requests = BookingRequest.objects.filter(
+        partially_paid_series_ids = SeriesGroupEntry.objects.filter(
+            request__status='Partially Paid',
+            request__request_type='Series Group',
+            arrival_date__gte=period_start,
+            arrival_date__lte=period_end
+        ).values_list('request_id', flat=True).distinct()
+        partially_paid_series = BookingRequest.objects.filter(id__in=partially_paid_series_ids)
+        period_partially_paid_requests = partially_paid_accommodation | partially_paid_series
+        
+        # Paid requests
+        paid_accommodation = BookingRequest.objects.filter(
             status='Paid',
+            request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
             check_in_date__gte=period_start,
             check_in_date__lte=period_end
         )
-        period_confirmed_requests = BookingRequest.objects.filter(
+        paid_series_ids = SeriesGroupEntry.objects.filter(
+            request__status='Paid',
+            request__request_type='Series Group',
+            arrival_date__gte=period_start,
+            arrival_date__lte=period_end
+        ).values_list('request_id', flat=True).distinct()
+        paid_series = BookingRequest.objects.filter(id__in=paid_series_ids)
+        period_paid_requests = paid_accommodation | paid_series
+        
+        # Confirmed requests
+        confirmed_accommodation = BookingRequest.objects.filter(
             status='Confirmed',
+            request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
             check_in_date__gte=period_start,
             check_in_date__lte=period_end
         )
-        period_actual_requests = BookingRequest.objects.filter(
+        confirmed_series_ids = SeriesGroupEntry.objects.filter(
+            request__status='Confirmed',
+            request__request_type='Series Group',
+            arrival_date__gte=period_start,
+            arrival_date__lte=period_end
+        ).values_list('request_id', flat=True).distinct()
+        confirmed_series = BookingRequest.objects.filter(id__in=confirmed_series_ids)
+        period_confirmed_requests = confirmed_accommodation | confirmed_series
+        
+        # Actual requests
+        actual_accommodation = BookingRequest.objects.filter(
             status='Actual',
+            request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
             check_in_date__gte=period_start,
             check_in_date__lte=period_end
         )
-        period_cancelled_requests = BookingRequest.objects.filter(
+        actual_series_ids = SeriesGroupEntry.objects.filter(
+            request__status='Actual',
+            request__request_type='Series Group',
+            arrival_date__gte=period_start,
+            arrival_date__lte=period_end
+        ).values_list('request_id', flat=True).distinct()
+        actual_series = BookingRequest.objects.filter(id__in=actual_series_ids)
+        period_actual_requests = actual_accommodation | actual_series
+        
+        # Cancelled requests
+        cancelled_accommodation = BookingRequest.objects.filter(
             status='Cancelled',
+            request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms'],
             check_in_date__gte=period_start,
             check_in_date__lte=period_end
         )
+        cancelled_series_ids = SeriesGroupEntry.objects.filter(
+            request__status='Cancelled',
+            request__request_type='Series Group',
+            arrival_date__gte=period_start,
+            arrival_date__lte=period_end
+        ).values_list('request_id', flat=True).distinct()
+        cancelled_series = BookingRequest.objects.filter(id__in=cancelled_series_ids)
+        period_cancelled_requests = cancelled_accommodation | cancelled_series
         
         period_revenue = period_requests.aggregate(total=Sum('total_cost'))['total'] or Decimal('0.00')
         period_bookings = period_requests.count()
