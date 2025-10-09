@@ -414,24 +414,45 @@ def dashboard_view(request):
     current_period_bookings = current_period_requests.count()
     current_period_revenue = Decimal('0.00')
     for req in current_period_requests:
-        # All accommodation requests: use room + transportation costs only
-        current_period_revenue += req.get_room_total() + req.get_transportation_total()
+        if req.request_type == 'Series Group':
+            # For Series Group: calculate revenue from SeriesGroupEntry
+            for series_entry in req.series_entries.all():
+                current_period_revenue += series_entry.get_total_cost()
+            # Add transportation costs if any
+            current_period_revenue += req.get_transportation_total()
+        else:
+            # For other accommodation requests: use room + transportation costs only
+            current_period_revenue += req.get_room_total() + req.get_transportation_total()
     current_period_avg_value = current_period_revenue / current_period_bookings if current_period_bookings > 0 else Decimal('0.00')
     
     # Calculate previous period metrics for MoM comparison - using accommodation revenue only
     mom_bookings = mom_requests.count()
     mom_revenue = Decimal('0.00')
     for req in mom_requests:
-        # All accommodation requests: use room + transportation costs only
-        mom_revenue += req.get_room_total() + req.get_transportation_total()
+        if req.request_type == 'Series Group':
+            # For Series Group: calculate revenue from SeriesGroupEntry
+            for series_entry in req.series_entries.all():
+                mom_revenue += series_entry.get_total_cost()
+            # Add transportation costs if any
+            mom_revenue += req.get_transportation_total()
+        else:
+            # For other accommodation requests: use room + transportation costs only
+            mom_revenue += req.get_room_total() + req.get_transportation_total()
     mom_avg_value = mom_revenue / mom_bookings if mom_bookings > 0 else Decimal('0.00')
     
     # Calculate same period last year metrics for YoY comparison - using accommodation revenue only
     yoy_bookings = yoy_requests.count()
     yoy_revenue = Decimal('0.00')
     for req in yoy_requests:
-        # All accommodation requests: use room + transportation costs only
-        yoy_revenue += req.get_room_total() + req.get_transportation_total()
+        if req.request_type == 'Series Group':
+            # For Series Group: calculate revenue from SeriesGroupEntry
+            for series_entry in req.series_entries.all():
+                yoy_revenue += series_entry.get_total_cost()
+            # Add transportation costs if any
+            yoy_revenue += req.get_transportation_total()
+        else:
+            # For other accommodation requests: use room + transportation costs only
+            yoy_revenue += req.get_room_total() + req.get_transportation_total()
     yoy_avg_value = yoy_revenue / yoy_bookings if yoy_bookings > 0 else Decimal('0.00')
     
     # Calculate MoM changes
@@ -464,8 +485,16 @@ def dashboard_view(request):
             }
         account_type_breakdown[account_type]['bookings'] += 1
         
-        # All accommodation requests: use room + transportation costs only (NO events)
-        account_type_breakdown[account_type]['revenue'] += req.get_room_total() + req.get_transportation_total()
+        # Calculate accommodation revenue based on request type
+        if req.request_type == 'Series Group':
+            # For Series Group: calculate revenue from SeriesGroupEntry
+            for series_entry in req.series_entries.all():
+                account_type_breakdown[account_type]['revenue'] += series_entry.get_total_cost()
+            # Add transportation costs if any
+            account_type_breakdown[account_type]['revenue'] += req.get_transportation_total()
+        else:
+            # For other accommodation requests: use room + transportation costs only (NO events)
+            account_type_breakdown[account_type]['revenue'] += req.get_room_total() + req.get_transportation_total()
     
     # Calculate averages for account types
     for account_type in account_type_breakdown:
@@ -488,8 +517,16 @@ def dashboard_view(request):
             }
         property_breakdown[property_name]['bookings'] += 1
         
-        # All accommodation requests: use room + transportation costs only (NO events)
-        property_breakdown[property_name]['revenue'] += req.get_room_total() + req.get_transportation_total()
+        # Calculate accommodation revenue based on request type
+        if req.request_type == 'Series Group':
+            # For Series Group: calculate revenue from SeriesGroupEntry
+            for series_entry in req.series_entries.all():
+                property_breakdown[property_name]['revenue'] += series_entry.get_total_cost()
+            # Add transportation costs if any
+            property_breakdown[property_name]['revenue'] += req.get_transportation_total()
+        else:
+            # For other accommodation requests: use room + transportation costs only (NO events)
+            property_breakdown[property_name]['revenue'] += req.get_room_total() + req.get_transportation_total()
     
     # Calculate averages and MoM for properties
     for property_name in property_breakdown:
@@ -506,8 +543,16 @@ def dashboard_view(request):
         # Get previous period revenue for this property - accommodation revenue only
         previous_requests = mom_requests.filter(account__name=property_name)
         for prev_request in previous_requests:
-            # All accommodation requests: use room + transportation costs only (NO events)
-            previous_revenue += prev_request.get_room_total() + prev_request.get_transportation_total()
+            # Calculate accommodation revenue based on request type
+            if prev_request.request_type == 'Series Group':
+                # For Series Group: calculate revenue from SeriesGroupEntry
+                for series_entry in prev_request.series_entries.all():
+                    previous_revenue += series_entry.get_total_cost()
+                # Add transportation costs if any
+                previous_revenue += prev_request.get_transportation_total()
+            else:
+                # For other accommodation requests: use room + transportation costs only (NO events)
+                previous_revenue += prev_request.get_room_total() + prev_request.get_transportation_total()
         
         if previous_revenue > 0:
             mom_percentage = float(((current_revenue - previous_revenue) / previous_revenue) * 100)
@@ -794,8 +839,16 @@ def dashboard_view(request):
         # Calculate accommodation-only revenue (rooms + transportation, exclude events)
         period_revenue = Decimal('0.00')
         for req in period_requests:
-            accommodation_revenue = req.get_room_total() + req.get_transportation_total()
-            period_revenue += accommodation_revenue
+            if req.request_type == 'Series Group':
+                # For Series Group: calculate revenue from SeriesGroupEntry
+                for series_entry in req.series_entries.all():
+                    period_revenue += series_entry.get_total_cost()
+                # Add transportation costs if any
+                period_revenue += req.get_transportation_total()
+            else:
+                # For other accommodation requests: use room + transportation costs only
+                accommodation_revenue = req.get_room_total() + req.get_transportation_total()
+                period_revenue += accommodation_revenue
         
         period_bookings = period_requests.count()
         period_rooms = period_requests.aggregate(total=Sum('total_rooms'))['total'] or 0
