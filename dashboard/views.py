@@ -778,7 +778,12 @@ def dashboard_view(request):
         cancelled_series = BookingRequest.objects.filter(id__in=cancelled_series_ids)
         period_cancelled_requests = cancelled_accommodation | cancelled_series
         
-        period_revenue = period_requests.aggregate(total=Sum('total_cost'))['total'] or Decimal('0.00')
+        # Calculate accommodation-only revenue (rooms + transportation, exclude events)
+        period_revenue = Decimal('0.00')
+        for req in period_requests:
+            accommodation_revenue = req.get_room_total() + req.get_transportation_total()
+            period_revenue += accommodation_revenue
+        
         period_bookings = period_requests.count()
         period_rooms = period_requests.aggregate(total=Sum('total_rooms'))['total'] or 0
         
