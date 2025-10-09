@@ -18,7 +18,7 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
         .room-availability {
-            height: 300px;
+            height: 600px;
             overflow-y: auto;
         }
         .room-status {
@@ -216,254 +216,6 @@
                     </div>
                 </div>
 
-                <!-- Quick Event Creation -->
-                <div class="card">
-                    <div class="card-header">
-                        <h6 class="mb-0">
-                            <i class="fas fa-plus-circle me-2"></i>Quick Event Creation
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <form id="quickEventForm">
-                            <div class="mb-3">
-                                <label class="form-label">Event Name</label>
-                                <input type="text" class="form-control" name="event_name" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Account</label>
-                                <div class="input-group">
-                                    <select class="form-select" name="account" id="accountSelect" required>
-                                        <option value="">Select Account</option>
-                                        {% for account in accounts %}
-                                        <option value="{{ account.id }}">{{ account.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                    <button type="button" class="btn btn-outline-primary" id="addNewAccountBtn">
-                                        <i class="fas fa-plus"></i> Add New
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <!-- Deadline Fields -->
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Request Received Date</label>
-                                        <input type="date" class="form-control" name="request_received_date">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Offer Acceptance Deadline</label>
-                                        <input type="date" class="form-control" name="offer_acceptance_deadline">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Deposit Deadline</label>
-                                        <input type="date" class="form-control" name="deposit_deadline">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Full Payment Deadline</label>
-                                        <input type="date" class="form-control" name="full_payment_deadline">
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Event Days Section -->
-                            <div class="mb-3">
-                                <h6 class="text-primary">Event Days</h6>
-                                <div id="event-days-container">
-                                    <div class="event-day-row mb-3 p-3 border rounded">
-                                        <div class="row">
-                                            <div class="col-md-4">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Date</label>
-                                                    <input type="date" class="form-control event-date" name="event_dates[]" required>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-3">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Start Time</label>
-                                                    <input type="time" class="form-control event-start-time" name="start_times[]" required>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-3">
-                                                <div class="mb-3">
-                                                    <label class="form-label">End Time</label>
-                                                    <input type="time" class="form-control event-end-time" name="end_times[]" required>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-2">
-                                                <div class="mb-3">
-                                                    <label class="form-label">&nbsp;</label>
-                                                    <button type="button" class="btn btn-danger btn-sm w-100 remove-day" style="display: none;">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <button type="button" class="btn btn-outline-primary btn-sm" id="add-event-day">
-                                    <i class="fas fa-plus me-1"></i>Add Another Day
-                                </button>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Meeting Rooms</label>
-                                <div class="room-selection">
-                                    <!-- Combined Rooms -->
-                                    <div class="room-group">
-                                        <h6>Main Halls (Can be combined)</h6>
-                                        <div class="form-check">
-                                            <input type="checkbox" class="form-check-input" name="meeting_rooms" value="all_halls" id="all_halls">
-                                            <label class="form-check-label" for="all_halls">All Halls (IKMA + HEGRA + DADAN + ALJADIDA)</label>
-                                        </div>
-                                        {% for room in combined_rooms %}
-                                        <div class="form-check">
-                                            <input type="checkbox" class="form-check-input" name="meeting_rooms" value="{{ room.id }}" id="room_{{ room.id }}">
-                                            <label class="form-check-label" for="room_{{ room.id }}">{{ room.display_name }}</label>
-                                        </div>
-                                        {% endfor %}
-                                    </div>
-                                    
-                                    <!-- Separate Rooms -->
-                                    <div class="room-group">
-                                        <h6>Separate Rooms</h6>
-                                        {% for room in separate_rooms %}
-                                        <div class="form-check">
-                                            <input type="checkbox" class="form-check-input" name="meeting_rooms" value="{{ room.id }}" id="room_{{ room.id }}">
-                                            <label class="form-check-label" for="room_{{ room.id }}">{{ room.display_name }}</label>
-                                        </div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Event Details Section -->
-                            <div class="mb-3">
-                                <h6 class="text-primary">Event Details</h6>
-                            </div>
-
-                            <!-- Style Selection -->
-                            <div class="mb-3">
-                                <label class="form-label">Style</label>
-                                <select class="form-select" name="style">
-                                    <option value="Classroom">Classroom</option>
-                                    <option value="Theatre">Theatre</option>
-                                    <option value="U Shape">U Shape</option>
-                                    <option value="Board">Board</option>
-                                    <option value="Banquet">Banquet</option>
-                                    <option value="Reception">Reception</option>
-                                </select>
-                            </div>
-
-                            <!-- Timing Details -->
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="form-label">Coffee Break Time</label>
-                                        <input type="time" class="form-control" name="coffee_break_time">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="form-label">Lunch Time</label>
-                                        <input type="time" class="form-control" name="lunch_time">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="form-label">Dinner Time</label>
-                                        <input type="time" class="form-control" name="dinner_time">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Financial Details -->
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="form-label">Rate per Person</label>
-                                        <input type="number" class="form-control" name="rate_per_person" step="0.01" min="0" value="0">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="form-label">Total Persons</label>
-                                        <input type="number" class="form-control" name="total_persons" min="0" value="0">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="form-label">Rental Fees per Day</label>
-                                        <input type="number" class="form-control" name="rental_fees_per_day" step="0.01" min="0" value="0">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Package Selection -->
-                            <div class="mb-3">
-                                <label class="form-label">Packages</label>
-                                <select class="form-select" name="packages">
-                                    <option value="">Select Package</option>
-                                    <option value="coffee_only">Coffee Break only</option>
-                                    <option value="coffee_lunch">Coffee Break and lunch</option>
-                                    <option value="coffee_lunch_dinner">Coffee Break and Lunch and Dinner</option>
-                                    <option value="two_coffee">2 Coffee Break</option>
-                                    <option value="two_coffee_meal">2 Coffee Break and lunch or dinner</option>
-                                    <option value="lunch">Lunch</option>
-                                    <option value="dinner">Dinner</option>
-                                    <option value="lunch_dinner">Lunch and Dinner</option>
-                                </select>
-                            </div>
-                            
-                            <!-- Financial Summary (Auto-Calculated) -->
-                            <div class="mb-3 p-3 bg-light rounded">
-                                <h6 class="text-success mb-3">
-                                    <i class="fas fa-calculator me-2"></i>Financial Summary (Auto-Calculated)
-                                </h6>
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="mb-2">
-                                            <strong>Cost per Day:</strong>
-                                            <span id="cost-per-day" class="text-primary ms-2">{{ currency_symbol }} 0.00</span>
-                                        </div>
-                                        <div class="mb-2">
-                                            <strong>Total Event Cost:</strong>
-                                            <span id="total-event-cost" class="text-success ms-2">{{ currency_symbol }} 0.00</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="mb-2">
-                                            <strong>Number of Days:</strong>
-                                            <span id="number-of-days" class="text-info ms-2">0</span>
-                                        </div>
-                                        <div class="mb-2">
-                                            <strong>Total Attendees:</strong>
-                                            <span id="total-attendees" class="text-warning ms-2">0</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label class="form-label">Notes</label>
-                                <textarea class="form-control" name="notes" rows="2"></textarea>
-                            </div>
-                            <div class="mb-3">
-                                <div id="availability-status" class="availability-status" style="display: none;"></div>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="fas fa-calendar-plus me-1"></i>Create Event
-                            </button>
-                        </form>
-                    </div>
-                </div>
             </div>
 
             <!-- Right Column: Calendar & Analytics -->
@@ -965,195 +717,11 @@
             });
         }
 
-        // Form Handlers
+        // Form Handlers (for modal form only)
         function initializeFormHandlers() {
-            // Check availability when form changes
-            const form = document.getElementById('quickEventForm');
-            const inputs = form.querySelectorAll('input, select');
-            
-            inputs.forEach(input => {
-                input.addEventListener('change', checkAvailability);
-            });
-            
-            // Add form submit handler
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                submitEventForm();
-            });
+            // Modal form handlers are initialized separately
         }
 
-        // Check Room Availability
-        async function checkAvailability() {
-            const form = document.getElementById('quickEventForm');
-            const formData = new FormData(form);
-            
-            const date = formData.get('event_date');
-            const startTime = formData.get('start_time');
-            const endTime = formData.get('end_time');
-            const rooms = formData.getAll('meeting_rooms');
-            
-            if (!date || !startTime || !endTime || rooms.length === 0) {
-                document.getElementById('availability-status').style.display = 'none';
-                return;
-            }
-            
-            try {
-                const params = new URLSearchParams();
-                params.append('date', date);
-                params.append('start_time', startTime);
-                params.append('end_time', endTime);
-                rooms.forEach(room => params.append('rooms', room));
-                
-                const response = await fetch(`/event-management/api/check-availability/?${params}`);
-                const data = await response.json();
-                
-                const statusEl = document.getElementById('availability-status');
-                statusEl.style.display = 'block';
-                
-                if (data.available) {
-                    statusEl.className = 'availability-status status-available';
-                    statusEl.textContent = '✅ Rooms Available';
-                } else {
-                    statusEl.className = 'availability-status status-conflict';
-                    statusEl.textContent = '⚠️ Room Conflict Detected';
-                }
-            } catch (error) {
-                console.error('Error checking availability:', error);
-            }
-        }
-
-        // Multi-day Event Functions
-        function addEventDay() {
-            const container = document.getElementById('event-days-container');
-            const firstRow = container.querySelector('.event-day-row');
-            
-            // Get values from first row to auto-fill new row
-            const firstDate = firstRow.querySelector('.event-date').value;
-            const firstStartTime = firstRow.querySelector('.event-start-time').value;
-            const firstEndTime = firstRow.querySelector('.event-end-time').value;
-            
-            // Calculate next date (add 1 day)
-            let nextDate = '';
-            if (firstDate) {
-                const date = new Date(firstDate);
-                date.setDate(date.getDate() + 1);
-                nextDate = date.toISOString().split('T')[0];
-            }
-            
-            const newDayRow = document.createElement('div');
-            newDayRow.className = 'event-day-row mb-3 p-3 border rounded';
-            newDayRow.innerHTML = `
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label class="form-label">Date</label>
-                            <input type="date" class="form-control event-date" name="event_dates[]" value="${nextDate}" required>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            <label class="form-label">Start Time</label>
-                            <input type="time" class="form-control event-start-time" name="start_times[]" value="${firstStartTime}" required>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            <label class="form-label">End Time</label>
-                            <input type="time" class="form-control event-end-time" name="end_times[]" value="${firstEndTime}" required>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="mb-3">
-                            <label class="form-label">&nbsp;</label>
-                            <button type="button" class="btn btn-danger btn-sm w-100 remove-day">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            container.appendChild(newDayRow);
-            
-            // Show remove buttons for all rows
-            updateRemoveButtons();
-        }
-
-        function removeEventDay(button) {
-            button.closest('.event-day-row').remove();
-            updateRemoveButtons();
-        }
-
-        function updateRemoveButtons() {
-            const rows = document.querySelectorAll('.event-day-row');
-            const removeButtons = document.querySelectorAll('.remove-day');
-            
-            // Show remove buttons only if there's more than one row
-            removeButtons.forEach(btn => {
-                btn.style.display = rows.length > 1 ? 'block' : 'none';
-            });
-            
-            // Update calculations when rows change
-            updateFinancialCalculations();
-        }
-        
-        // Auto-calculate financial summary
-        function updateFinancialCalculations() {
-            const ratePerPerson = parseFloat(document.querySelector('input[name="rate_per_person"]')?.value) || 0;
-            const totalPersons = parseInt(document.querySelector('input[name="total_persons"]')?.value) || 0;
-            const rentalFeesPerDay = parseFloat(document.querySelector('input[name="rental_fees_per_day"]')?.value) || 0;
-            const eventDayRows = document.querySelectorAll('.event-day-row');
-            
-            // Calculate cost per day
-            const costPerDay = (ratePerPerson * totalPersons) + rentalFeesPerDay;
-            
-            // Calculate total event cost
-            const numberOfDays = eventDayRows.length;
-            const totalEventCost = costPerDay * numberOfDays;
-            
-            // Update display
-            const costPerDayEl = document.getElementById('cost-per-day');
-            const totalEventCostEl = document.getElementById('total-event-cost');
-            const numberOfDaysEl = document.getElementById('number-of-days');
-            const totalAttendeesEl = document.getElementById('total-attendees');
-            
-            if (costPerDayEl) costPerDayEl.textContent = '{{ currency_symbol }} ' + costPerDay.toFixed(2);
-            if (totalEventCostEl) totalEventCostEl.textContent = '{{ currency_symbol }} ' + totalEventCost.toFixed(2);
-            if (numberOfDaysEl) numberOfDaysEl.textContent = numberOfDays;
-            if (totalAttendeesEl) totalAttendeesEl.textContent = totalPersons;
-        }
-        
-        // Check room availability in real-time
-        async function checkRoomAvailability() {
-            const eventDayRows = document.querySelectorAll('.event-day-row');
-            const selectedRooms = Array.from(document.querySelectorAll('input[name="meeting_rooms"]:checked')).map(cb => cb.value);
-            
-            if (selectedRooms.length === 0) {
-                hideAvailabilityStatus();
-                return;
-            }
-            
-            for (const row of eventDayRows) {
-                const eventDate = row.querySelector('.event-date').value;
-                const startTime = row.querySelector('.event-start-time').value;
-                const endTime = row.querySelector('.event-end-time').value;
-                
-                if (eventDate && startTime && endTime) {
-                    try {
-                        const response = await fetch(`/event-management/api/room-availability/?date=${eventDate}&start_time=${startTime}&end_time=${endTime}&rooms=${selectedRooms.join(',')}`);
-                        const data = await response.json();
-                        
-                        if (data.conflicts && data.conflicts.length > 0) {
-                            showAvailabilityStatus(`⚠️ Room conflict detected for ${eventDate} at ${startTime}-${endTime}. Conflicting rooms: ${data.conflicts.join(', ')}`, 'danger');
-                            return;
-                        }
-                    } catch (error) {
-                        console.error('Error checking availability:', error);
-                    }
-                }
-            }
-            
-            hideAvailabilityStatus();
-        }
         
         // Show availability status
         function showAvailabilityStatus(message, type = 'warning') {
@@ -1175,71 +743,20 @@
             }
         }
 
-        // Initialize multi-day functionality
-        document.addEventListener('DOMContentLoaded', function() {
-            const addDayBtn = document.getElementById('add-event-day');
-            if (addDayBtn) {
-                addDayBtn.addEventListener('click', addEventDay);
-            }
-            
-            // Add event delegation for remove buttons
-            document.addEventListener('click', function(e) {
-                if (e.target.closest('.remove-day')) {
-                    removeEventDay(e.target.closest('.remove-day'));
-                }
-            });
-            
-            // Listen for changes in financial fields for auto-calculation
-            const financialFields = [
-                'input[name="rate_per_person"]',
-                'input[name="total_persons"]',
-                'input[name="rental_fees_per_day"]'
-            ];
-            
-            financialFields.forEach(selector => {
-                const field = document.querySelector(selector);
-                if (field) {
-                    field.addEventListener('input', updateFinancialCalculations);
-                }
-            });
-            
-            // Listen for changes in date/time fields for availability checking
-            document.addEventListener('change', function(e) {
-                if (e.target.matches('.event-date, .event-start-time, .event-end-time, input[name="meeting_rooms"]')) {
-                    checkRoomAvailability();
-                }
-            });
-            
-            // Initial calculation and availability check
-            updateFinancialCalculations();
-            checkRoomAvailability();
-        });
 
-        // Submit Event Form (handles both quick form and modal form)
+        // Submit Event Form (modal form only)
         function submitEventForm() {
-            // Determine which form is being submitted
-            const quickForm = document.getElementById('quickEventForm');
             const modalForm = document.getElementById('modalEventForm');
-            const isModal = modalForm && modalForm.querySelector('input[name="event_name"]').value;
-            
-            const form = isModal ? modalForm : quickForm;
+            const form = modalForm;
             const formData = new FormData(form);
             
             // Show loading state
-            let submitBtn, originalText;
-            if (isModal) {
-                submitBtn = document.querySelector('#createEventModal .btn-primary');
-                originalText = submitBtn.innerHTML;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Creating...';
-                submitBtn.disabled = true;
-            } else {
-                submitBtn = form.querySelector('button[type="submit"]');
-                originalText = submitBtn.innerHTML;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Creating...';
-                submitBtn.disabled = true;
-            }
+            const submitBtn = document.querySelector('#createEventModal .btn-primary');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Creating...';
+            submitBtn.disabled = true;
             
-            console.log('Submitting event form...', isModal ? '(Modal)' : '(Quick)');
+            console.log('Submitting event form...', '(Modal)');
             console.log('Form data:', Object.fromEntries(formData));
             
             fetch('/event-management/create/', {
@@ -1258,11 +775,9 @@
                 if (data.success) {
                     alert(`Event created successfully! Request ID: ${data.request_id}`);
                     form.reset();
-                    if (isModal) {
-                        // Close modal
-                        const modal = bootstrap.Modal.getInstance(document.getElementById('createEventModal'));
-                        modal.hide();
-                    }
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('createEventModal'));
+                    modal.hide();
                     location.reload();
                 } else {
                     alert(`Error: ${data.error || 'Unknown error'}`);
@@ -1384,9 +899,15 @@
                 const totalPersons = parseInt(form.querySelector('input[name="total_persons"]').value) || 0;
                 const rentalFeesPerDay = parseFloat(form.querySelector('input[name="rental_fees_per_day"]').value) || 0;
                 
-                // Count number of days
+                // Count number of days - only count rows with valid dates
                 const dayRows = document.querySelectorAll('#modal-event-days-container .event-day-row');
-                const numberOfDays = dayRows.length;
+                let numberOfDays = 0;
+                dayRows.forEach(row => {
+                    const dateInput = row.querySelector('.modal-event-date');
+                    if (dateInput && dateInput.value) {
+                        numberOfDays++;
+                    }
+                });
                 
                 // Calculate costs
                 const costPerDay = (ratePerPerson * totalPersons) + rentalFeesPerDay;
