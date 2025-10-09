@@ -32,6 +32,124 @@ def sanitize_csv_value(value):
         return "'" + str_value
     return str_value
 
+
+def write_enhanced_request_export_rows(writer, req, row_type, **kwargs):
+    """
+    Helper function to write enhanced export rows for different request types.
+    
+    Args:
+        writer: CSV writer object
+        req: Request object
+        row_type: Type of row ('accommodation', 'event', 'series_entry')
+        **kwargs: Additional data for the specific row type
+    """
+    # Common fields for all rows
+    common_fields = [
+        sanitize_csv_value(req.confirmation_number),
+        sanitize_csv_value(req.account.name if req.account else 'No Account'),
+        sanitize_csv_value(req.account.account_type if req.account else ''),
+        sanitize_csv_value(req.account.contact_person if req.account else ''),
+        sanitize_csv_value(req.get_request_type_display()),
+        sanitize_csv_value(req.get_status_display()),
+        sanitize_csv_value(req.request_received_date.strftime('%Y-%m-%d') if req.request_received_date else ''),
+    ]
+    
+    if row_type == 'accommodation':
+        # Accommodation row: check-in/check-out dates
+        accommodation_fields = [
+            sanitize_csv_value('Accommodation'),
+            sanitize_csv_value(req.check_in_date.strftime('%Y-%m-%d') if req.check_in_date else ''),
+            sanitize_csv_value(req.check_out_date.strftime('%Y-%m-%d') if req.check_out_date else ''),
+            sanitize_csv_value(req.nights),
+            sanitize_csv_value(req.get_meal_plan_display()),
+            sanitize_csv_value(req.total_rooms),
+            sanitize_csv_value(req.total_room_nights),
+            sanitize_csv_value(f"{req.get_room_total():.2f}" if req.get_room_total() else '0.00'),
+            sanitize_csv_value(f"{req.get_display_paid_amount():.2f}" if req.get_display_paid_amount() else '0.00'),
+            sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
+            sanitize_csv_value(req.offer_acceptance_deadline.strftime('%Y-%m-%d') if req.offer_acceptance_deadline else ''),
+            sanitize_csv_value(req.deposit_deadline.strftime('%Y-%m-%d') if req.deposit_deadline else ''),
+            sanitize_csv_value(req.full_payment_deadline.strftime('%Y-%m-%d') if req.full_payment_deadline else ''),
+            sanitize_csv_value(f"{req.get_adr():.2f}" if req.get_adr() else '0.00'),
+            sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
+            sanitize_csv_value(req.updated_at.strftime('%Y-%m-%d %H:%M') if req.updated_at else ''),
+            sanitize_csv_value(req.notes),
+            # Event-specific fields (empty for accommodation)
+            sanitize_csv_value(''),  # number_of_guests
+            sanitize_csv_value(''),  # package_plan
+            sanitize_csv_value(''),  # meeting_room_name
+            sanitize_csv_value(''),  # event_start_date
+            sanitize_csv_value(''),  # event_end_date
+        ]
+        writer.writerow(common_fields + accommodation_fields)
+        
+    elif row_type == 'event':
+        # Event row: enhanced event details
+        event_agenda = kwargs.get('event_agenda')
+        
+        # Calculate number of days for the event
+        event_days = 1  # Default to 1 day if no end date
+        if event_agenda and event_agenda.event_date:
+            event_days = 1  # Events are typically single day
+        
+        event_fields = [
+            sanitize_csv_value('Event'),
+            sanitize_csv_value(event_agenda.event_date.strftime('%Y-%m-%d') if event_agenda and event_agenda.event_date else ''),
+            sanitize_csv_value(event_agenda.event_date.strftime('%Y-%m-%d') if event_agenda and event_agenda.event_date else ''),  # Same date for start/end
+            sanitize_csv_value(event_days),  # Number of days
+            sanitize_csv_value(''),  # meal plan (not applicable for events)
+            sanitize_csv_value(''),  # total rooms (not applicable for events)
+            sanitize_csv_value(''),  # total room nights (not applicable for events)
+            sanitize_csv_value(f"{event_agenda.rental_fees_per_day + (event_agenda.rate_per_person * event_agenda.total_persons):.2f}" if event_agenda else '0.00'),
+            sanitize_csv_value(f"{req.get_display_paid_amount():.2f}" if req.get_display_paid_amount() else '0.00'),
+            sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
+            sanitize_csv_value(req.offer_acceptance_deadline.strftime('%Y-%m-%d') if req.offer_acceptance_deadline else ''),
+            sanitize_csv_value(req.deposit_deadline.strftime('%Y-%m-%d') if req.deposit_deadline else ''),
+            sanitize_csv_value(req.full_payment_deadline.strftime('%Y-%m-%d') if req.full_payment_deadline else ''),
+            sanitize_csv_value('0.00'),  # ADR (not applicable for events)
+            sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
+            sanitize_csv_value(req.updated_at.strftime('%Y-%m-%d %H:%M') if req.updated_at else ''),
+            sanitize_csv_value(req.notes),
+            # Enhanced event-specific fields
+            sanitize_csv_value(event_agenda.total_persons if event_agenda else ''),
+            sanitize_csv_value(event_agenda.get_packages_display() if event_agenda and event_agenda.packages else ''),
+            sanitize_csv_value(event_agenda.meeting_room_name if event_agenda else ''),
+            sanitize_csv_value(event_agenda.event_date.strftime('%Y-%m-%d') if event_agenda and event_agenda.event_date else ''),
+            sanitize_csv_value(event_agenda.event_date.strftime('%Y-%m-%d') if event_agenda and event_agenda.event_date else ''),  # Same date for single-day events
+        ]
+        writer.writerow(common_fields + event_fields)
+        
+    elif row_type == 'series_entry':
+        # Series Group entry row: arrival/departure dates
+        series_entry = kwargs.get('series_entry')
+        series_fields = [
+            sanitize_csv_value(f'Series Entry {kwargs.get("entry_number", 1)}'),
+            sanitize_csv_value(series_entry.arrival_date.strftime('%Y-%m-%d') if series_entry and series_entry.arrival_date else ''),
+            sanitize_csv_value(series_entry.departure_date.strftime('%Y-%m-%d') if series_entry and series_entry.departure_date else ''),
+            sanitize_csv_value(series_entry.nights if series_entry else ''),
+            sanitize_csv_value(''),  # meal plan (not applicable for series entries)
+            sanitize_csv_value(series_entry.number_of_rooms if series_entry else ''),
+            sanitize_csv_value(series_entry.number_of_rooms * series_entry.nights if series_entry else ''),
+            sanitize_csv_value(f"{series_entry.get_total_cost():.2f}" if series_entry else '0.00'),
+            sanitize_csv_value(f"{req.get_display_paid_amount():.2f}" if req.get_display_paid_amount() else '0.00'),
+            sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
+            sanitize_csv_value(req.offer_acceptance_deadline.strftime('%Y-%m-%d') if req.offer_acceptance_deadline else ''),
+            sanitize_csv_value(req.deposit_deadline.strftime('%Y-%m-%d') if req.deposit_deadline else ''),
+            sanitize_csv_value(req.full_payment_deadline.strftime('%Y-%m-%d') if req.full_payment_deadline else ''),
+            sanitize_csv_value(f"{req.get_adr():.2f}" if req.get_adr() else '0.00'),
+            sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
+            sanitize_csv_value(req.updated_at.strftime('%Y-%m-%d %H:%M') if req.updated_at else ''),
+            sanitize_csv_value(req.notes),
+            # Event-specific fields (empty for series entries)
+            sanitize_csv_value(''),  # number_of_guests
+            sanitize_csv_value(''),  # package_plan
+            sanitize_csv_value(''),  # meeting_room_name
+            sanitize_csv_value(''),  # event_start_date
+            sanitize_csv_value(''),  # event_end_date
+        ]
+        writer.writerow(common_fields + series_fields)
+
+
 class RoomEntryInline(admin.TabularInline):
     model = RoomEntry
     extra = 1
@@ -292,10 +410,11 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
         # Write CSV header with comprehensive request information
         writer.writerow([
             'Confirmation Number', 'Account Name', 'Account Type', 'Contact Person', 'Request Type', 'Status', 
-            'Request Received Date', 'Check-In Date', 'Check-Out Date', 'Nights', 'Meal Plan', 
+            'Request Received Date', 'Row Type', 'Start Date/Time', 'End Date/Time', 'Nights/Days', 'Meal Plan', 
             'Total Rooms', 'Total Room Nights', 'Total Cost', 'Paid Amount', 'Deposit Amount', 
             'Offer Acceptance Deadline', 'Deposit Deadline', 'Full Payment Deadline',
-            'ADR (Average Daily Rate)', 'Created Date', 'Updated Date', 'Notes'
+            'ADR (Average Daily Rate)', 'Created Date', 'Updated Date', 'Notes',
+            'Number of Guests', 'Package Plan', 'Meeting Room Name', 'Event Start Date', 'Event End Date'
         ])
         
         total_requests = 0
@@ -306,39 +425,80 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
         total_deposit = 0
         status_counts = {}
         
-        # Write request data with sanitization and proper display values
-        for req in queryset.order_by('confirmation_number'):
+        # Write enhanced request data with multiple rows per request type
+        for req in queryset.select_related('account').prefetch_related('event_agendas', 'series_entries').order_by('confirmation_number'):
             adr = req.get_adr()
             paid_amount = req.get_display_paid_amount()
             status = req.get_status_display()
             
-            writer.writerow([
-                sanitize_csv_value(req.confirmation_number),
-                sanitize_csv_value(req.account.name if req.account else 'No Account'),
-                sanitize_csv_value(req.account.account_type if req.account else ''),
-                sanitize_csv_value(req.account.contact_person if req.account else ''),
-                sanitize_csv_value(req.get_request_type_display()),
-                sanitize_csv_value(status),
-                sanitize_csv_value(req.request_received_date.strftime('%Y-%m-%d') if req.request_received_date else ''),
-                sanitize_csv_value(req.check_in_date.strftime('%Y-%m-%d') if req.check_in_date else ''),
-                sanitize_csv_value(req.check_out_date.strftime('%Y-%m-%d') if req.check_out_date else ''),
-                sanitize_csv_value(req.nights),
-                sanitize_csv_value(req.get_meal_plan_display()),
-                sanitize_csv_value(req.total_rooms),
-                sanitize_csv_value(req.total_room_nights),
-                sanitize_csv_value(f"{req.total_cost:.2f}" if req.total_cost else '0.00'),
-                sanitize_csv_value(f"{paid_amount:.2f}" if paid_amount else '0.00'),
-                sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
-                sanitize_csv_value(req.offer_acceptance_deadline.strftime('%Y-%m-%d') if req.offer_acceptance_deadline else ''),
-                sanitize_csv_value(req.deposit_deadline.strftime('%Y-%m-%d') if req.deposit_deadline else ''),
-                sanitize_csv_value(req.full_payment_deadline.strftime('%Y-%m-%d') if req.full_payment_deadline else ''),
-                sanitize_csv_value(f"{adr:.2f}" if adr else '0.00'),
-                sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
-                sanitize_csv_value(req.updated_at.strftime('%Y-%m-%d %H:%M') if req.updated_at else ''),
-                sanitize_csv_value(req.notes)
-            ])
+            # Handle different request types with multiple rows
+            if req.request_type == 'Series Group':
+                # Series Group: One row per SeriesGroupEntry
+                for i, series_entry in enumerate(req.series_entries.all(), 1):
+                    write_enhanced_request_export_rows(
+                        writer, req, 'series_entry', 
+                        series_entry=series_entry, 
+                        entry_number=i
+                    )
+                    
+            elif req.request_type == 'Event without Rooms':
+                # Event Only: One row per event agenda, or create a default event row if none exist
+                event_agendas = req.event_agendas.all()
+                if event_agendas.exists():
+                    for event_agenda in event_agendas:
+                        write_enhanced_request_export_rows(
+                            writer, req, 'event', 
+                            event_agenda=event_agenda
+                        )
+                else:
+                    # Create a default event agenda object for Event Only requests without agendas
+                    # This ensures Event Only requests always show as "Event" row type with proper structure
+                    from decimal import Decimal
+                    class DefaultEventAgenda:
+                        def __init__(self, request):
+                            self.event_date = request.request_received_date  # Use request received date as fallback
+                            self.start_time = None
+                            self.end_time = None
+                            self.total_persons = 0
+                            self.packages = ''
+                            self.meeting_room_name = ''
+                            self.rental_fees_per_day = Decimal('0.00')
+                            self.rate_per_person = Decimal('0.00')
+                        
+                        def get_packages_display(self):
+                            return ''
+                    
+                    default_agenda = DefaultEventAgenda(req)
+                    write_enhanced_request_export_rows(
+                        writer, req, 'event', 
+                        event_agenda=default_agenda
+                    )
+                
+            elif req.request_type == 'Event with Rooms':
+                # Event with Rooms: First row for accommodation, then one row per event agenda
+                # Row 1: Accommodation details
+                write_enhanced_request_export_rows(writer, req, 'accommodation')
+                
+                # Row 2+: Event details (one row per event agenda)
+                event_agendas = req.event_agendas.all()
+                if event_agendas.exists():
+                    for event_agenda in event_agendas:
+                        write_enhanced_request_export_rows(
+                            writer, req, 'event', 
+                            event_agenda=event_agenda
+                        )
+                else:
+                    # Fallback if no event agendas
+                    write_enhanced_request_export_rows(
+                        writer, req, 'event', 
+                        event_agenda=None
+                    )
+                
+            else:
+                # Regular accommodation requests: One row
+                write_enhanced_request_export_rows(writer, req, 'accommodation')
             
-            # Calculate totals
+            # Calculate totals (count each request only once)
             total_requests += 1
             total_revenue += float(req.total_cost or 0)
             total_rooms += req.total_rooms or 0
@@ -549,10 +709,11 @@ class AccommodationRequestAdmin(BaseRequestAdmin):
         writer = csv.writer(response)
         writer.writerow([
             'Confirmation Number', 'Account Name', 'Account Type', 'Contact Person', 'Request Type', 'Status', 
-            'Request Received Date', 'Check-In Date', 'Check-Out Date', 'Nights', 'Meal Plan', 
+            'Request Received Date', 'Row Type', 'Start Date/Time', 'End Date/Time', 'Nights/Days', 'Meal Plan', 
             'Total Rooms', 'Total Room Nights', 'Total Cost', 'Paid Amount', 'Deposit Amount', 
             'Offer Acceptance Deadline', 'Deposit Deadline', 'Full Payment Deadline',
-            'ADR (Average Daily Rate)', 'Created Date', 'Updated Date', 'Notes'
+            'ADR (Average Daily Rate)', 'Created Date', 'Updated Date', 'Notes',
+            'Number of Guests', 'Package Plan', 'Meeting Room Name', 'Event Start Date', 'Event End Date'
         ])
         
         total_requests = 0
@@ -563,36 +724,14 @@ class AccommodationRequestAdmin(BaseRequestAdmin):
         total_deposit = 0
         status_counts = {}
         
+        # Write enhanced accommodation request data
         for req in queryset.order_by('confirmation_number'):
             adr = req.get_adr()
             paid_amount = req.get_display_paid_amount()
             status = req.get_status_display()
             
-            writer.writerow([
-                sanitize_csv_value(req.confirmation_number),
-                sanitize_csv_value(req.account.name if req.account else 'No Account'),
-                sanitize_csv_value(req.account.account_type if req.account else ''),
-                sanitize_csv_value(req.account.contact_person if req.account else ''),
-                sanitize_csv_value(req.get_request_type_display()),
-                sanitize_csv_value(status),
-                sanitize_csv_value(req.request_received_date.strftime('%Y-%m-%d') if req.request_received_date else ''),
-                sanitize_csv_value(req.check_in_date.strftime('%Y-%m-%d') if req.check_in_date else ''),
-                sanitize_csv_value(req.check_out_date.strftime('%Y-%m-%d') if req.check_out_date else ''),
-                sanitize_csv_value(req.nights),
-                sanitize_csv_value(req.get_meal_plan_display()),
-                sanitize_csv_value(req.total_rooms),
-                sanitize_csv_value(req.total_room_nights),
-                sanitize_csv_value(f"{req.total_cost:.2f}" if req.total_cost else '0.00'),
-                sanitize_csv_value(f"{paid_amount:.2f}" if paid_amount else '0.00'),
-                sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
-                sanitize_csv_value(req.offer_acceptance_deadline.strftime('%Y-%m-%d') if req.offer_acceptance_deadline else ''),
-                sanitize_csv_value(req.deposit_deadline.strftime('%Y-%m-%d') if req.deposit_deadline else ''),
-                sanitize_csv_value(req.full_payment_deadline.strftime('%Y-%m-%d') if req.full_payment_deadline else ''),
-                sanitize_csv_value(f"{adr:.2f}" if adr else '0.00'),
-                sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
-                sanitize_csv_value(req.updated_at.strftime('%Y-%m-%d %H:%M') if req.updated_at else ''),
-                sanitize_csv_value(req.notes)
-            ])
+            # For accommodation requests, just write one row
+            write_enhanced_request_export_rows(writer, req, 'accommodation')
             
             # Calculate totals
             total_requests += 1
@@ -784,23 +923,46 @@ class EventOnlyRequestAdmin(BaseRequestAdmin):
         
         writer = csv.writer(response)
         writer.writerow([
-            'Confirmation Number', 'Account Name', 'Request Type', 'Status', 'Request Received Date', 
-            'Total Cost', 'Paid Amount', 'Deposit Amount', 'Created Date', 'Notes'
+            'Confirmation Number', 'Account Name', 'Account Type', 'Contact Person', 'Request Type', 'Status', 
+            'Request Received Date', 'Row Type', 'Start Date/Time', 'End Date/Time', 'Nights/Days', 'Meal Plan', 
+            'Total Rooms', 'Total Room Nights', 'Total Cost', 'Paid Amount', 'Deposit Amount', 
+            'Offer Acceptance Deadline', 'Deposit Deadline', 'Full Payment Deadline',
+            'ADR (Average Daily Rate)', 'Created Date', 'Updated Date', 'Notes',
+            'Number of Guests', 'Package Plan', 'Meeting Room Name', 'Event Start Date', 'Event End Date'
         ])
         
-        for req in queryset.order_by('confirmation_number'):
-            writer.writerow([
-                sanitize_csv_value(req.confirmation_number),
-                sanitize_csv_value(req.account.name if req.account else 'No Account'),
-                sanitize_csv_value(req.get_request_type_display()),
-                sanitize_csv_value(req.get_status_display()),
-                sanitize_csv_value(req.request_received_date.strftime('%Y-%m-%d') if req.request_received_date else ''),
-                sanitize_csv_value(f"{req.total_cost:.2f}" if req.total_cost else '0.00'),
-                sanitize_csv_value(f"{req.get_display_paid_amount():.2f}" if req.get_display_paid_amount() else '0.00'),
-                sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
-                sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
-                sanitize_csv_value(req.notes)
-            ])
+        # Write enhanced event-only request data
+        for req in queryset.select_related('account').prefetch_related('event_agendas').order_by('confirmation_number'):
+            # Event Only: One row per event agenda (can be multiple event agendas)
+            event_agendas = req.event_agendas.all()
+            if event_agendas.exists():
+                for event_agenda in event_agendas:
+                    write_enhanced_request_export_rows(
+                        writer, req, 'event', 
+                        event_agenda=event_agenda
+                    )
+            else:
+                # Create a default event agenda object for Event Only requests without agendas
+                from decimal import Decimal
+                class DefaultEventAgenda:
+                    def __init__(self, request):
+                        self.event_date = request.request_received_date  # Use request received date as fallback
+                        self.start_time = None
+                        self.end_time = None
+                        self.total_persons = 0
+                        self.packages = ''
+                        self.meeting_room_name = ''
+                        self.rental_fees_per_day = Decimal('0.00')
+                        self.rate_per_person = Decimal('0.00')
+                    
+                    def get_packages_display(self):
+                        return ''
+                
+                default_agenda = DefaultEventAgenda(req)
+                write_enhanced_request_export_rows(
+                    writer, req, 'event', 
+                    event_agenda=default_agenda
+                )
         
         return response
     export_selected_requests.short_description = "Export selected event-only requests to CSV"
@@ -947,28 +1109,34 @@ class EventWithRoomsRequestAdmin(BaseRequestAdmin):
         
         writer = csv.writer(response)
         writer.writerow([
-            'Confirmation Number', 'Account Name', 'Request Type', 'Status', 'Check-In Date', 
-            'Check-Out Date', 'Nights', 'Meal Plan', 'Total Rooms', 'Total Cost', 
-            'Paid Amount', 'Deposit Amount', 'Created Date', 'Notes'
+            'Confirmation Number', 'Account Name', 'Account Type', 'Contact Person', 'Request Type', 'Status', 
+            'Request Received Date', 'Row Type', 'Start Date/Time', 'End Date/Time', 'Nights/Days', 'Meal Plan', 
+            'Total Rooms', 'Total Room Nights', 'Total Cost', 'Paid Amount', 'Deposit Amount', 
+            'Offer Acceptance Deadline', 'Deposit Deadline', 'Full Payment Deadline',
+            'ADR (Average Daily Rate)', 'Created Date', 'Updated Date', 'Notes',
+            'Number of Guests', 'Package Plan', 'Meeting Room Name', 'Event Start Date', 'Event End Date'
         ])
         
-        for req in queryset.order_by('confirmation_number'):
-            writer.writerow([
-                sanitize_csv_value(req.confirmation_number),
-                sanitize_csv_value(req.account.name if req.account else 'No Account'),
-                sanitize_csv_value(req.get_request_type_display()),
-                sanitize_csv_value(req.get_status_display()),
-                sanitize_csv_value(req.check_in_date.strftime('%Y-%m-%d') if req.check_in_date else ''),
-                sanitize_csv_value(req.check_out_date.strftime('%Y-%m-%d') if req.check_out_date else ''),
-                sanitize_csv_value(req.nights),
-                sanitize_csv_value(req.get_meal_plan_display()),
-                sanitize_csv_value(req.total_rooms),
-                sanitize_csv_value(f"{req.total_cost:.2f}" if req.total_cost else '0.00'),
-                sanitize_csv_value(f"{req.get_display_paid_amount():.2f}" if req.get_display_paid_amount() else '0.00'),
-                sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
-                sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
-                sanitize_csv_value(req.notes)
-            ])
+        # Write enhanced event-with-rooms request data
+        for req in queryset.select_related('account').prefetch_related('event_agendas').order_by('confirmation_number'):
+            # Event with Rooms: First row for accommodation, then one row per event agenda
+            # Row 1: Accommodation details
+            write_enhanced_request_export_rows(writer, req, 'accommodation')
+            
+            # Row 2+: Event details (one row per event agenda)
+            event_agendas = req.event_agendas.all()
+            if event_agendas.exists():
+                for event_agenda in event_agendas:
+                    write_enhanced_request_export_rows(
+                        writer, req, 'event', 
+                        event_agenda=event_agenda
+                    )
+            else:
+                # If no event agendas exist, still write a row with empty event details
+                write_enhanced_request_export_rows(
+                    writer, req, 'event', 
+                    event_agenda=None
+                )
         
         return response
     export_selected_requests.short_description = "Export selected event-with-rooms requests to CSV"
@@ -1120,25 +1288,23 @@ class SeriesGroupRequestAdmin(BaseRequestAdmin):
         
         writer = csv.writer(response)
         writer.writerow([
-            'Confirmation Number', 'Account Name', 'Request Type', 'Status', 'Request Received Date', 
-            'Total Rooms', 'Total Room Nights', 'Total Cost', 'Paid Amount', 'Deposit Amount', 'Created Date', 'Notes'
+            'Confirmation Number', 'Account Name', 'Account Type', 'Contact Person', 'Request Type', 'Status', 
+            'Request Received Date', 'Row Type', 'Start Date/Time', 'End Date/Time', 'Nights/Days', 'Meal Plan', 
+            'Total Rooms', 'Total Room Nights', 'Total Cost', 'Paid Amount', 'Deposit Amount', 
+            'Offer Acceptance Deadline', 'Deposit Deadline', 'Full Payment Deadline',
+            'ADR (Average Daily Rate)', 'Created Date', 'Updated Date', 'Notes',
+            'Number of Guests', 'Package Plan', 'Meeting Room Name', 'Event Start Date', 'Event End Date'
         ])
         
+        # Write enhanced series group request data
         for req in queryset.order_by('confirmation_number'):
-            writer.writerow([
-                sanitize_csv_value(req.confirmation_number),
-                sanitize_csv_value(req.account.name if req.account else 'No Account'),
-                sanitize_csv_value(req.get_request_type_display()),
-                sanitize_csv_value(req.get_status_display()),
-                sanitize_csv_value(req.request_received_date.strftime('%Y-%m-%d') if req.request_received_date else ''),
-                sanitize_csv_value(req.total_rooms),
-                sanitize_csv_value(req.total_room_nights),
-                sanitize_csv_value(f"{req.total_cost:.2f}" if req.total_cost else '0.00'),
-                sanitize_csv_value(f"{req.get_display_paid_amount():.2f}" if req.get_display_paid_amount() else '0.00'),
-                sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
-                sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
-                sanitize_csv_value(req.notes)
-            ])
+            # Series Group: One row per SeriesGroupEntry
+            for i, series_entry in enumerate(req.series_entries.all(), 1):
+                write_enhanced_request_export_rows(
+                    writer, req, 'series_entry', 
+                    series_entry=series_entry, 
+                    entry_number=i
+                )
         
         return response
     export_selected_requests.short_description = "Export selected series group requests to CSV"

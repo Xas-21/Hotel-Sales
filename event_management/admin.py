@@ -2,7 +2,9 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
+from django.http import HttpResponse
 from decimal import Decimal
+import csv
 from .models import MeetingRoom, EventBooking, EventMetrics
 from requests.models import EventAgenda
 
@@ -70,6 +72,7 @@ class EventBookingAdmin(admin.ModelAdmin):
     filter_horizontal = ['meeting_rooms']
     date_hierarchy = 'event_date'
     ordering = ['-event_date', '-start_time']
+    actions = ['export_event_bookings']
     # inlines = [EventAgendaInline]  # Removed due to ForeignKey issue
     
     fieldsets = [
@@ -209,6 +212,107 @@ class EventBookingAdmin(admin.ModelAdmin):
         if not change:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+    
+    def export_event_bookings(self, request, queryset):
+        """Export selected event bookings to CSV"""
+        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        response['Content-Disposition'] = 'attachment; filename="event_bookings_export.csv"'
+        
+        writer = csv.writer(response)
+        
+        # CSV Header
+        writer.writerow([
+            'Event Name', 'Account Name', 'Account Type', 'Contact Person',
+            'Event Date', 'Start Time', 'End Time', 'Duration (hours)',
+            'Meeting Rooms', 'Setup Style', 'Status',
+            'Number of Guests', 'Package Plan', 
+            'Rate Per Person', 'Rental Fees', 'Total Cost',
+            'Request Received Date', 'Offer Acceptance Deadline', 
+            'Deposit Deadline', 'Full Payment Deadline',
+            'Coffee Break Time', 'Lunch Time', 'Dinner Time',
+            'Linked Request ID', 'Created By', 'Created Date', 'Notes'
+        ])
+        
+        # Helper function to sanitize CSV values
+        def sanitize_csv_value(value):
+            """Prevent CSV injection attacks"""
+            if value is None:
+                return ''
+            str_value = str(value)
+            if str_value and str_value[0] in ['=', '+', '-', '@', '\t']:
+                return "'" + str_value
+            return str_value
+        
+        # Export data
+        total_bookings = 0
+        total_revenue = 0
+        total_attendees = 0
+        status_counts = {}
+        
+        for booking in queryset.select_related('account', 'request', 'created_by').prefetch_related('meeting_rooms').order_by('event_date', 'start_time'):
+            # Calculate total cost
+            total_cost = (booking.rate_per_person * booking.total_persons) + booking.rental_fees_per_day
+            
+            # Get meeting room names
+            room_names = ', '.join([room.display_name for room in booking.meeting_rooms.all()])
+            
+            # Get duration
+            duration = booking.get_duration()
+            
+            # Get package display
+            package_display = booking.get_packages_display() if booking.packages else ''
+            
+            writer.writerow([
+                sanitize_csv_value(booking.event_name),
+                sanitize_csv_value(booking.account.name if booking.account else 'No Account'),
+                sanitize_csv_value(booking.account.account_type if booking.account else ''),
+                sanitize_csv_value(booking.account.contact_person if booking.account else ''),
+                sanitize_csv_value(booking.event_date.strftime('%Y-%m-%d') if booking.event_date else ''),
+                sanitize_csv_value(booking.start_time.strftime('%H:%M') if booking.start_time else ''),
+                sanitize_csv_value(booking.end_time.strftime('%H:%M') if booking.end_time else ''),
+                sanitize_csv_value(f'{duration:.2f}'),
+                sanitize_csv_value(room_names),
+                sanitize_csv_value(booking.style),
+                sanitize_csv_value(booking.status),
+                sanitize_csv_value(booking.total_persons),
+                sanitize_csv_value(package_display),
+                sanitize_csv_value(f'{booking.rate_per_person:.2f}'),
+                sanitize_csv_value(f'{booking.rental_fees_per_day:.2f}'),
+                sanitize_csv_value(f'{total_cost:.2f}'),
+                sanitize_csv_value(booking.request_received_date.strftime('%Y-%m-%d') if booking.request_received_date else ''),
+                sanitize_csv_value(booking.offer_acceptance_deadline.strftime('%Y-%m-%d') if booking.offer_acceptance_deadline else ''),
+                sanitize_csv_value(booking.deposit_deadline.strftime('%Y-%m-%d') if booking.deposit_deadline else ''),
+                sanitize_csv_value(booking.full_payment_deadline.strftime('%Y-%m-%d') if booking.full_payment_deadline else ''),
+                sanitize_csv_value(booking.coffee_break_time.strftime('%H:%M') if booking.coffee_break_time else ''),
+                sanitize_csv_value(booking.lunch_time.strftime('%H:%M') if booking.lunch_time else ''),
+                sanitize_csv_value(booking.dinner_time.strftime('%H:%M') if booking.dinner_time else ''),
+                sanitize_csv_value(booking.request.confirmation_number if booking.request else ''),
+                sanitize_csv_value(booking.created_by.username if booking.created_by else ''),
+                sanitize_csv_value(booking.created_at.strftime('%Y-%m-%d %H:%M') if booking.created_at else ''),
+                sanitize_csv_value(booking.notes),
+            ])
+            
+            # Calculate totals
+            total_bookings += 1
+            total_revenue += float(total_cost)
+            total_attendees += booking.total_persons
+            status_counts[booking.status] = status_counts.get(booking.status, 0) + 1
+        
+        # Add summary rows
+        writer.writerow([])
+        writer.writerow(['SUMMARY'])
+        writer.writerow(['Total Event Bookings:', total_bookings])
+        writer.writerow(['Total Revenue:', f'SAR {total_revenue:,.2f}'])
+        writer.writerow(['Total Attendees:', total_attendees])
+        writer.writerow(['Average Attendees per Event:', f'{total_attendees / total_bookings:.1f}' if total_bookings > 0 else '0'])
+        writer.writerow(['Average Revenue per Event:', f'SAR {total_revenue / total_bookings:,.2f}' if total_bookings > 0 else 'SAR 0.00'])
+        writer.writerow([])
+        writer.writerow(['STATUS BREAKDOWN'])
+        for status, count in sorted(status_counts.items()):
+            writer.writerow([status, count, f'{(count / total_bookings * 100):.1f}%' if total_bookings > 0 else '0%'])
+        
+        return response
+    export_event_bookings.short_description = "Export selected event bookings to CSV"
     
     def get_queryset(self, request):
         """Optimize queryset for list view"""
