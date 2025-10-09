@@ -87,7 +87,7 @@ class SystemFieldRequirement(models.Model):
         ('requests.Group Accommodation', 'Requests - Group Accommodation'),
         ('requests.Individual Accommodation', 'Requests - Individual Accommodation'),
         ('requests.Event with Rooms', 'Requests - Event with Rooms'),
-        ('requests.Event without Rooms', 'Requests - Event without Rooms'),
+        ('requests.Event without Rooms', 'Requests - Event Only'),
         ('requests.Series Group', 'Requests - Series Group'),
         # Sales Calls module
         ('sales_calls.SalesCall', 'Sales Calls - Visit Form'),
@@ -133,7 +133,7 @@ class SystemFormLayout(models.Model):
         ('requests.Group Accommodation', 'Requests - Group Accommodation'),
         ('requests.Individual Accommodation', 'Requests - Individual Accommodation'),
         ('requests.Event with Rooms', 'Requests - Event with Rooms'),
-        ('requests.Event without Rooms', 'Requests - Event without Rooms'),
+        ('requests.Event without Rooms', 'Requests - Event Only'),
         ('requests.Series Group', 'Requests - Series Group'),
         # Sales Calls module
         ('sales_calls.SalesCall', 'Sales Calls - Visit Form'),
@@ -189,11 +189,11 @@ class Request(models.Model):
     Main requests model supporting all request types with comprehensive features.
     """
     REQUEST_TYPES = [
-        ('Group Accommodation', 'Group Accommodation (10+ rooms)'),
+        ('Group Accommodation', 'Group Accommodation'),
         ('Individual Accommodation', 'Individual Accommodation (1-9 rooms)'),
         ('Event with Rooms', 'Event with Rooms'),
-        ('Event without Rooms', 'Event without Rooms'),
-        ('Series Group', 'Series Group (multiple dates)'),
+        ('Event without Rooms', 'Event Only'),
+        ('Series Group', 'Series Group'),
     ]
     
     STATUS_CHOICES = [
