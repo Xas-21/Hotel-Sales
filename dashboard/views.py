@@ -275,13 +275,11 @@ def dashboard_view(request):
         # Predefined periods
         if period_type == 'this_month':
             start_date = today.replace(day=1)
-            # Get last day of current month
-            if today.month == 12:
-                end_date = today.replace(year=today.year + 1, month=1, day=1) - timedelta(days=1)
-            else:
-                end_date = today.replace(month=today.month + 1, day=1) - timedelta(days=1)
+            # End at current date (not end of month)
+            end_date = today
         elif period_type == 'last_month':
             start_date = (today.replace(day=1) - timedelta(days=1)).replace(day=1)
+            # End at last day of previous month
             end_date = today.replace(day=1) - timedelta(days=1)
         elif period_type == 'last_3_months':
             # Get 3 complete months back from current month (including current month)
@@ -316,22 +314,15 @@ def dashboard_view(request):
             end_date = today.replace(month=12, day=31)
         elif period_type == 'ytd':
             start_date = today.replace(month=1, day=1)
-            # Include current month in YTD
-            if today.month == 12:
-                end_date = today.replace(year=today.year + 1, month=1, day=1) - timedelta(days=1)
-            else:
-                end_date = today.replace(month=today.month + 1, day=1) - timedelta(days=1)
+            # End at current date (not end of current month)
+            end_date = today
         elif period_type == 'qtd':
-            # Current quarter - include current month
+            # Current quarter - from start of quarter to current date
             current_quarter = (today.month - 1) // 3 + 1
             quarter_start_month = (current_quarter - 1) * 3 + 1
-            quarter_end_month = quarter_start_month + 2
             start_date = today.replace(month=quarter_start_month, day=1)
-            # Include current month in QTD
-            if today.month == 12:
-                end_date = today.replace(year=today.year + 1, month=1, day=1) - timedelta(days=1)
-            else:
-                end_date = today.replace(month=today.month + 1, day=1) - timedelta(days=1)
+            # End at current date (not end of current month)
+            end_date = today
         elif period_type == 'next_year':
             start_date = today.replace(year=today.year + 1, month=1, day=1)
             end_date = today.replace(year=today.year + 1, month=12, day=31)
@@ -605,7 +596,7 @@ def dashboard_view(request):
             # Ensure we don't show too many months (cap at 24 for performance)
             periods_to_show = min(periods_to_show, 24)
         elif period_type in ['this_month', 'last_month']:
-            periods_to_show = 12
+            periods_to_show = 1  # Show only the selected month
         elif period_type in ['last_3_months']:
             periods_to_show = 3  # Show exactly 3 months
         elif period_type in ['last_6_months']:
@@ -689,12 +680,22 @@ def dashboard_view(request):
                     target_month -= 12
                     target_year += 1
                 period_start = start_date.replace(year=target_year, month=target_month, day=1)
+            elif period_type in ['this_month', 'last_month']:
+                # For single month periods, show only that month
+                if i == 0:
+                    period_start = start_date
+                else:
+                    # For this_month and last_month, we only show 1 month, so this shouldn't happen
+                    period_start = start_date
             else:
                 # For other past periods, go backward from start_date
                 period_start = (start_date - timedelta(days=30*i)).replace(day=1)
             
             # Calculate month end
-            if period_start.month == 12:
+            if period_type == 'this_month':
+                # For this_month, end at current date (not end of month)
+                period_end = today
+            elif period_start.month == 12:
                 period_end = period_start.replace(year=period_start.year + 1, month=1, day=1) - timedelta(days=1)
             else:
                 period_end = period_start.replace(month=period_start.month + 1, day=1) - timedelta(days=1)
