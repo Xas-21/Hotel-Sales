@@ -18,8 +18,58 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
         .room-availability {
-            height: 600px;
+            height: 400px;
             overflow-y: auto;
+        }
+        
+        /* Simple calendar event styling */
+        .fc-event {
+            border-radius: 4px !important;
+            font-weight: 500 !important;
+            color: white !important;
+        }
+        
+        /* Ensure events display as blocks, not dots */
+        .fc-event-dot {
+            display: none !important;
+        }
+        
+        /* Status-specific colors */
+        .fc-event.status-cancelled {
+            background-color: #dc3545 !important;
+            border-color: #dc3545 !important;
+        }
+        
+        .fc-event.status-pending {
+            background-color: #fd7e14 !important;
+            border-color: #fd7e14 !important;
+        }
+        
+        .fc-event.status-draft {
+            background-color: #6c757d !important;
+            border-color: #6c757d !important;
+        }
+        
+        .fc-event.status-paid {
+            background-color: #198754 !important;
+            border-color: #198754 !important;
+        }
+        
+        .fc-event.status-partially-paid {
+            background-color: #198754 !important;
+            border-color: #198754 !important;
+        }
+        
+        .fc-event.status-actual {
+            background-color: #0d5016 !important;
+            border-color: #0d5016 !important;
+        }
+        
+        /* Ensure all child elements inherit the color */
+        .fc-event * {
+            background-color: transparent !important;
+            color: white !important;
+            border: none !important;
         }
         .room-status {
             padding: 4px 8px;
@@ -172,13 +222,13 @@
 
         <!-- Main Content -->
         <div class="row">
-            <!-- Left Column: Room Availability & Event Creation -->
-            <div class="col-md-4">
-                <!-- Room Availability -->
+            <!-- Left Column: Meeting Rooms Availability & Event Creation -->
+            <div class="col-md-3">
+                <!-- Meeting Rooms Availability -->
                 <div class="card mb-4">
                     <div class="card-header">
                         <h6 class="mb-0">
-                            <i class="fas fa-door-open me-2"></i>Room Availability
+                            <i class="fas fa-door-open me-2"></i>Meeting Rooms Availability
                         </h6>
                     </div>
                     <div class="card-body">
@@ -219,7 +269,7 @@
             </div>
 
             <!-- Right Column: Calendar & Analytics -->
-            <div class="col-md-8">
+            <div class="col-md-9">
                 <!-- Calendar -->
                 <div class="card mb-4">
                     <div class="card-header">
@@ -289,6 +339,37 @@
                                                 </td>
                                             </tr>
                                             {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent Requests - Below Account Performance -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Recent Requests</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                    <table class="table table-sm" id="recentRequestsTable">
+                                        <thead class="sticky-top bg-light">
+                                            <tr>
+                                                <th>Request ID</th>
+                                                <th>Type</th>
+                                                <th>Account</th>
+                                                <th>Event</th>
+                                                <th>Date</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="recentRequestsBody">
+                                            <!-- Dynamic content will be loaded here -->
                                         </tbody>
                                     </table>
                                 </div>
@@ -617,6 +698,13 @@
                     center: 'title',
                     right: 'dayGridMonth,timeGridWeek,timeGridDay'
                 },
+                eventDisplay: 'block', // Ensure full block display instead of dots
+                displayEventTime: false, // Hide time in month view to save space
+                eventTimeFormat: {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: false
+                },
                 eventSources: [
                     {
                         url: '/event-management/api/calendar-events/',
@@ -645,7 +733,28 @@
                 lazyFetching: false, // Always refetch events
                 eventOrder: 'start', // Sort by start time to prevent visual duplicates
                 eventDidMount: function(info) {
-                    console.log('Event mounted:', info.event.id, info.event.title, info.event.start);
+                    const eventElement = info.el;
+                    const status = info.event.extendedProps.status;
+                    
+                    // Remove any existing status classes
+                    eventElement.classList.remove('status-cancelled', 'status-pending', 'status-draft', 'status-paid', 'status-confirmed', 'status-partially-paid', 'status-actual');
+                    
+                    // Add status-specific class
+                    if (status === 'Cancelled') {
+                        eventElement.classList.add('status-cancelled');
+                    } else if (status === 'Pending') {
+                        eventElement.classList.add('status-pending');
+                    } else if (status === 'Draft') {
+                        eventElement.classList.add('status-draft');
+                    } else if (status === 'Paid' || status === 'Confirmed') {
+                        eventElement.classList.add('status-paid');
+                    } else if (status === 'Partially Paid') {
+                        eventElement.classList.add('status-partially-paid');
+                    } else if (status === 'Actual') {
+                        eventElement.classList.add('status-actual');
+                    }
+                    
+                    console.log('Applied status class:', status, 'to event:', info.event.title);
                 },
                 eventClick: function(info) {
                     info.jsEvent.preventDefault(); // Prevent default FullCalendar behavior
@@ -952,7 +1061,7 @@
             }
         });
 
-        // Check Room Availability for Specific Date
+        // Check Meeting Rooms Availability for Specific Date
         async function checkRoomAvailability() {
             const dateInput = document.getElementById('availabilityDate');
             const resultsDiv = document.getElementById('room-availability-results');
@@ -981,7 +1090,7 @@
             }
         }
 
-        // Display Room Availability Results
+        // Display Meeting Rooms Availability Results
         function displayRoomAvailability(availability, container) {
             let html = '';
             
@@ -1171,6 +1280,116 @@
         if (eventAcctApplyBtn) {
             eventAcctApplyBtn.addEventListener('click', loadEventAccountPerformance);
         }
+
+        // Load Recent Requests functionality
+        async function loadRecentRequests() {
+            try {
+                const response = await fetch('/event-management/api/recent-event-requests/');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderRecentRequestsTable(data.requests);
+                } else {
+                    console.error('Error loading recent requests:', data.error);
+                }
+            } catch (error) {
+                console.error('Error loading recent requests:', error);
+            }
+        }
+
+        function renderRecentRequestsTable(requests) {
+            const tbody = document.getElementById('recentRequestsBody');
+            if (!tbody) return;
+            
+            tbody.innerHTML = requests.map(req => {
+                const statusBadgeClass = getStatusBadgeClass(req.status);
+                const canCancel = req.status !== 'Cancelled' && req.status !== 'Actual';
+                
+                return `
+                    <tr>
+                        <td><strong>#${req.id}</strong></td>
+                        <td>${req.request_type}</td>
+                        <td>
+                            <strong>${req.account_name}</strong>
+                            <br><small class="text-muted">${req.account_type}</small>
+                        </td>
+                        <td>
+                            <strong>${req.event_name}</strong>
+                            ${req.meeting_room ? `<br><small class="text-muted">${req.meeting_room}</small>` : ''}
+                            ${req.event_date ? `<br><small class="text-muted">${req.event_date}</small>` : ''}
+                        </td>
+                        <td>${req.request_received_date}</td>
+                        <td><span class="badge ${statusBadgeClass}">${req.status}</span></td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="${req.url}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                                ${canCancel ? `
+                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="cancelRequest(${req.id})">
+                                        <i class="fas fa-times"></i> Cancel
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function getStatusBadgeClass(status) {
+            const statusClasses = {
+                'Draft': 'bg-secondary',
+                'Pending': 'bg-warning',
+                'Confirmed': 'bg-success',
+                'Paid': 'bg-success',
+                'Partially Paid': 'bg-info',
+                'Actual': 'bg-primary',
+                'Cancelled': 'bg-danger'
+            };
+            return statusClasses[status] || 'bg-secondary';
+        }
+
+        async function cancelRequest(requestId) {
+            if (!confirm('Are you sure you want to cancel this request?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/event-management/api/update-request-status/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        request_id: requestId,
+                        status: 'Cancelled'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Request cancelled successfully!');
+                    loadRecentRequests(); // Reload the table
+                    // Also reload the calendar to update colors
+                    if (window.calendar) {
+                        window.calendar.refetchEvents();
+                    }
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error cancelling request:', error);
+                alert('Error cancelling request. Please try again.');
+            }
+        }
+
+        // Load recent requests on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadRecentRequests();
+        });
     </script>
 
     <!-- Add New Account Modal -->

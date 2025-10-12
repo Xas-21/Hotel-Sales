@@ -369,11 +369,11 @@ def calendar_events_api(request):
     # Create cache key
     cache_key = f"{start_date}_{end_date}"
     
-    # Check cache first (with 30-second expiry)
+    # Check cache first (with 5-second expiry for faster color updates)
     import time
     if cache_key in _calendar_events_cache:
         cached_data, timestamp = _calendar_events_cache[cache_key]
-        if time.time() - timestamp < 30:  # 30 seconds cache
+        if time.time() - timestamp < 5:  # 5 seconds cache for faster updates
             print(f"RETURNING CACHED EVENTS for {cache_key}")
             return JsonResponse(cached_data, safe=False)
     
@@ -420,19 +420,43 @@ def calendar_events_api(request):
         start_datetime = f"{event.event_date}T{event.start_time}"
         end_datetime = f"{event.event_date}T{event.end_time}"
         
+        # Color coding based on request status
+        status_colors = {
+            'Cancelled': '#dc3545',      # Red
+            'Pending': '#fd7e14',        # Orange
+            'Draft': '#6c757d',          # Gray
+            'Paid': '#198754',           # Light Green
+            'Confirmed': '#198754',      # Light Green
+            'Partially Paid': '#198754', # Light Green
+            'Actual': '#0d5016',         # Dark Green
+        }
+        
+        # Get the color for this event's status
+        event_color = status_colors.get(event.request.status, '#fd7e14')  # Default orange
+        
+        
+        # Create clear title with meeting room and timing
+        room_info = f" - {event.meeting_room_name}" if event.meeting_room_name else ""
+        timing_info = f" ({event.start_time.strftime('%H:%M')}-{event.end_time.strftime('%H:%M')})"
+        event_title = f"{event.event_name or event.agenda_details}{room_info}{timing_info}"
+        
         events_data.append({
             'id': event_id,
-            'title': f"Event: {event.event_name or event.agenda_details}",
+            'title': event_title,
             'start': start_datetime,
             'end': end_datetime,
             'allDay': False,  # Show specific times, not all-day
-            'color': '#fd7e14',  # Orange color for events
+            'backgroundColor': event_color,
+            'borderColor': event_color,
+            'textColor': '#ffffff',
             'url': f"/admin/requests/request/{event.request.id}/change/",
             'extendedProps': {
                 'rooms': event.meeting_room_name,
                 'account': event.request.account.name,
                 'status': event.request.status,
-                'type': 'event_agenda'
+                'type': 'event_agenda',
+                'timing': f"{event.start_time.strftime('%H:%M')} - {event.end_time.strftime('%H:%M')}",
+                'status_color': event_color
             }
         })
     
@@ -484,9 +508,12 @@ def room_availability_api(request):
             agenda_room_name = room_name_mapping.get(room.name, room.name)
             agenda_room_names.append(agenda_room_name)
         
+        # Include ALL request statuses for conflict checking EXCEPT cancelled
         conflicts = EventAgenda.objects.filter(
             event_date=target_date,
-            meeting_room_name__in=agenda_room_names
+            meeting_room_name__in=agenda_room_names,
+            request__status__in=['Confirmed', 'Paid', 'Actual', 'Draft', 'Tentative', 'Pending', 'Partially Paid']
+            # Exclude 'Cancelled' status from affecting room availability
         ).exclude(
             # Exclude events that don't overlap in time
             models.Q(start_time__gte=end_time) | models.Q(end_time__lte=start_time)
@@ -552,7 +579,7 @@ def calculate_event_metrics(start_date, end_date, calculate_mom=False):
         mom_start_date = start_date - timedelta(days=period_days + 1)
         mom_end_date = start_date - timedelta(days=1)
         
-        # Get previous period event agendas
+        # Get previous period event agendas - ALL statuses EXCEPT Cancelled for Account Performance
         previous_event_agendas = EventAgenda.objects.filter(
             request__status__in=['Draft', 'Confirmed', 'Pending', 'Paid', 'Partially Paid', 'Actual'],
             event_date__gte=mom_start_date,
@@ -588,8 +615,13 @@ def calculate_event_metrics(start_date, end_date, calculate_mom=False):
         room_metrics[room.name.lower().replace(' ', '_')] = room_events
     
     # Account performance - calculate from EventAgenda for accuracy
+    # Include ALL statuses EXCEPT Cancelled for Account Performance display
+    account_performance_agendas = event_agendas.filter(
+        request__status__in=['Draft', 'Confirmed', 'Pending', 'Paid', 'Partially Paid', 'Actual']
+    )
+    
     account_performance = {}
-    for agenda in event_agendas:
+    for agenda in account_performance_agendas:
         account_name = agenda.request.account.name
         if account_name not in account_performance:
             account_performance[account_name] = {
@@ -657,12 +689,14 @@ def get_room_availability(start_date, end_date):
         agenda_room_name = room_name_mapping.get(room.name, room.name)
         
         # Get events from EventAgenda only (source of truth, prevents duplicates)
+        # Include ALL request statuses for room availability calculations
         from requests.models import EventAgenda
         existing_events = EventAgenda.objects.filter(
             meeting_room_name=agenda_room_name,
             event_date__gte=start_date,
             event_date__lte=end_date,
-            request__status__in=['Confirmed', 'Paid', 'Actual', 'Draft', 'Tentative']
+            request__status__in=['Confirmed', 'Paid', 'Actual', 'Draft', 'Tentative', 'Pending', 'Partially Paid']
+            # Exclude 'Cancelled' status from affecting room availability
         ).select_related('request').order_by('event_date', 'start_time')
         
         # Convert to display format
@@ -824,14 +858,14 @@ def api_event_account_performance(request):
     mom_start_date = start_date_val - timedelta(days=period_days + 1)
     mom_end_date = start_date_val - timedelta(days=1)
 
-    # Current period event agendas
+    # Current period event agendas - ALL statuses EXCEPT Cancelled for Account Performance
     current_event_agendas = EventAgenda.objects.filter(
         request__status__in=['Draft', 'Confirmed', 'Pending', 'Paid', 'Partially Paid', 'Actual'],
         event_date__gte=start_date_val,
         event_date__lte=end_date_val
     ).select_related('request__account')
     
-    # Previous period event agendas for MoM
+    # Previous period event agendas for MoM - ALL statuses EXCEPT Cancelled
     previous_event_agendas = EventAgenda.objects.filter(
         request__status__in=['Draft', 'Confirmed', 'Pending', 'Paid', 'Partially Paid', 'Actual'],
         event_date__gte=mom_start_date,
@@ -896,3 +930,77 @@ def api_event_account_performance(request):
     results.sort(key=lambda x: x['revenue'], reverse=True)
 
     return JsonResponse({'results': results})
+
+
+@login_required
+def api_recent_event_requests(request):
+    """
+    API endpoint to get recent event requests (Event Only and Event with Rooms).
+    Excludes cancelled requests.
+    """
+    from requests.models import Request
+    
+    # Get recent event requests (Event Only and Event with Rooms)
+    recent_requests = Request.objects.filter(
+        request_type__in=['Event without Rooms', 'Event with Rooms'],
+        status__in=['Draft', 'Confirmed', 'Pending', 'Paid', 'Partially Paid', 'Actual']
+        # Exclude cancelled requests
+    ).select_related('account').order_by('-request_received_date')[:10]
+    
+    results = []
+    for req in recent_requests:
+        # Get the first EventAgenda for basic info
+        first_agenda = req.event_agendas.first()
+        
+        results.append({
+            'id': req.id,
+            'request_type': req.request_type,
+            'account_name': req.account.name,
+            'account_type': req.account.account_type,
+            'status': req.status,
+            'request_received_date': req.request_received_date.strftime('%Y-%m-%d'),
+            'event_date': first_agenda.event_date.strftime('%Y-%m-%d') if first_agenda else None,
+            'event_name': first_agenda.event_name if first_agenda else 'No Event Details',
+            'meeting_room': first_agenda.meeting_room_name if first_agenda else None,
+            'url': f"/admin/requests/request/{req.id}/change/"
+        })
+    
+    return JsonResponse({
+        'success': True,
+        'requests': results
+    })
+
+
+@login_required
+def update_request_status(request):
+    """
+    API endpoint to update request status (Cancel or other status changes).
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        request_id = data.get('request_id')
+        new_status = data.get('status')
+        
+        if not request_id or not new_status:
+            return JsonResponse({'error': 'request_id and status are required'}, status=400)
+        
+        # Get the request
+        from requests.models import Request
+        req = Request.objects.get(id=request_id)
+        
+        # Update status
+        req.status = new_status
+        req.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Request status updated to {new_status}'
+        })
+        
+    except Request.DoesNotExist:
+        return JsonResponse({'error': 'Request not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

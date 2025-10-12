@@ -12,4 +12,6 @@ urlpatterns = [
     path('api/room-availability/', views.room_availability_api, name='room_availability_api'),
     path('api/create-account/', views.create_account_api, name='create_account_api'),
     path('api/event-account-performance/', views.api_event_account_performance, name='api_event_account_performance'),
+    path('api/recent-event-requests/', views.api_recent_event_requests, name='api_recent_event_requests'),
+    path('api/update-request-status/', views.update_request_status, name='update_request_status'),
 ]

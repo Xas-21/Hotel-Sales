@@ -103,14 +103,28 @@ DATABASES = {
     }
 }
 
-# Use Supabase PostgreSQL if DATABASE_URL is provided
+# Use PostgreSQL if DATABASE_URL is provided (or from USE_ONLINE_DB.py)
 DATABASE_URL = os.getenv('DATABASE_URL')
+
+# Check for temporary online database configuration
+try:
+    import sys
+    sys.path.insert(0, str(BASE_DIR))
+    from USE_ONLINE_DB import ONLINE_DATABASE_URL
+    DATABASE_URL = ONLINE_DATABASE_URL
+    print("=" * 80)
+    print("🌐 CONNECTED TO ONLINE PostgreSQL DATABASE (Render)")
+    print("⚠️  All changes will affect production database!")
+    print("=" * 80)
+except ImportError:
+    pass  # USE_ONLINE_DB.py doesn't exist, use default behavior
+
 if DATABASE_URL:
     import dj_database_url
     DATABASES['default'] = dj_database_url.config(
         default=DATABASE_URL,
         conn_max_age=600,
-        ssl_require=False,  # Try without SSL first
+        ssl_require=True,  # Render requires SSL
     )
 else:
     # Use SQLite for local development
@@ -120,6 +134,10 @@ else:
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
+    if DEBUG:
+        print("=" * 80)
+        print("💾 Using LOCAL SQLite Database")
+        print("=" * 80)
 
 
 # Password validation
