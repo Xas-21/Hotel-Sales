@@ -503,17 +503,36 @@ def room_availability_api(request):
         }
         
         agenda_room_names = []
+        has_main_hall = False
+        main_halls = ['AL JADIDA', 'DADAN', 'HEGRA', 'IKMA']
+        
         for room_id in room_ids:
             room = MeetingRoom.objects.get(id=room_id)
             agenda_room_name = room_name_mapping.get(room.name, room.name)
             agenda_room_names.append(agenda_room_name)
+            
+            # Check if any of the selected rooms is a main hall
+            if agenda_room_name in main_halls or room.name in main_halls:
+                has_main_hall = True
+        
+        # Build query for conflicts
+        from django.db.models import Q
+        conflict_query = Q(meeting_room_name__in=agenda_room_names)
+        
+        # If booking any main hall, also check for "All Halls" conflicts
+        # If booking "All Halls", also check for individual main hall conflicts
+        if has_main_hall:
+            conflict_query |= Q(meeting_room_name='All Halls')
+        if 'All Halls' in agenda_room_names:
+            conflict_query |= Q(meeting_room_name__in=main_halls)
         
         # Include ALL request statuses for conflict checking EXCEPT cancelled
         conflicts = EventAgenda.objects.filter(
             event_date=target_date,
-            meeting_room_name__in=agenda_room_names,
             request__status__in=['Confirmed', 'Paid', 'Actual', 'Draft', 'Tentative', 'Pending', 'Partially Paid']
             # Exclude 'Cancelled' status from affecting room availability
+        ).filter(
+            conflict_query
         ).exclude(
             # Exclude events that don't overlap in time
             models.Q(start_time__gte=end_time) | models.Q(end_time__lte=start_time)
@@ -691,8 +710,18 @@ def get_room_availability(start_date, end_date):
         # Get events from EventAgenda only (source of truth, prevents duplicates)
         # Include ALL request statuses for room availability calculations
         from requests.models import EventAgenda
+        from django.db.models import Q
+        
+        # Build query to include direct room bookings
+        room_query = Q(meeting_room_name=agenda_room_name)
+        
+        # If this is one of the main halls, also check for "All Halls" bookings
+        main_halls = ['AL JADIDA', 'DADAN', 'HEGRA', 'IKMA']
+        if agenda_room_name in main_halls or room.name in main_halls:
+            room_query |= Q(meeting_room_name='All Halls')
+        
         existing_events = EventAgenda.objects.filter(
-            meeting_room_name=agenda_room_name,
+            room_query,
             event_date__gte=start_date,
             event_date__lte=end_date,
             request__status__in=['Confirmed', 'Paid', 'Actual', 'Draft', 'Tentative', 'Pending', 'Partially Paid']
