@@ -44,26 +44,22 @@ def save_user_profile(sender, instance, **kwargs):
 
 @receiver(post_save, sender=User)
 def update_user_groups_on_save(sender, instance, **kwargs):
-    """Update user groups when user permissions change"""
-    if instance.is_superuser:
-        # Superusers get Admin group
-        admin_group, _ = Group.objects.get_or_create(name='Admin')
-        if admin_group not in instance.groups.all():
-            instance.groups.add(admin_group)
-    elif instance.is_staff:
-        # Staff users get Sales Executive group (remove Admin group if present)
-        admin_group = Group.objects.filter(name='Admin').first()
-        if admin_group and admin_group in instance.groups.all():
-            instance.groups.remove(admin_group)
+    """Update user groups when user permissions change - only for new users or permission changes"""
+    # Only run this logic for new users or when permissions actually change
+    if kwargs.get('created', False):
+        # This is a new user - let the create_user_profile signal handle it
+        return
+    
+    # Check if this is a permission change by looking at the raw data
+    if hasattr(instance, '_state') and instance._state.adding:
+        return
+    
+    # Only modify groups if user has no groups at all (newly created staff users)
+    if instance.is_staff and not instance.groups.exists():
+        # Only add Sales Executive if user has no groups at all
         sales_executive_group, _ = Group.objects.get_or_create(name='Sales Executive')
-        if sales_executive_group not in instance.groups.all():
-            instance.groups.add(sales_executive_group)
-    else:
-        # Regular users get Viewer group (remove Admin/Sales Executive groups if present)
-        for group_name in ['Admin', 'Sales Executive']:
-            group = Group.objects.filter(name=group_name).first()
-            if group and group in instance.groups.all():
-                instance.groups.remove(group)
+        instance.groups.add(sales_executive_group)
+    elif not instance.is_staff and not instance.is_superuser and not instance.groups.exists():
+        # Only add Viewer if user has no groups at all
         viewer_group, _ = Group.objects.get_or_create(name='Viewer')
-        if viewer_group not in instance.groups.all():
-            instance.groups.add(viewer_group)
+        instance.groups.add(viewer_group)

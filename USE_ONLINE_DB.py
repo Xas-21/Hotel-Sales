@@ -4,3 +4,6 @@
 
 ONLINE_DATABASE_URL = 'postgresql://hotel_sales_user:Uo8FNzN7tYMulWQD1GU9YQxT4np3S6eF@dpg-d3hfmhe3jp1c73fgvql0-a.oregon-postgres.render.com/hotel_sales'
 
+
+
+

@@ -20,6 +20,25 @@ from requests.models import (
     AccommodationRequest, EventOnlyRequest, EventWithRoomsRequest, SeriesGroupRequest
 )
 from hotel_sales.admin.mixins import ConfigEnforcedAdminMixin
+from django.contrib.admin import SimpleListFilter
+from django.utils.translation import gettext_lazy as _
+
+
+class StatusFilter(SimpleListFilter):
+    """Custom status filter to ensure proper filtering"""
+    title = _('Status')
+    parameter_name = 'status'
+    
+    def lookups(self, request, model_admin):
+        """Return the status choices for the filter"""
+        return Request.STATUS_CHOICES
+    
+    def queryset(self, request, queryset):
+        """Filter the queryset based on the selected status"""
+        if self.value():
+            return queryset.filter(status=self.value())
+        return queryset
+
 
 def sanitize_csv_value(value):
     """Sanitize CSV values to prevent CSV injection attacks"""
@@ -239,7 +258,7 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     form = RequestAdminForm
     change_form_template = 'admin/requests/change_form.html'
     list_display = ['confirmation_number', 'account', 'request_type', 'meal_plan', 'status', 'check_in_date', 'check_out_date', 'nights', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
-    list_filter = ['request_type', 'meal_plan', 'status', 'created_at', 'check_in_date']
+    list_filter = ['request_type', 'meal_plan', StatusFilter, 'created_at', 'check_in_date']
     search_fields = ['confirmation_number', 'account__name', 'account__contact_person']
     readonly_fields = ['nights', 'total_cost', 'total_rooms', 'total_room_nights', 'created_at', 'updated_at', 
                       'get_adr_display', 'get_room_total_display', 'get_transportation_total_display', 
@@ -302,8 +321,8 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
                 'classes': ('collapse', 'wide')
             }),
             ('Documents & Notes', {
-                'fields': ('agreement_file', 'notes'),
-                'description': 'Upload agreements and add detailed notes',
+                'fields': ('agreement_file', 'invoice_1', 'invoice_2', 'invoice_3', 'notes'),
+                'description': 'Upload agreements, invoices and add detailed notes',
                 'classes': ('collapse',)
             }),
             ('System Information', {
@@ -616,7 +635,7 @@ class AccommodationRequestAdmin(BaseRequestAdmin):
     
     # Complete admin configuration matching BaseRequestAdmin
     list_display = ['confirmation_number', 'account', 'meal_plan', 'status', 'check_in_date', 'check_out_date', 'nights', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
-    list_filter = ['meal_plan', 'status', 'created_at', 'check_in_date']
+    list_filter = ['meal_plan', StatusFilter, 'created_at', 'check_in_date']
     search_fields = ['confirmation_number', 'account__name', 'account__contact_person']
     readonly_fields = ['nights', 'total_cost', 'total_rooms', 'total_room_nights', 'created_at', 'updated_at', 
                       'get_adr_display', 'get_room_total_display', 'get_transportation_total_display', 
@@ -808,8 +827,8 @@ class AccommodationRequestAdmin(BaseRequestAdmin):
                 'classes': ('collapse', 'wide')
             }),
             ('Documents & Notes', {
-                'fields': ('agreement_file', 'notes'),
-                'description': 'Upload agreements and add detailed notes',
+                'fields': ('agreement_file', 'invoice_1', 'invoice_2', 'invoice_3', 'notes'),
+                'description': 'Upload agreements, invoices and add detailed notes',
                 'classes': ('collapse',)
             }),
             ('System Information', {
@@ -835,7 +854,7 @@ class EventOnlyRequestAdmin(BaseRequestAdmin):
     
     # Complete admin configuration matching AccommodationRequestAdmin
     list_display = ['confirmation_number', 'account', 'status', 'request_received_date', 'total_cost', 'created_at']
-    list_filter = ['status', 'request_received_date', 'created_at']
+    list_filter = [StatusFilter, 'request_received_date', 'created_at']
     search_fields = ['confirmation_number', 'account__name', 'account__contact_person']
     readonly_fields = ['total_cost', 'created_at', 'updated_at', 
                       'get_adr_display', 'get_room_total_display', 'get_transportation_total_display', 
@@ -995,8 +1014,8 @@ class EventOnlyRequestAdmin(BaseRequestAdmin):
                 'classes': ('collapse', 'wide')
             }),
             ('Documents & Notes', {
-                'fields': ('agreement_file', 'notes'),
-                'description': 'Upload agreements and add detailed notes',
+                'fields': ('agreement_file', 'invoice_1', 'invoice_2', 'invoice_3', 'notes'),
+                'description': 'Upload agreements, invoices and add detailed notes',
                 'classes': ('collapse',)
             }),
             ('System Information', {
@@ -1022,7 +1041,7 @@ class EventWithRoomsRequestAdmin(BaseRequestAdmin):
     
     # Complete admin configuration matching AccommodationRequestAdmin
     list_display = ['confirmation_number', 'account', 'meal_plan', 'status', 'check_in_date', 'check_out_date', 'nights', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
-    list_filter = ['meal_plan', 'status', 'created_at', 'check_in_date']
+    list_filter = ['meal_plan', StatusFilter, 'created_at', 'check_in_date']
     search_fields = ['confirmation_number', 'account__name', 'account__contact_person']
     readonly_fields = ['nights', 'total_cost', 'total_rooms', 'total_room_nights', 'created_at', 'updated_at', 
                       'get_adr_display', 'get_room_total_display', 'get_transportation_total_display', 
@@ -1173,8 +1192,8 @@ class EventWithRoomsRequestAdmin(BaseRequestAdmin):
                 'classes': ('collapse', 'wide')
             }),
             ('Documents & Notes', {
-                'fields': ('agreement_file', 'notes'),
-                'description': 'Upload agreements and add detailed notes',
+                'fields': ('agreement_file', 'invoice_1', 'invoice_2', 'invoice_3', 'notes'),
+                'description': 'Upload agreements, invoices and add detailed notes',
                 'classes': ('collapse',)
             }),
             ('System Information', {
@@ -1200,7 +1219,7 @@ class SeriesGroupRequestAdmin(BaseRequestAdmin):
     
     # Complete admin configuration matching AccommodationRequestAdmin
     list_display = ['confirmation_number', 'account', 'status', 'request_received_date', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
-    list_filter = ['status', 'request_received_date', 'created_at']
+    list_filter = [StatusFilter, 'request_received_date', 'created_at']
     search_fields = ['confirmation_number', 'account__name', 'account__contact_person']
     readonly_fields = ['total_cost', 'total_rooms', 'total_room_nights', 'created_at', 'updated_at', 
                       'get_adr_display', 'get_room_total_display', 'get_transportation_total_display', 
@@ -1337,8 +1356,8 @@ class SeriesGroupRequestAdmin(BaseRequestAdmin):
                 'classes': ('collapse', 'wide')
             }),
             ('Documents & Notes', {
-                'fields': ('agreement_file', 'notes'),
-                'description': 'Upload agreements and add detailed notes',
+                'fields': ('agreement_file', 'invoice_1', 'invoice_2', 'invoice_3', 'notes'),
+                'description': 'Upload agreements, invoices and add detailed notes',
                 'classes': ('collapse',)
             }),
             ('System Information', {

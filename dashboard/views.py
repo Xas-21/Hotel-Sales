@@ -1500,7 +1500,7 @@ def api_calendar_events(request):
             'start': entry.arrival_date.isoformat(),
             'allDay': True,
             'color': '#6f42c1',
-            'url': f'/admin/requests/seriesgroupentry/{entry.id}/change/'
+            'url': f'/admin/requests/seriesgrouprequest/{entry.request.id}/change/'
         })
     
     # 3. Event agendas (query directly for efficiency) - one calendar item per agenda date
@@ -1537,7 +1537,12 @@ def api_calendar_events(request):
             'url': f'/admin/sales_calls/salescall/{call.id}/change/'
         })
     
-    return JsonResponse(events, safe=False)
+    response = JsonResponse(events, safe=False)
+    # Prevent caching to ensure fresh data
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
 
 @login_required
 def api_update_request_status(request):
@@ -1823,7 +1828,7 @@ def api_calendar_events(request):
             'start': entry.arrival_date.isoformat(),
             'allDay': True,
             'color': '#6f42c1',
-            'url': f'/admin/requests/seriesgroupentry/{entry.id}/change/'
+            'url': f'/admin/requests/seriesgrouprequest/{entry.request.id}/change/'
         })
     
     # 3. Event agendas (query directly for efficiency) - one calendar item per agenda date

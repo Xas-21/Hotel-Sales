@@ -93,18 +93,10 @@
                                 <div class="user-full-name">{{ user.get_full_name|default:user.username }}</div>
                                 <div class="user-email">{{ user.email }}</div>
                                 <div class="mt-1">
-                                    {% if user.profile.role_label == "Admin" %}
+                                    {% if user.is_superuser %}
                                         <span class="role-badge role-admin"><i class="fas fa-crown me-1"></i>Admin</span>
-                                    {% elif user.profile.role_label == "Director" %}
-                                        <span class="role-badge role-director"><i class="fas fa-user-tie me-1"></i>Director</span>
-                                    {% elif user.profile.role_label == "Sales Manager" %}
-                                        <span class="role-badge role-manager"><i class="fas fa-user-cog me-1"></i>Sales Manager</span>
-                                    {% elif user.profile.role_label == "Sales Executive" %}
-                                        <span class="role-badge role-executive"><i class="fas fa-briefcase me-1"></i>Sales Executive</span>
-                                    {% elif user.profile.role_label == "Sales Coordinator" %}
-                                        <span class="role-badge role-coordinator"><i class="fas fa-users me-1"></i>Sales Coordinator</span>
-                                    {% elif user.is_superuser %}
-                                        <span class="role-badge role-admin"><i class="fas fa-crown me-1"></i>Superuser</span>
+                                    {% elif user.profile.role_label %}
+                                        <span class="role-badge role-custom"><i class="fas fa-user-tie me-1"></i>{{ user.profile.role_label }}</span>
                                     {% elif user.is_staff %}
                                         <span class="role-badge role-staff"><i class="fas fa-id-badge me-1"></i>Staff</span>
                                     {% else %}
@@ -286,6 +278,12 @@ body {
 
 .role-user {
     background: rgba(108, 117, 125, 0.3);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.role-custom {
+    background: rgba(102, 126, 234, 0.3);
     color: #fff;
     border: 1px solid rgba(255, 255, 255, 0.3);
 }

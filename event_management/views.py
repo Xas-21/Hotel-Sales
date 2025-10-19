@@ -237,52 +237,69 @@ def create_event(request):
             # Add selected rooms
             booking.meeting_rooms.set(room_ids)
             
-            # Create EventAgenda entries for all days
+            # Room name mapping for EventAgenda
+            room_name_mapping = {
+                'All Halls': 'All Halls',
+                'IKMA': 'IKMA',
+                'HEGRA': 'HEGRA',
+                'DADAN': 'DADAN',
+                'ALJADIDA': 'AL JADIDA',  # Map no space to space
+                'Board Room': 'Board Room',
+                'Al Badia': 'Al Badiya',  # Map different spelling
+                'La Palma': 'La Palma'
+            }
+            
+            # Get all selected rooms
+            selected_rooms = list(booking.meeting_rooms.all())
+            
+            # Create EventAgenda entries for all days and all rooms
+            # For each day: first room gets full details, other rooms get zero details
+            total_entries_created = 0
             for i, (event_date, start_time, end_time) in enumerate(zip(event_dates, start_times, end_times)):
-                # Create EventAgenda for this day
-                primary_room = booking.meeting_rooms.first()
-                if primary_room:
+                # Create one EventAgenda per room for this day
+                for room_index, room in enumerate(selected_rooms):
                     # Map the room name correctly
-                    room_name_mapping = {
-                        'All Halls': 'All Halls',
-                        'IKMA': 'IKMA',
-                        'HEGRA': 'HEGRA',
-                        'DADAN': 'DADAN',
-                        'ALJADIDA': 'AL JADIDA',  # Map no space to space
-                        'Board Room': 'Board Room',
-                        'Al Badia': 'Al Badiya',  # Map different spelling
-                        'La Palma': 'La Palma'
-                    }
-                    agenda_room_name = room_name_mapping.get(primary_room.name, primary_room.name)
-                else:
-                    agenda_room_name = 'All Halls'
-                
-                # Create EventAgenda without triggering signals
-                agenda = EventAgenda(
-                    request=request_obj,
-                    event_date=event_date,
-                    event_name=event_name,
-                    start_time=start_time,
-                    end_time=end_time,
-                    meeting_room_name=agenda_room_name,
-                    agenda_details=event_name,
-                    coffee_break_time=coffee_break_time if coffee_break_time else None,
-                    lunch_time=lunch_time if lunch_time else None,
-                    dinner_time=dinner_time if dinner_time else None,
-                    style=style,
-                    rental_fees_per_day=Decimal(rental_fees_per_day),
-                    rate_per_person=Decimal(rate_per_person),
-                    total_persons=int(total_persons),
-                    packages=packages,
-                )
-                agenda._skip_signal = True  # Prevent signal from creating duplicate EventBooking
-                agenda.save()
+                    agenda_room_name = room_name_mapping.get(room.name, room.name)
+                    
+                    # Only first room on each day gets full details
+                    if room_index == 0:
+                        # Primary room gets full details
+                        persons = int(total_persons)
+                        rate = Decimal(rate_per_person)
+                        fees = Decimal(rental_fees_per_day)
+                    else:
+                        # Other rooms get zero details (just to block availability)
+                        persons = 0
+                        rate = Decimal('0.00')
+                        fees = Decimal('0.00')
+                    
+                    # Create EventAgenda without triggering signals
+                    agenda = EventAgenda(
+                        request=request_obj,
+                        event_date=event_date,
+                        event_name=event_name,
+                        start_time=start_time,
+                        end_time=end_time,
+                        meeting_room_name=agenda_room_name,
+                        agenda_details=event_name,
+                        coffee_break_time=coffee_break_time if coffee_break_time else None,
+                        lunch_time=lunch_time if lunch_time else None,
+                        dinner_time=dinner_time if dinner_time else None,
+                        style=style,
+                        rental_fees_per_day=fees,
+                        rate_per_person=rate,
+                        total_persons=persons,
+                        packages=packages if room_index == 0 else '',  # Only first room gets packages
+                    )
+                    agenda._skip_signal = True  # Prevent signal from creating duplicate EventBooking
+                    agenda.save()
+                    total_entries_created += 1
             
             return JsonResponse({
                 'success': True,
-                'message': f'Multi-day Event "{event_name}" created successfully with {len(event_dates)} days!',
+                'message': f'Multi-day Event "{event_name}" created successfully with {len(event_dates)} days × {len(selected_rooms)} rooms = {total_entries_created} EventAgenda entries!',
                 'request_id': request_obj.id,
-                'event_agenda_count': request_obj.event_agendas.count(),
+                'event_agenda_count': total_entries_created,
                 'admin_url': f'/admin/requests/request/{request_obj.id}/change/'
             })
             

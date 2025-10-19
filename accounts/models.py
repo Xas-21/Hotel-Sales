@@ -92,23 +92,12 @@ class UserProfile(models.Model):
         if user.is_superuser:
             return "Admin"
         
-        # Define role priority (highest to lowest) with new role names
-        role_priority = {
-            'Admin': 1,
-            'Director': 2,
-            'Sales Manager': 3,
-            'Sales Executive': 4,
-            'Sales Coordinator': 5,
-            'Viewer': 6
-        }
-        
         user_groups = list(user.groups.values_list('name', flat=True))
         
         if user_groups:
-            # Return the highest priority role
-            for role in sorted(role_priority.keys(), key=lambda x: role_priority[x]):
-                if role in user_groups:
-                    return role
+            # Return the first group name (highest priority) as the role label
+            # This will show the actual group name like "Director Of Sales & Marketing"
+            return user_groups[0]
         
         # Fallback based on Django permissions
         if user.is_staff:

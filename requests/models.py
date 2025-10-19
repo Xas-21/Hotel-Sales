@@ -258,8 +258,11 @@ class Request(models.Model):
     deposit_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(Decimal('0.00'))])
     paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(Decimal('0.00'))])
     
-    # File attachment
+    # File attachments
     agreement_file = models.FileField(upload_to='agreements/', blank=True, null=True)
+    invoice_1 = models.FileField(upload_to='invoices/', blank=True, null=True, verbose_name='Invoice 1')
+    invoice_2 = models.FileField(upload_to='invoices/', blank=True, null=True, verbose_name='Invoice 2')
+    invoice_3 = models.FileField(upload_to='invoices/', blank=True, null=True, verbose_name='Invoice 3')
     
     # Metadata
     created_at = models.DateTimeField(default=timezone.now)
