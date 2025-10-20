@@ -1,7 +1,5 @@
 import json
 import os
-import urllib.request
-import urllib.parse
 from datetime import datetime, timedelta
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -13,7 +11,14 @@ from requests.models import Request, EventAgenda
 from accounts.models import Account
 from event_management.views import get_room_availability
 
-# OpenAI API Configuration - Use environment variable for security
+# Try to import OpenAI library
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+
+# OpenAI API Configuration
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 
 # System knowledge base
@@ -308,42 +313,31 @@ FUNCTION_MAP = {
 
 
 def call_openai_api(messages, functions=None):
-    """OpenAI API call using urllib - works on all systems"""
+    """OpenAI API call using Python library - works better on servers"""
     try:
         # Check if API key is available
         if not OPENAI_API_KEY:
             return {"error": "OpenAI API key not configured. Please set OPENAI_API_KEY environment variable."}
         
+        # Check if OpenAI library is available
+        if not OPENAI_AVAILABLE:
+            return {"error": "OpenAI library not installed. Please install with: pip install openai"}
+        
         # Get the latest user message
         user_message = messages[-1]["content"]
         
-        # Prepare the request data
-        data = {
-            "model": "gpt-5-nano",
-            "input": user_message,
-            "store": True
-        }
+        # Initialize OpenAI client
+        client = OpenAI(api_key=OPENAI_API_KEY)
         
-        # Create the request
-        req = urllib.request.Request(
-            "https://api.openai.com/v1/responses",
-            data=json.dumps(data).encode('utf-8'),
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {OPENAI_API_KEY}"
-            },
-            method='POST'
+        # Use the new responses API
+        response = client.responses.create(
+            model="gpt-5-nano",
+            input=user_message,
+            store=True
         )
         
-        # Make the request
-        with urllib.request.urlopen(req, timeout=30) as response:
-            response_data = json.loads(response.read().decode('utf-8'))
-            return {"output_text": response_data.get("output_text", "No response")}
+        return {"output_text": response.output_text}
             
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode('utf-8')
-        print(f"OpenAI API HTTP Error: {e.code} - {error_body}")
-        return {"error": f"HTTP {e.code}: {error_body}"}
     except Exception as e:
         print(f"OpenAI API error: {str(e)}")
         return {"error": str(e)}
