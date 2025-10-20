@@ -1,5 +1,7 @@
 import json
 import os
+import urllib.request
+import urllib.parse
 from datetime import datetime, timedelta
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -10,13 +12,6 @@ from django.db.models import Q, Sum, Count
 from requests.models import Request, EventAgenda
 from accounts.models import Account
 from event_management.views import get_room_availability
-
-# Try to import OpenAI library
-try:
-    from openai import OpenAI
-    OPENAI_AVAILABLE = True
-except ImportError:
-    OPENAI_AVAILABLE = False
 
 # OpenAI API Configuration
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
@@ -313,35 +308,46 @@ FUNCTION_MAP = {
 
 
 def call_openai_api(messages, functions=None):
-    """OpenAI API call using Python library - works better on servers"""
+    """OpenAI API call using direct HTTP - bypasses library issues"""
     try:
         # Check if API key is available
         if not OPENAI_API_KEY:
             return {"error": "OpenAI API key not configured. Please set OPENAI_API_KEY environment variable."}
         
-        # Check if OpenAI library is available
-        if not OPENAI_AVAILABLE:
-            return {"error": "OpenAI library not installed. Please install with: pip install openai"}
-        
         # Get the latest user message
         user_message = messages[-1]["content"]
         
-        # Initialize OpenAI client
-        client = OpenAI(api_key=OPENAI_API_KEY)
-        
-        # Use the traditional chat completions API (more stable)
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[
+        # Prepare the request data for chat completions API
+        data = {
+            "model": "gpt-4",
+            "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_message}
             ],
-            max_tokens=1000,
-            temperature=0.7
+            "max_tokens": 1000,
+            "temperature": 0.7
+        }
+        
+        # Create the request
+        req = urllib.request.Request(
+            "https://api.openai.com/v1/chat/completions",
+            data=json.dumps(data).encode('utf-8'),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {OPENAI_API_KEY}"
+            },
+            method='POST'
         )
         
-        return {"output_text": response.choices[0].message.content}
+        # Make the request
+        with urllib.request.urlopen(req, timeout=30) as response:
+            response_data = json.loads(response.read().decode('utf-8'))
+            return {"output_text": response_data['choices'][0]['message']['content']}
             
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8')
+        print(f"OpenAI API HTTP Error: {e.code} - {error_body}")
+        return {"error": f"HTTP {e.code}: {error_body}"}
     except Exception as e:
         print(f"OpenAI API error: {str(e)}")
         return {"error": str(e)}
