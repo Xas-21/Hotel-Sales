@@ -329,14 +329,18 @@ def call_openai_api(messages, functions=None):
         # Initialize OpenAI client
         client = OpenAI(api_key=OPENAI_API_KEY)
         
-        # Use the new responses API
-        response = client.responses.create(
-            model="gpt-5-nano",
-            input=user_message,
-            store=True
+        # Use the traditional chat completions API (more stable)
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_message}
+            ],
+            max_tokens=1000,
+            temperature=0.7
         )
         
-        return {"output_text": response.output_text}
+        return {"output_text": response.choices[0].message.content}
             
     except Exception as e:
         print(f"OpenAI API error: {str(e)}")
