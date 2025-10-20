@@ -114,34 +114,47 @@ def get_events_by_date(date_str):
 def check_room_availability_ai(date_str, room_name=None):
     """Check room availability for a specific date"""
     try:
-        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        print(f"=== CHECK ROOM AVAILABILITY AI DEBUG ===")
+        print(f"Date string: {date_str}")
+        print(f"Room name: {room_name}")
         
-        # Get availability for all rooms or specific room
-        availability = get_room_availability(target_date.isoformat())
+        # Use the existing get_room_availability_by_date function
+        result = get_room_availability_by_date(date_str)
+        
+        if 'error' in result:
+            return result
         
         if room_name:
             # Filter for specific room
-            room_data = next((r for r in availability if r['name'] == room_name), None)
+            available_rooms = result.get('available_rooms', [])
+            booked_rooms = result.get('booked_rooms', [])
+            
+            is_available = room_name in available_rooms
             return {
                 'date': date_str,
                 'room': room_name,
-                'available': room_data['available'] if room_data else False,
-                'status': 'Available' if (room_data and room_data['available']) else 'Booked'
+                'available': is_available,
+                'status': 'Available' if is_available else 'Booked'
             }
         else:
             # Return all rooms
+            available_rooms = result.get('available_rooms', [])
+            booked_rooms = result.get('booked_rooms', [])
+            
+            all_rooms = available_rooms + booked_rooms
             return {
                 'date': date_str,
                 'rooms': [
                     {
-                        'name': r['name'],
-                        'available': r['available'],
-                        'status': 'Available' if r['available'] else 'Booked'
+                        'name': room,
+                        'available': room in available_rooms,
+                        'status': 'Available' if room in available_rooms else 'Booked'
                     }
-                    for r in availability
+                    for room in all_rooms
                 ]
             }
     except Exception as e:
+        print(f"Error in check_room_availability_ai: {str(e)}")
         return {'error': str(e)}
 
 
@@ -548,6 +561,9 @@ def extract_date_from_message(message):
         # November 25, 2025 or 25 November 2025
         r'(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})',
         r'(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})\s*,?\s*(\d{4})',
+        # 1st december, 2nd december, etc.
+        r'(\d{1,2})(st|nd|rd|th)\s+(january|february|march|april|may|june|july|august|september|october|november|december)',
+        r'(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(st|nd|rd|th)',
         # 25/11/2025 or 11/25/2025
         r'(\d{1,2})/(\d{1,2})/(\d{4})',
         # 2025-11-25
@@ -577,6 +593,14 @@ def extract_date_from_message(message):
                         day = int(groups[0])
                         month = month_names[groups[1]]
                         year = int(groups[2])
+                    elif groups[2] in month_names:  # Day Ordinal Month (1st december)
+                        day = int(groups[0])
+                        month = month_names[groups[2]]
+                        year = datetime.now().year  # Current year
+                    elif groups[0] in month_names and groups[2] in ['st', 'nd', 'rd', 'th']:  # Month Day Ordinal
+                        month = month_names[groups[0]]
+                        day = int(groups[1])
+                        year = datetime.now().year  # Current year
                     else:  # Numeric format
                         if '/' in message:
                             # Try both MM/DD/YYYY and DD/MM/YYYY
@@ -631,35 +655,35 @@ def get_comprehensive_date_data(date_str):
         print(f"Room availability result: {room_availability_result}")
         
         # Build comprehensive response
-        response_parts = [f"📅 **COMPLETE SCHEDULE FOR {date_str}**\n"]
+        response_parts = [f"**COMPLETE SCHEDULE FOR {date_str}**\n"]
         
         # Events
         if events_result.get('total_count', 0) > 0:
             events_text = format_events_response(events_result)
-            response_parts.append(f"🎯 **EVENTS**\n{events_text}\n")
+            response_parts.append(f"**EVENTS**\n{events_text}\n")
         else:
-            response_parts.append("🎯 **EVENTS**\nNo events scheduled.\n\n")
+            response_parts.append("**EVENTS**\nNo events scheduled.\n\n")
         
         # Accommodations
         if accommodations_result.get('total_count', 0) > 0:
             accommodations_text = format_accommodations_response(accommodations_result)
-            response_parts.append(f"🏨 **ACCOMMODATIONS**\n{accommodations_text}\n")
+            response_parts.append(f"**ACCOMMODATIONS**\n{accommodations_text}\n")
         else:
-            response_parts.append("🏨 **ACCOMMODATIONS**\nNo accommodations scheduled.\n\n")
+            response_parts.append("**ACCOMMODATIONS**\nNo accommodations scheduled.\n\n")
         
         # Sales Calls
         if sales_calls_result.get('total_count', 0) > 0:
             sales_calls_text = format_sales_calls_response(sales_calls_result)
-            response_parts.append(f"📞 **SALES CALLS**\n{sales_calls_text}\n")
+            response_parts.append(f"**SALES CALLS**\n{sales_calls_text}\n")
         else:
-            response_parts.append("📞 **SALES CALLS**\nNo sales calls scheduled.\n\n")
+            response_parts.append("**SALES CALLS**\nNo sales calls scheduled.\n\n")
         
         # Room Availability
         if room_availability_result.get('error'):
-            response_parts.append(f"🏨 **ROOM AVAILABILITY**\nError fetching room availability: {room_availability_result.get('error')}\n\n")
+            response_parts.append(f"**ROOM AVAILABILITY**\nError fetching room availability: {room_availability_result.get('error')}\n\n")
         else:
             room_availability_text = format_room_availability_response(room_availability_result)
-            response_parts.append(f"🏨 **ROOM AVAILABILITY**\n{room_availability_text}\n")
+            response_parts.append(f"**ROOM AVAILABILITY**\n{room_availability_text}\n")
         
         return {"output_text": "".join(response_parts)}
         
@@ -854,7 +878,7 @@ def format_sales_calls_response(result):
 
 def format_revenue_response(result):
     """Format revenue response for display"""
-    revenue_text = f"💰 REVENUE SUMMARY\n\n"
+    revenue_text = f"REVENUE SUMMARY\n\n"
     revenue_text += f"Total Revenue: ${result.get('total_revenue', 0):,.2f}\n"
     revenue_text += f"Total Requests: {result.get('total_requests', 0)}\n"
     revenue_text += f"Paid Requests: {result.get('paid_requests', 0)}\n"
@@ -866,18 +890,18 @@ def format_revenue_response(result):
 
 def format_room_availability_response(result):
     """Format room availability response for display"""
-    avail_text = f"🏨 ROOM AVAILABILITY\n\n"
+    avail_text = f"ROOM AVAILABILITY\n\n"
     avail_text += f"Date: {result.get('date', 'N/A')}\n"
     avail_text += f"Available Rooms: {result.get('available_count', 0)}/{result.get('total_rooms', 0)}\n\n"
     
     if result.get('available_rooms'):
-        avail_text += "✅ Available:\n"
+        avail_text += "Available:\n"
         for room in result.get('available_rooms', []):
             avail_text += f"• {room}\n"
         avail_text += "\n"
     
     if result.get('booked_rooms'):
-        avail_text += "❌ Booked:\n"
+        avail_text += "Booked:\n"
         for room in result.get('booked_rooms', []):
             avail_text += f"• {room}\n"
     
@@ -1331,9 +1355,11 @@ def chat_api(request):
         
         # Always use function calling for now to debug
         print("ALWAYS Using function calling for debugging...")
+        print(f"Should use functions: {should_use_functions}")
         
         # Try function calling first
         response = call_openai_api_with_functions(messages, FUNCTIONS, request.user.id)
+        print(f"Function calling response: {response}")
         
         # If function calling fails or doesn't work, try manual function detection
         if 'error' in response or 'I apologize' in response.get('output_text', '') or 'No response' in response.get('output_text', ''):
