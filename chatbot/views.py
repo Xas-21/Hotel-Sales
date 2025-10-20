@@ -525,12 +525,18 @@ def call_openai_api(messages, functions=None):
 def call_openai_api_with_functions(messages, functions, user_id):
     """OpenAI API call with function calling for system integration"""
     try:
+        print(f"=== FUNCTION CALLING DEBUG ===")
+        print(f"User ID: {user_id}")
+        print(f"Functions available: {list(functions.keys()) if isinstance(functions, dict) else len(functions)}")
+        
         # Check if API key is available
         if not OPENAI_API_KEY:
+            print("ERROR: No API key configured")
             return {"error": "OpenAI API key not configured. Please set OPENAI_API_KEY environment variable."}
         
         # Get the latest user message
         user_message = messages[-1]["content"]
+        print(f"User message for function calling: {user_message}")
         
         # Prepare the request data with function calling
         data = {
@@ -554,6 +560,7 @@ def call_openai_api_with_functions(messages, functions, user_id):
         )
         
         # Make the request
+        print(f"Sending request to OpenAI with {len(functions)} functions...")
         with urllib.request.urlopen(req, timeout=30) as response:
             response_data = json.loads(response.read().decode('utf-8'))
             
@@ -562,6 +569,7 @@ def call_openai_api_with_functions(messages, functions, user_id):
             
             # Check if AI wants to call a function
             if 'function_call' in response_data['choices'][0]['message']:
+                print("✅ Function call detected!")
                 function_call = response_data['choices'][0]['message']['function_call']
                 function_name = function_call['name']
                 function_args = json.loads(function_call['arguments'])
@@ -608,6 +616,8 @@ def call_openai_api_with_functions(messages, functions, user_id):
                     final_response_data = json.loads(final_response.read().decode('utf-8'))
                     return {"output_text": final_response_data['choices'][0]['message']['content']}
             else:
+                print("❌ No function call detected in OpenAI response")
+                print(f"Message content: {response_data['choices'][0]['message'].get('content', 'No content')}")
                 return {"output_text": response_data['choices'][0]['message']['content']}
             
     except urllib.error.HTTPError as e:
@@ -653,20 +663,16 @@ def chat_api(request):
         # Force function calling for specific patterns
         force_function_calls = [
             'what events', 'what do i have', 'december 16th', 'create new account',
-            'create account', 'new account', 'check availability', 'room availability'
+            'create account', 'new account', 'check availability', 'room availability',
+            'december', 'events', 'arrivals', 'group arrivals'
         ]
         
         should_use_functions = any(keyword in user_message.lower() for keyword in function_keywords) or \
                               any(pattern in user_message.lower() for pattern in force_function_calls)
         
-        if should_use_functions:
-            print("Using function calling...")
-            # Use function calling for system integration
-            response = call_openai_api_with_functions(messages, FUNCTIONS, request.user.id)
-        else:
-            print("Using simple API call...")
-            # Simple API call for general questions
-            response = call_openai_api(messages, FUNCTIONS)
+        # Always use function calling for now to debug
+        print("ALWAYS Using function calling for debugging...")
+        response = call_openai_api_with_functions(messages, FUNCTIONS, request.user.id)
         
         if 'error' in response:
             final_message = f"Sorry, I encountered an error: {response['error']}"
