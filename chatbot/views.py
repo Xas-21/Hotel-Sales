@@ -1051,6 +1051,20 @@ FUNCTIONS = [
             "type": "object",
             "properties": {}
         }
+    },
+    {
+        "name": "get_comprehensive_date_data",
+        "description": "Get all data for a specific date including events, accommodations, sales calls, and room availability. Use this when user asks 'what do I have on [date]' or 'show me [date]'.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "date_str": {
+                    "type": "string",
+                    "description": "The date in YYYY-MM-DD format (e.g., '2025-11-25')"
+                }
+            },
+            "required": ["date_str"]
+        }
     }
 ]
 
@@ -1068,7 +1082,8 @@ FUNCTION_MAP = {
     "get_sales_calls_by_date": get_sales_calls_by_date,
     "get_total_revenue": get_total_revenue,
     "get_room_availability_by_date": get_room_availability_by_date,
-    "get_all_requests_summary": get_all_requests_summary
+    "get_all_requests_summary": get_all_requests_summary,
+    "get_comprehensive_date_data": get_comprehensive_date_data
 }
 
 
@@ -1170,12 +1185,21 @@ def call_openai_api_with_functions(messages, functions, user_id):
                 function_name = function_call['name']
                 function_args = json.loads(function_call['arguments'])
                 
+                print(f"Function name: {function_name}")
+                print(f"Function args: {function_args}")
+                
                 # Add user_id if function needs it
                 if function_name in ['get_user_requests', 'get_system_metrics']:
                     function_args['user_id'] = user_id
                 
                 # Call the function
-                function_response = FUNCTION_MAP[function_name](**function_args)
+                if function_name in FUNCTION_MAP:
+                    print(f"Calling function: {function_name}")
+                    function_response = FUNCTION_MAP[function_name](**function_args)
+                    print(f"Function response: {function_response}")
+                else:
+                    print(f"Function {function_name} not found in FUNCTION_MAP")
+                    function_response = {"error": f"Function {function_name} not found"}
                 
                 # Get final response from AI with function result
                 final_messages = messages.copy()
@@ -1273,7 +1297,7 @@ def chat_api(request):
         response = call_openai_api_with_functions(messages, FUNCTIONS, request.user.id)
         
         # If function calling fails or doesn't work, try manual function detection
-        if 'error' in response or 'I apologize' in response.get('output_text', ''):
+        if 'error' in response or 'I apologize' in response.get('output_text', '') or 'No response' in response.get('output_text', ''):
             print("Function calling failed, trying manual function detection...")
             manual_response = try_manual_function_calls(user_message, request.user.id)
             if manual_response:
