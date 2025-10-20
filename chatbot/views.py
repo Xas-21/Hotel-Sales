@@ -512,6 +512,127 @@ def get_all_requests_summary():
         return {'error': str(e)}
 
 
+def extract_date_from_message(message):
+    """Extract date from user message in various formats"""
+    import re
+    from datetime import datetime
+    
+    message_lower = message.lower()
+    
+    # Common date patterns
+    patterns = [
+        # November 25, 2025 or 25 November 2025
+        r'(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})',
+        r'(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})\s*,?\s*(\d{4})',
+        # 25/11/2025 or 11/25/2025
+        r'(\d{1,2})/(\d{1,2})/(\d{4})',
+        # 2025-11-25
+        r'(\d{4})-(\d{1,2})-(\d{1,2})',
+        # November 25 or 25 November (current year)
+        r'(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december)',
+        r'(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})',
+    ]
+    
+    month_names = {
+        'january': 1, 'february': 2, 'march': 3, 'april': 4,
+        'may': 5, 'june': 6, 'july': 7, 'august': 8,
+        'september': 9, 'october': 10, 'november': 11, 'december': 12
+    }
+    
+    for pattern in patterns:
+        match = re.search(pattern, message_lower)
+        if match:
+            groups = match.groups()
+            try:
+                if len(groups) == 3:
+                    if groups[0] in month_names:  # Month Day Year
+                        month = month_names[groups[0]]
+                        day = int(groups[1])
+                        year = int(groups[2])
+                    elif groups[1] in month_names:  # Day Month Year
+                        day = int(groups[0])
+                        month = month_names[groups[1]]
+                        year = int(groups[2])
+                    else:  # Numeric format
+                        if '/' in message:
+                            # Try both MM/DD/YYYY and DD/MM/YYYY
+                            try:
+                                month, day, year = int(groups[0]), int(groups[1]), int(groups[2])
+                                if month > 12:  # DD/MM/YYYY
+                                    day, month = month, day
+                            except:
+                                month, day, year = int(groups[0]), int(groups[1]), int(groups[2])
+                        else:  # YYYY-MM-DD
+                            year, month, day = int(groups[0]), int(groups[1]), int(groups[2])
+                    
+                    return f"{year}-{month:02d}-{day:02d}"
+                elif len(groups) == 2:
+                    if groups[0] in month_names:  # Month Day (current year)
+                        month = month_names[groups[0]]
+                        day = int(groups[1])
+                        year = datetime.now().year
+                    else:  # Day Month (current year)
+                        day = int(groups[0])
+                        month = month_names[groups[1]]
+                        year = datetime.now().year
+                    
+                    return f"{year}-{month:02d}-{day:02d}"
+            except (ValueError, KeyError):
+                continue
+    
+    return None
+
+
+def get_comprehensive_date_data(date_str):
+    """Get all data for a specific date - events, accommodations, sales calls, room availability"""
+    try:
+        print(f"=== COMPREHENSIVE DATE DATA ===")
+        print(f"Date: {date_str}")
+        
+        # Get all data types
+        events_result = get_events_by_date(date_str)
+        accommodations_result = get_accommodations_by_date(date_str)
+        sales_calls_result = get_sales_calls_by_date(date_str)
+        room_availability_result = get_room_availability_by_date(date_str)
+        
+        # Build comprehensive response
+        response_parts = [f"📅 **COMPLETE SCHEDULE FOR {date_str}**\n"]
+        
+        # Events
+        if events_result.get('total_count', 0) > 0:
+            events_text = format_events_response(events_result)
+            response_parts.append(f"🎯 **EVENTS**\n{events_text}\n")
+        else:
+            response_parts.append("🎯 **EVENTS**\nNo events scheduled.\n\n")
+        
+        # Accommodations
+        if accommodations_result.get('total_count', 0) > 0:
+            accommodations_text = format_accommodations_response(accommodations_result)
+            response_parts.append(f"🏨 **ACCOMMODATIONS**\n{accommodations_text}\n")
+        else:
+            response_parts.append("🏨 **ACCOMMODATIONS**\nNo accommodations scheduled.\n\n")
+        
+        # Sales Calls
+        if sales_calls_result.get('total_count', 0) > 0:
+            sales_calls_text = format_sales_calls_response(sales_calls_result)
+            response_parts.append(f"📞 **SALES CALLS**\n{sales_calls_text}\n")
+        else:
+            response_parts.append("📞 **SALES CALLS**\nNo sales calls scheduled.\n\n")
+        
+        # Room Availability
+        if room_availability_result.get('error'):
+            response_parts.append(f"🏨 **ROOM AVAILABILITY**\nError fetching room availability: {room_availability_result.get('error')}\n\n")
+        else:
+            room_availability_text = format_room_availability_response(room_availability_result)
+            response_parts.append(f"🏨 **ROOM AVAILABILITY**\n{room_availability_text}\n")
+        
+        return {"output_text": "".join(response_parts)}
+        
+    except Exception as e:
+        print(f"Error in get_comprehensive_date_data: {str(e)}")
+        return {"output_text": f"I found an error while fetching comprehensive data: {str(e)}"}
+
+
 def try_manual_function_calls(user_message, user_id):
     """Manually detect and call functions based on user message patterns"""
     try:
@@ -520,44 +641,46 @@ def try_manual_function_calls(user_message, user_id):
         
         message_lower = user_message.lower()
         
-        # Check for date patterns and events
-        if any(word in message_lower for word in ['december', '16th', '16', 'events', 'what do i have', 'what events']):
-            print("Detected: Events query")
-            # Try to extract date
-            if 'december' in message_lower and '16' in message_lower:
-                date_str = '2025-12-16'
-                print(f"Calling get_events_by_date with: {date_str}")
+        # Extract date from message
+        date_str = extract_date_from_message(user_message)
+        print(f"Extracted date: {date_str}")
+        
+        # Check for comprehensive date queries (what do I have, what's on, etc.)
+        if any(word in message_lower for word in ['what do i have', 'what\'s on', 'what is on', 'what have i', 'what do we have', 'show me', 'tell me about']):
+            if date_str:
+                print("Detected: Comprehensive date query")
+                return get_comprehensive_date_data(date_str)
+        
+        # Check for specific event queries
+        if any(word in message_lower for word in ['events', 'meetings', 'conferences']):
+            if date_str:
+                print("Detected: Events query")
                 result = get_events_by_date(date_str)
-                print(f"Result: {result}")
                 if 'error' not in result:
                     formatted_response = format_events_response(result)
-                    print(f"Formatted response: {formatted_response}")
-                    return {"output_text": f"Here are your events for December 16th, 2025:\n\n{formatted_response}"}
+                    return {"output_text": f"Here are your events for {date_str}:\n\n{formatted_response}"}
                 else:
-                    print(f"Error in result: {result}")
                     return {"output_text": f"I found an error while fetching events: {result.get('error', 'Unknown error')}"}
         
-        # Check for accommodations/group arrivals
-        if any(word in message_lower for word in ['accommodations', 'group arrivals', 'arrivals', 'check in', 'check-in']):
-            print("Detected: Accommodations query")
-            if 'december' in message_lower and '16' in message_lower:
-                date_str = '2025-12-16'
+        # Check for accommodation queries
+        if any(word in message_lower for word in ['accommodations', 'group arrivals', 'arrivals', 'check in', 'check-in', 'guests', 'bookings']):
+            if date_str:
+                print("Detected: Accommodations query")
                 result = get_accommodations_by_date(date_str)
                 if 'error' not in result:
                     formatted_response = format_accommodations_response(result)
-                    return {"output_text": f"Here are your accommodations for December 16th, 2025:\n\n{formatted_response}"}
+                    return {"output_text": f"Here are your accommodations for {date_str}:\n\n{formatted_response}"}
                 else:
                     return {"output_text": f"I found an error while fetching accommodations: {result.get('error', 'Unknown error')}"}
         
         # Check for sales calls
-        if any(word in message_lower for word in ['sales calls', 'visits', 'meetings', 'sales']):
-            print("Detected: Sales calls query")
-            if 'december' in message_lower and '16' in message_lower:
-                date_str = '2025-12-16'
+        if any(word in message_lower for word in ['sales calls', 'visits', 'sales meetings', 'business meetings']):
+            if date_str:
+                print("Detected: Sales calls query")
                 result = get_sales_calls_by_date(date_str)
                 if 'error' not in result:
                     formatted_response = format_sales_calls_response(result)
-                    return {"output_text": f"Here are your sales calls for December 16th, 2025:\n\n{formatted_response}"}
+                    return {"output_text": f"Here are your sales calls for {date_str}:\n\n{formatted_response}"}
                 else:
                     return {"output_text": f"I found an error while fetching sales calls: {result.get('error', 'Unknown error')}"}
         
@@ -573,31 +696,18 @@ def try_manual_function_calls(user_message, user_id):
         
         # Check for room availability
         if any(word in message_lower for word in ['available', 'availability', 'room', 'hall', 'jadida', 'dadan', 'hegra', 'ikma']):
-            print("Detected: Room availability query")
-            if 'december' in message_lower and '16' in message_lower:
-                date_str = '2025-12-16'
+            if date_str:
+                print("Detected: Room availability query")
                 result = get_room_availability_by_date(date_str)
                 if 'error' not in result:
                     formatted_response = format_room_availability_response(result)
-                    return {"output_text": f"Here's the room availability for December 16th, 2025:\n\n{formatted_response}"}
+                    return {"output_text": f"Here's the room availability for {date_str}:\n\n{formatted_response}"}
                 else:
                     return {"output_text": f"I found an error while fetching room availability: {result.get('error', 'Unknown error')}"}
-        
-        # Check for room availability
-        if any(word in message_lower for word in ['available', 'availability', 'hall', 'jadida', 'dadan', 'hegra', 'ikma']):
-            print("Detected: Room availability query")
-            # Try to extract dates
-            if 'october' in message_lower and ('24' in message_lower or '26' in message_lower):
-                start_date = '2025-10-24'
-                end_date = '2025-10-26'
-                result = check_room_availability_ai(start_date, end_date)
-                if 'error' not in result:
-                    return {"output_text": f"Here's the room availability for October 24-26, 2025:\n\n{format_availability_response(result)}"}
         
         # Check for account creation
         if any(word in message_lower for word in ['create', 'new account', 'account']):
             print("Detected: Account creation query")
-            # Try to extract account details from the message
             if 'test' in message_lower and 'company' in message_lower:
                 result = create_new_account(
                     company_name="Test",
