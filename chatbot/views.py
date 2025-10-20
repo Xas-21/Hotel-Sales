@@ -92,7 +92,7 @@ def get_events_by_date(date_str):
         
         for event in events:
             event_data = {
-                'event_name': event.request.account.company_name if event.request.account else 'N/A',
+                'event_name': event.request.account.name if event.request.account else 'N/A',
                 'meeting_room': event.meeting_room_name or 'N/A',
                 'start_time': event.start_time.strftime('%I:%M %p') if event.start_time else 'N/A',
                 'end_time': event.end_time.strftime('%I:%M %p') if event.end_time else 'N/A',
@@ -235,7 +235,7 @@ def create_new_account(company_name, account_type, contact_person, phone, email,
     """Create a new client account"""
     try:
         account = Account.objects.create(
-            company_name=company_name,
+            name=company_name,
             account_type=account_type,
             contact_person=contact_person,
             phone=phone,
@@ -252,7 +252,7 @@ def create_new_account(company_name, account_type, contact_person, phone, email,
             'message': f'Account "{company_name}" created successfully with ID {account.id}',
             'account': {
                 'id': account.id,
-                'company_name': account.company_name,
+                'company_name': account.name,
                 'account_type': account.account_type,
                 'contact_person': account.contact_person,
                 'phone': account.phone,
