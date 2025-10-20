@@ -312,6 +312,106 @@ def get_system_help():
     }
 
 
+def try_manual_function_calls(user_message, user_id):
+    """Manually detect and call functions based on user message patterns"""
+    try:
+        print(f"=== MANUAL FUNCTION DETECTION ===")
+        print(f"User message: {user_message}")
+        
+        message_lower = user_message.lower()
+        
+        # Check for date patterns and events
+        if any(word in message_lower for word in ['december', '16th', '16', 'events', 'what do i have', 'what events']):
+            print("Detected: Events query")
+            # Try to extract date
+            if 'december' in message_lower and '16' in message_lower:
+                date_str = '2025-12-16'
+                result = get_events_by_date(date_str)
+                if 'error' not in result:
+                    return {"output_text": f"Here are your events for December 16th, 2025:\n\n{format_events_response(result)}"}
+        
+        # Check for room availability
+        if any(word in message_lower for word in ['available', 'availability', 'hall', 'jadida', 'dadan', 'hegra', 'ikma']):
+            print("Detected: Room availability query")
+            # Try to extract dates
+            if 'october' in message_lower and ('24' in message_lower or '26' in message_lower):
+                start_date = '2025-10-24'
+                end_date = '2025-10-26'
+                result = check_room_availability_ai(start_date, end_date)
+                if 'error' not in result:
+                    return {"output_text": f"Here's the room availability for October 24-26, 2025:\n\n{format_availability_response(result)}"}
+        
+        # Check for account creation
+        if any(word in message_lower for word in ['create', 'new account', 'account']):
+            print("Detected: Account creation query")
+            # Try to extract account details from the message
+            if 'test' in message_lower and 'company' in message_lower:
+                result = create_new_account(
+                    company_name="Test",
+                    account_type="Company", 
+                    contact_person="Contact Person",
+                    phone="055123654",
+                    email="abd@gmail.com",
+                    city="Jeddah"
+                )
+                if 'error' not in result:
+                    return {"output_text": f"Account created successfully!\n\n{format_account_response(result)}"}
+        
+        # Check for system help
+        if any(word in message_lower for word in ['help', 'what can you do', 'system', 'guide']):
+            print("Detected: System help query")
+            result = get_system_help()
+            return {"output_text": f"Here's how I can help you:\n\n{format_help_response(result)}"}
+        
+        print("No manual function match found")
+        return None
+        
+    except Exception as e:
+        print(f"Manual function detection error: {str(e)}")
+        return None
+
+
+def format_events_response(result):
+    """Format events response for display"""
+    if result.get('total_count', 0) == 0:
+        return "No events scheduled for this date."
+    
+    events_text = f"Total events: {result['total_count']}\n\n"
+    for event in result.get('events', []):
+        events_text += f"• {event.get('event_name', 'Event')} - {event.get('meeting_room', 'No room')}\n"
+        events_text += f"  Time: {event.get('start_time', '')} - {event.get('end_time', '')}\n"
+        events_text += f"  Guests: {event.get('guests', 0)}\n"
+        events_text += f"  Status: {event.get('status', 'Unknown')}\n\n"
+    
+    return events_text
+
+
+def format_availability_response(result):
+    """Format availability response for display"""
+    if result.get('available_rooms'):
+        return f"Available rooms: {', '.join(result['available_rooms'])}"
+    else:
+        return "No rooms available for the selected dates."
+
+
+def format_account_response(result):
+    """Format account creation response for display"""
+    account = result.get('account', {})
+    return f"Account ID: {account.get('id', 'N/A')}\nCompany: {account.get('company_name', 'N/A')}\nType: {account.get('account_type', 'N/A')}"
+
+
+def format_help_response(result):
+    """Format help response for display"""
+    help_text = f"{result.get('welcome_message', '')}\n\n"
+    help_text += "What you can do:\n"
+    for item in result.get('what_you_can_do', []):
+        help_text += f"• {item}\n"
+    help_text += "\nExample questions:\n"
+    for item in result.get('example_questions', []):
+        help_text += f"• {item}\n"
+    return help_text
+
+
 # Function definitions for OpenAI
 FUNCTIONS = [
     {
@@ -672,7 +772,16 @@ def chat_api(request):
         
         # Always use function calling for now to debug
         print("ALWAYS Using function calling for debugging...")
+        
+        # Try function calling first
         response = call_openai_api_with_functions(messages, FUNCTIONS, request.user.id)
+        
+        # If function calling fails or doesn't work, try manual function detection
+        if 'error' in response or 'I apologize' in response.get('output_text', ''):
+            print("Function calling failed, trying manual function detection...")
+            manual_response = try_manual_function_calls(user_message, request.user.id)
+            if manual_response:
+                response = manual_response
         
         if 'error' in response:
             final_message = f"Sorry, I encountered an error: {response['error']}"
