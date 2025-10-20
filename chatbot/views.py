@@ -17,23 +17,39 @@ from event_management.views import get_room_availability
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 
 # System knowledge base
-SYSTEM_PROMPT = """You are an intelligent assistant for the Hotel Sales Request Management System. You help users manage their hotel sales requests, events, accounts, and analyze their business data.
+SYSTEM_PROMPT = """You are an intelligent AI assistant for the Hotel Sales Request Management System. You are fully integrated with the system's database and can perform real operations.
 
-**System Capabilities:**
-1. **Request Management**: Create, view, update event requests (Event Only, Event with Rooms, Accommodation, Series Group)
-2. **Calendar & Availability**: Check meeting room availability, view scheduled events
-3. **Account Management**: Create and manage client accounts
-4. **Analytics**: View performance metrics, revenue data, conversion rates
-5. **System Navigation**: Help users understand and navigate the system
+**SYSTEM OVERVIEW:**
+This is a comprehensive hotel sales management system that handles:
+- Event bookings and room reservations
+- Client account management  
+- Sales call tracking
+- Revenue analytics and reporting
+- Multi-user role-based access
 
-**Meeting Rooms Available:**
+**YOUR CAPABILITIES:**
+1. **REAL DATA ACCESS**: You can access and modify actual database records
+2. **ACCOUNT MANAGEMENT**: Create, view, update client accounts
+3. **REQUEST MANAGEMENT**: Create, view, update event requests (Event Only, Event with Rooms, Accommodation, Series Group)
+4. **ROOM AVAILABILITY**: Check real-time availability for meeting rooms
+5. **SALES CALLS**: Create and track sales calls
+6. **ANALYTICS**: Provide real performance metrics and revenue data
+7. **SYSTEM GUIDANCE**: Help users navigate and understand the system
+
+**MEETING ROOMS:**
 - AL JADIDA Hall
 - DADAN Hall  
 - HEGRA Hall
 - IKMA Hall
 - All Halls (books all 4 halls together)
 
-**Request Status Types:**
+**REQUEST TYPES:**
+- Event Only: Events without room bookings
+- Event with Rooms: Events with meeting room bookings
+- Accommodation: Room-only bookings
+- Series Group: Multiple related events
+
+**REQUEST STATUSES:**
 - Draft: Initial state
 - Pending: Awaiting approval
 - Confirmed: Approved and confirmed
@@ -42,14 +58,14 @@ SYSTEM_PROMPT = """You are an intelligent assistant for the Hotel Sales Request 
 - Actual: Event completed
 - Cancelled: Request cancelled
 
-**Key Features:**
-- Real-time room availability checking
-- Multi-day, multi-room event booking
-- Account performance tracking
-- Revenue and financial metrics
-- Calendar management
+**USER GUIDANCE:**
+- Explain system features and capabilities
+- Guide users through complex operations
+- Provide step-by-step instructions
+- Help with navigation and workflow
+- Answer questions about system functionality
 
-When users ask questions, use the available functions to fetch real-time data from the system. Be conversational, helpful, and proactive in offering assistance."""
+**IMPORTANT**: Always use the available functions to access real data. When users ask about specific information, use the appropriate function to retrieve actual data from the database."""
 
 # Available functions for the AI to call
 def get_events_by_date(date_str):
@@ -208,6 +224,94 @@ def get_accounts_list(limit=10):
         return {'error': str(e)}
 
 
+def create_new_account(company_name, account_type, contact_person, phone, email, city, address=None, notes=None, website=None):
+    """Create a new client account"""
+    try:
+        account = Account.objects.create(
+            company_name=company_name,
+            account_type=account_type,
+            contact_person=contact_person,
+            phone=phone,
+            email=email,
+            city=city,
+            address=address or '',
+            notes=notes or '',
+            website=website or ''
+        )
+        
+        return {
+            'success': True,
+            'account_id': account.id,
+            'message': f'Account "{company_name}" created successfully with ID {account.id}',
+            'account': {
+                'id': account.id,
+                'company_name': account.company_name,
+                'account_type': account.account_type,
+                'contact_person': account.contact_person,
+                'phone': account.phone,
+                'email': account.email,
+                'city': account.city
+            }
+        }
+    except Exception as e:
+        return {'error': f'Failed to create account: {str(e)}'}
+
+
+def get_system_guidance():
+    """Provide system guidance and navigation help"""
+    return {
+        'system_overview': 'Hotel Sales Request Management System',
+        'main_features': [
+            'Event Management - Create and manage event bookings',
+            'Room Availability - Check and book meeting rooms',
+            'Account Management - Manage client accounts',
+            'Sales Calls - Track sales activities',
+            'Analytics - View performance metrics',
+            'Request Management - Handle all types of requests'
+        ],
+        'navigation_help': [
+            'Dashboard - Main overview and metrics',
+            'Event Management - Calendar and room bookings',
+            'Accounts - Client account management',
+            'Sales Calls - Sales activity tracking',
+            'Admin Panel - System administration'
+        ],
+        'common_tasks': [
+            'Create new event request',
+            'Check room availability',
+            'Add new client account',
+            'View performance metrics',
+            'Track sales calls'
+        ]
+    }
+
+
+def get_system_help():
+    """Get comprehensive system help and guidance"""
+    return {
+        'welcome_message': 'Welcome to the Hotel Sales Management System!',
+        'what_you_can_do': [
+            'Ask about events on specific dates',
+            'Check room availability',
+            'Create new client accounts',
+            'View your requests and bookings',
+            'Get performance metrics',
+            'Learn about system features',
+            'Get step-by-step guidance'
+        ],
+        'example_questions': [
+            'What events do I have on December 16th?',
+            'Is AL JADIDA Hall available next Friday?',
+            'Create new account for ABC Company',
+            'Show me my pending requests',
+            'What is my total revenue this month?',
+            'How do I create an event request?',
+            'What are the different request types?'
+        ],
+        'system_purpose': 'This system helps manage hotel sales operations including event bookings, room reservations, client relationships, and sales tracking.'
+    }
+
+
 # Function definitions for OpenAI
 FUNCTIONS = [
     {
@@ -294,6 +398,68 @@ FUNCTIONS = [
                 }
             }
         }
+    },
+    {
+        "name": "create_new_account",
+        "description": "Create a new client account. Use this when user wants to add a new client or account.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "company_name": {
+                    "type": "string",
+                    "description": "The company or organization name"
+                },
+                "account_type": {
+                    "type": "string",
+                    "description": "Type of account (Company, Individual, etc.)"
+                },
+                "contact_person": {
+                    "type": "string",
+                    "description": "Name of the contact person"
+                },
+                "phone": {
+                    "type": "string",
+                    "description": "Phone number"
+                },
+                "email": {
+                    "type": "string",
+                    "description": "Email address"
+                },
+                "city": {
+                    "type": "string",
+                    "description": "City location"
+                },
+                "address": {
+                    "type": "string",
+                    "description": "Full address (optional)"
+                },
+                "notes": {
+                    "type": "string",
+                    "description": "Additional notes (optional)"
+                },
+                "website": {
+                    "type": "string",
+                    "description": "Website URL (optional)"
+                }
+            },
+            "required": ["company_name", "account_type", "contact_person", "phone", "email", "city"]
+        }
+    },
+    {
+        "name": "get_system_guidance",
+        "description": "Get system guidance and navigation help. Use this when user asks about system features or how to use the system.",
+        "parameters": {
+            "type": "object",
+            "properties": {}
+        }
+    },
+    {
+        "name": "get_system_help",
+        "description": "Get comprehensive system help and guidance. Use this when user asks for help or what they can do.",
+        "parameters": {
+            "type": "object",
+            "properties": {}
+        }
     }
 ]
 
@@ -303,7 +469,10 @@ FUNCTION_MAP = {
     "check_room_availability_ai": check_room_availability_ai,
     "get_user_requests": get_user_requests,
     "get_system_metrics": get_system_metrics,
-    "get_accounts_list": get_accounts_list
+    "get_accounts_list": get_accounts_list,
+    "create_new_account": create_new_account,
+    "get_system_guidance": get_system_guidance,
+    "get_system_help": get_system_help
 }
 
 
@@ -465,8 +634,16 @@ def chat_api(request):
         messages.extend(chat_history)
         messages.append({"role": "user", "content": user_message})
         
-        # Check if this is a function call request
-        if any(keyword in user_message.lower() for keyword in ['create', 'new', 'add', 'check', 'show', 'get', 'list', 'events', 'availability', 'account', 'request']):
+        # Check if this is a function call request - expanded keywords
+        function_keywords = [
+            'create', 'new', 'add', 'check', 'show', 'get', 'list', 'events', 'availability', 
+            'account', 'request', 'help', 'guide', 'system', 'what', 'how', 'when', 'where',
+            'schedule', 'calendar', 'room', 'booking', 'client', 'customer', 'sales', 'revenue',
+            'metrics', 'performance', 'data', 'information', 'details', 'status', 'pending',
+            'confirmed', 'paid', 'cancelled', 'draft', 'actual', 'partially paid'
+        ]
+        
+        if any(keyword in user_message.lower() for keyword in function_keywords):
             # Use function calling for system integration
             response = call_openai_api_with_functions(messages, FUNCTIONS, request.user.id)
         else:
