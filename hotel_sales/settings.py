@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'sales_calls',
     'dashboard',
     'event_management',
+    'chatbot',
 ]
 
 MIDDLEWARE = [
@@ -113,8 +114,8 @@ try:
     from USE_ONLINE_DB import ONLINE_DATABASE_URL
     DATABASE_URL = ONLINE_DATABASE_URL
     print("=" * 80)
-    print("🌐 CONNECTED TO ONLINE PostgreSQL DATABASE (Render)")
-    print("⚠️  All changes will affect production database!")
+    print("CONNECTED TO ONLINE PostgreSQL DATABASE (Render)")
+    print("WARNING: All changes will affect production database!")
     print("=" * 80)
 except ImportError:
     pass  # USE_ONLINE_DB.py doesn't exist, use default behavior

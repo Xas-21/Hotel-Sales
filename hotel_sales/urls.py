@@ -58,6 +58,7 @@ urlpatterns = [
     path('logout/', logout_view, name='logout'),
     path('configuration/', include('requests.configuration_urls')),
     path('event-management/', include('event_management.urls')),
+    path('chatbot/', include('chatbot.urls')),
     path('admin/', admin.site.urls),
 ]
 

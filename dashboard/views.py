@@ -1236,7 +1236,7 @@ def api_property_performance(request):
         check_in_date__lt=end_date_val + timedelta(days=1),
         check_out_date__gt=start_date_val
     ).select_related('account')
-    
+
     # Current period Series Group requests
     current_series_ids = SeriesGroupEntry.objects.filter(
         request__status__in=['Confirmed', 'Paid', 'Actual'],

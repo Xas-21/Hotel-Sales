@@ -36,6 +36,13 @@
         
         <!-- Notifications and User Menu -->
         <ul class="navbar-nav">
+            <!-- AI Chatbot -->
+            <li class="nav-item me-2">
+                <a class="nav-link position-relative" href="#" id="chatbotToggle" role="button" title="AI Assistant">
+                    <i class="fas fa-comments"></i>
+                </a>
+            </li>
+            
             <!-- Notifications Bell -->
             <li class="nav-item dropdown me-2">
                 <a class="nav-link position-relative" href="#" id="notificationsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
@@ -833,4 +840,461 @@ function getCookie(name) {
     }
     return cookieValue;
 }
+
+// ==================== AI CHATBOT ====================
+
+// Chatbot Manager Class
+class ChatbotManager {
+    constructor() {
+        this.chatWindow = null;
+        this.chatHistory = [];
+        this.isOpen = false;
+        this.init();
+    }
+    
+    init() {
+        this.createChatWindow();
+        this.attachEventListeners();
+        this.loadChatHistory();
+    }
+    
+    createChatWindow() {
+        const chatHTML = `
+            <div id="chatbotWindow" class="chatbot-window" style="display: none;">
+                <div class="chatbot-header">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-robot me-2"></i>
+                            <span class="fw-bold">AI Assistant</span>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-link text-white p-0" id="chatbot-help" title="Help">
+                                <i class="fas fa-question-circle"></i>
+                            </button>
+                            <button class="btn btn-sm btn-link text-white p-0" id="chatbot-clear" title="Clear Chat">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            <button class="btn btn-sm btn-link text-white p-0" id="chatbot-close">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="chatbot-body" id="chatbot-messages">
+                    <div class="chat-message bot-message">
+                        <div class="message-avatar">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="message-content">
+                            <p>Hello! I'm your AI assistant. I can help you with:</p>
+                            <ul>
+                                <li>Checking room availability</li>
+                                <li>Viewing your schedule and events</li>
+                                <li>Managing requests and bookings</li>
+                                <li>System performance metrics</li>
+                                <li>Navigating the system</li>
+                            </ul>
+                            <p>How can I help you today?</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="chatbot-footer">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="chatbot-input" placeholder="Ask me anything..." autocomplete="off">
+                        <button class="btn btn-primary" id="chatbot-send">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div class="chatbot-typing" id="chatbot-typing" style="display: none;">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', chatHTML);
+        this.chatWindow = document.getElementById('chatbotWindow');
+    }
+    
+    attachEventListeners() {
+        // Toggle chatbot
+        document.getElementById('chatbotToggle').addEventListener('click', (e) => {
+            e.preventDefault();
+            this.toggle();
+        });
+        
+        // Close chatbot
+        document.getElementById('chatbot-close').addEventListener('click', () => {
+            this.close();
+        });
+        
+        // Clear chat
+        document.getElementById('chatbot-clear').addEventListener('click', () => {
+            this.clearChat();
+        });
+        
+        // Help button
+        document.getElementById('chatbot-help').addEventListener('click', () => {
+            this.showHelp();
+        });
+        
+        // Send message
+        document.getElementById('chatbot-send').addEventListener('click', () => {
+            this.sendMessage();
+        });
+        
+        // Enter key to send
+        document.getElementById('chatbot-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.sendMessage();
+            }
+        });
+    }
+    
+    toggle() {
+        if (this.isOpen) {
+            this.close();
+        } else {
+            this.open();
+        }
+    }
+    
+    open() {
+        this.chatWindow.style.display = 'flex';
+        this.isOpen = true;
+        document.getElementById('chatbot-input').focus();
+    }
+    
+    close() {
+        this.chatWindow.style.display = 'none';
+        this.isOpen = false;
+    }
+    
+    async sendMessage() {
+        const input = document.getElementById('chatbot-input');
+        const message = input.value.trim();
+        
+        if (!message) return;
+        
+        // Add user message to UI
+        this.addMessage(message, 'user');
+        input.value = '';
+        
+        // Show typing indicator
+        this.showTyping();
+        
+        try {
+            const response = await fetch('/chatbot/api/chat/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
+                body: JSON.stringify({
+                    message: message,
+                    history: this.chatHistory
+                })
+            });
+            
+            const data = await response.json();
+            
+            // Hide typing indicator
+            this.hideTyping();
+            
+            if (data.success) {
+                this.addMessage(data.message, 'bot');
+                
+                // Update chat history
+                this.chatHistory.push({role: 'user', content: message});
+                this.chatHistory.push({role: 'assistant', content: data.message});
+                this.saveChatHistory();
+            } else {
+                this.addMessage('Sorry, I encountered an error. Please try again.', 'bot');
+            }
+        } catch (error) {
+            console.error('Chat error:', error);
+            this.hideTyping();
+            this.addMessage('Sorry, I\'m having trouble connecting. Please try again.', 'bot');
+        }
+    }
+    
+    addMessage(content, type) {
+        const messagesContainer = document.getElementById('chatbot-messages');
+        const messageHTML = `
+            <div class="chat-message ${type}-message">
+                <div class="message-avatar">
+                    <i class="fas fa-${type === 'user' ? 'user' : 'robot'}"></i>
+                </div>
+                <div class="message-content">
+                    ${this.formatMessage(content)}
+                </div>
+            </div>
+        `;
+        
+        messagesContainer.insertAdjacentHTML('beforeend', messageHTML);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+    
+    formatMessage(content) {
+        // Convert newlines to <br>
+        content = content.replace(/\n/g, '<br>');
+        
+        // Convert markdown-style lists
+        content = content.replace(/^- (.+)$/gm, '<li>$1</li>');
+        content = content.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+        
+        // Convert markdown-style bold
+        content = content.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        
+        return content;
+    }
+    
+    showTyping() {
+        document.getElementById('chatbot-typing').style.display = 'flex';
+    }
+    
+    hideTyping() {
+        document.getElementById('chatbot-typing').style.display = 'none';
+    }
+    
+    clearChat() {
+        if (confirm('Are you sure you want to clear the chat history?')) {
+            const messagesContainer = document.getElementById('chatbot-messages');
+            messagesContainer.innerHTML = `
+                <div class="chat-message bot-message">
+                    <div class="message-avatar">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="message-content">
+                        Chat cleared. How can I help you?
+                    </div>
+                </div>
+            `;
+            this.chatHistory = [];
+            this.saveChatHistory();
+        }
+    }
+    
+    async showHelp() {
+        try {
+            const response = await fetch('/chatbot/api/help/');
+            const data = await response.json();
+            
+            let helpMessage = '<p><strong>I can help you with:</strong></p><ul>';
+            data.capabilities.forEach(cap => {
+                helpMessage += `<li>${cap}</li>`;
+            });
+            helpMessage += '</ul><p><strong>Try asking:</strong></p><ul>';
+            data.example_questions.slice(0, 5).forEach(q => {
+                helpMessage += `<li>"${q}"</li>`;
+            });
+            helpMessage += '</ul>';
+            
+            this.addMessage(helpMessage, 'bot');
+        } catch (error) {
+            console.error('Help error:', error);
+        }
+    }
+    
+    saveChatHistory() {
+        sessionStorage.setItem('chatHistory', JSON.stringify(this.chatHistory));
+    }
+    
+    loadChatHistory() {
+        const saved = sessionStorage.getItem('chatHistory');
+        if (saved) {
+            this.chatHistory = JSON.parse(saved);
+        }
+    }
+    
+    getCSRFToken() {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'csrftoken') {
+                return value;
+            }
+        }
+        return '';
+    }
+}
+
+// Initialize chatbot when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    if (!window.chatbotManager) {
+        window.chatbotManager = new ChatbotManager();
+    }
+});
 </script>
+
+<!-- Chatbot Styles -->
+<style>
+.chatbot-window {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 400px;
+    height: 600px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    z-index: 2000;
+    overflow: hidden;
+}
+
+.chatbot-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 16px;
+    border-radius: 16px 16px 0 0;
+}
+
+.chatbot-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    background: #f8f9fa;
+}
+
+.chatbot-footer {
+    padding: 16px;
+    background: white;
+    border-top: 1px solid #dee2e6;
+}
+
+.chat-message {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    animation: fadeIn 0.3s ease;
+}
+
+.user-message {
+    flex-direction: row-reverse;
+}
+
+.message-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.bot-message .message-avatar {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.user-message .message-avatar {
+    background: #0d6efd;
+    color: white;
+}
+
+.message-content {
+    max-width: 75%;
+    padding: 12px 16px;
+    border-radius: 16px;
+    line-height: 1.5;
+}
+
+.bot-message .message-content {
+    background: white;
+    color: #212529;
+    border-bottom-left-radius: 4px;
+}
+
+.user-message .message-content {
+    background: #0d6efd;
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+.message-content p {
+    margin: 0 0 8px 0;
+}
+
+.message-content p:last-child {
+    margin-bottom: 0;
+}
+
+.message-content ul {
+    margin: 8px 0;
+    padding-left: 20px;
+}
+
+.message-content li {
+    margin-bottom: 4px;
+}
+
+.chatbot-typing {
+    display: flex;
+    gap: 4px;
+    padding: 8px 0;
+    justify-content: center;
+}
+
+.chatbot-typing span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #667eea;
+    animation: typing 1.4s infinite;
+}
+
+.chatbot-typing span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.chatbot-typing span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing {
+    0%, 60%, 100% {
+        transform: translateY(0);
+    }
+    30% {
+        transform: translateY(-10px);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .chatbot-window {
+        width: calc(100% - 40px);
+        height: calc(100% - 40px);
+        bottom: 20px;
+        right: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .chatbot-window {
+        width: 100%;
+        height: 100%;
+        bottom: 0;
+        right: 0;
+        border-radius: 0;
+    }
+    
+    .chatbot-header {
+        border-radius: 0;
+    }
+}
+</style>
