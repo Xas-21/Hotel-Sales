@@ -557,6 +557,9 @@ def call_openai_api_with_functions(messages, functions, user_id):
         with urllib.request.urlopen(req, timeout=30) as response:
             response_data = json.loads(response.read().decode('utf-8'))
             
+            # Debug logging
+            print(f"OpenAI Response: {json.dumps(response_data, indent=2)}")
+            
             # Check if AI wants to call a function
             if 'function_call' in response_data['choices'][0]['message']:
                 function_call = response_data['choices'][0]['message']['function_call']
@@ -643,10 +646,25 @@ def chat_api(request):
             'confirmed', 'paid', 'cancelled', 'draft', 'actual', 'partially paid'
         ]
         
-        if any(keyword in user_message.lower() for keyword in function_keywords):
+        # Debug logging
+        print(f"User message: {user_message}")
+        print(f"Function keywords detected: {[kw for kw in function_keywords if kw in user_message.lower()]}")
+        
+        # Force function calling for specific patterns
+        force_function_calls = [
+            'what events', 'what do i have', 'december 16th', 'create new account',
+            'create account', 'new account', 'check availability', 'room availability'
+        ]
+        
+        should_use_functions = any(keyword in user_message.lower() for keyword in function_keywords) or \
+                              any(pattern in user_message.lower() for pattern in force_function_calls)
+        
+        if should_use_functions:
+            print("Using function calling...")
             # Use function calling for system integration
             response = call_openai_api_with_functions(messages, FUNCTIONS, request.user.id)
         else:
+            print("Using simple API call...")
             # Simple API call for general questions
             response = call_openai_api(messages, FUNCTIONS)
         
