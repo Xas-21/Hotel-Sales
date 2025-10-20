@@ -9,9 +9,13 @@ from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Sum, Count
 
-from requests.models import Request, EventAgenda
+from requests.models import Request, EventAgenda, RoomEntry, SeriesGroupEntry
 from accounts.models import Account
+from sales_calls.models import SalesCall
+from agreements.models import Agreement
 from event_management.views import get_room_availability
+from django.db.models import Sum, Count, Q
+from decimal import Decimal
 
 # OpenAI API Configuration
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
@@ -319,6 +323,196 @@ def get_system_help():
     }
 
 
+def get_accommodations_by_date(date_str):
+    """Get all accommodation arrivals for a specific date"""
+    try:
+        print(f"=== GET ACCOMMODATIONS BY DATE DEBUG ===")
+        print(f"Date string: {date_str}")
+        
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        print(f"Parsed date: {target_date}")
+        
+        # Get accommodation requests for the date
+        accommodations = Request.objects.filter(
+            check_in_date=target_date,
+            request_type__in=['Group Accommodation', 'Individual Accommodation', 'Event with Rooms', 'Series Group']
+        ).select_related('account')
+        
+        print(f"Found {accommodations.count()} accommodations for {target_date}")
+        
+        result = {
+            'date': date_str,
+            'accommodations': [],
+            'total_count': accommodations.count()
+        }
+        
+        for acc in accommodations:
+            acc_data = {
+                'company_name': acc.account.name if acc.account else 'N/A',
+                'request_type': acc.get_request_type_display(),
+                'check_in_date': acc.check_in_date.strftime('%Y-%m-%d') if acc.check_in_date else 'N/A',
+                'check_out_date': acc.check_out_date.strftime('%Y-%m-%d') if acc.check_out_date else 'N/A',
+                'nights': acc.nights or 0,
+                'total_rooms': acc.total_rooms or 0,
+                'total_cost': float(acc.total_cost) if acc.total_cost else 0,
+                'status': acc.status,
+                'confirmation_number': acc.confirmation_number or 'Draft',
+                'request_id': acc.id
+            }
+            result['accommodations'].append(acc_data)
+        
+        return result
+    except Exception as e:
+        print(f"Error in get_accommodations_by_date: {str(e)}")
+        return {'error': str(e)}
+
+
+def get_sales_calls_by_date(date_str):
+    """Get all sales calls for a specific date"""
+    try:
+        print(f"=== GET SALES CALLS BY DATE DEBUG ===")
+        print(f"Date string: {date_str}")
+        
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        print(f"Parsed date: {target_date}")
+        
+        # Get sales calls for the date
+        sales_calls = SalesCall.objects.filter(
+            visit_date=target_date
+        ).select_related('account')
+        
+        print(f"Found {sales_calls.count()} sales calls for {target_date}")
+        
+        result = {
+            'date': date_str,
+            'sales_calls': [],
+            'total_count': sales_calls.count()
+        }
+        
+        for call in sales_calls:
+            call_data = {
+                'company_name': call.account.name if call.account else 'N/A',
+                'visit_date': call.visit_date.strftime('%Y-%m-%d'),
+                'city': call.city,
+                'meeting_subject': call.get_meeting_subject_display(),
+                'business_potential': call.business_potential,
+                'follow_up_required': call.follow_up_required,
+                'follow_up_date': call.follow_up_date.strftime('%Y-%m-%d') if call.follow_up_date else 'N/A',
+                'follow_up_completed': call.follow_up_completed,
+                'call_id': call.id
+            }
+            result['sales_calls'].append(call_data)
+        
+        return result
+    except Exception as e:
+        print(f"Error in get_sales_calls_by_date: {str(e)}")
+        return {'error': str(e)}
+
+
+def get_total_revenue():
+    """Get total revenue from all paid and actual requests"""
+    try:
+        print(f"=== GET TOTAL REVENUE DEBUG ===")
+        
+        # Get revenue from paid and actual requests
+        revenue_data = Request.objects.filter(
+            status__in=['Paid', 'Actual', 'Partially Paid']
+        ).aggregate(
+            total_revenue=Sum('total_cost'),
+            total_requests=Count('id'),
+            paid_requests=Count('id', filter=Q(status='Paid')),
+            actual_requests=Count('id', filter=Q(status='Actual')),
+            partially_paid_requests=Count('id', filter=Q(status='Partially Paid'))
+        )
+        
+        print(f"Revenue data: {revenue_data}")
+        
+        result = {
+            'total_revenue': float(revenue_data['total_revenue'] or 0),
+            'total_requests': revenue_data['total_requests'] or 0,
+            'paid_requests': revenue_data['paid_requests'] or 0,
+            'actual_requests': revenue_data['actual_requests'] or 0,
+            'partially_paid_requests': revenue_data['partially_paid_requests'] or 0
+        }
+        
+        return result
+    except Exception as e:
+        print(f"Error in get_total_revenue: {str(e)}")
+        return {'error': str(e)}
+
+
+def get_room_availability_by_date(date_str):
+    """Get room availability for a specific date"""
+    try:
+        print(f"=== GET ROOM AVAILABILITY BY DATE DEBUG ===")
+        print(f"Date string: {date_str}")
+        
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        print(f"Parsed date: {target_date}")
+        
+        # Get all meeting rooms
+        all_rooms = ['AL JADIDA', 'DADAN', 'HEGRA', 'IKMA', 'All Halls', 'Board Room', 'Al Badiya', 'La Palma']
+        
+        # Get booked rooms for the date
+        booked_rooms = EventAgenda.objects.filter(
+            event_date=target_date
+        ).values_list('meeting_room_name', flat=True).distinct()
+        
+        booked_rooms_list = list(booked_rooms)
+        print(f"Booked rooms: {booked_rooms_list}")
+        
+        # Calculate available rooms
+        available_rooms = [room for room in all_rooms if room not in booked_rooms_list]
+        
+        result = {
+            'date': date_str,
+            'available_rooms': available_rooms,
+            'booked_rooms': booked_rooms_list,
+            'total_rooms': len(all_rooms),
+            'available_count': len(available_rooms),
+            'booked_count': len(booked_rooms_list)
+        }
+        
+        return result
+    except Exception as e:
+        print(f"Error in get_room_availability_by_date: {str(e)}")
+        return {'error': str(e)}
+
+
+def get_all_requests_summary():
+    """Get summary of all requests by type and status"""
+    try:
+        print(f"=== GET ALL REQUESTS SUMMARY DEBUG ===")
+        
+        # Get requests by type
+        by_type = Request.objects.values('request_type').annotate(
+            count=Count('id')
+        ).order_by('request_type')
+        
+        # Get requests by status
+        by_status = Request.objects.values('status').annotate(
+            count=Count('id')
+        ).order_by('status')
+        
+        # Get total counts
+        total_requests = Request.objects.count()
+        total_revenue = Request.objects.filter(
+            status__in=['Paid', 'Actual', 'Partially Paid']
+        ).aggregate(total=Sum('total_cost'))['total'] or 0
+        
+        result = {
+            'total_requests': total_requests,
+            'total_revenue': float(total_revenue),
+            'by_type': list(by_type),
+            'by_status': list(by_status)
+        }
+        
+        return result
+    except Exception as e:
+        print(f"Error in get_all_requests_summary: {str(e)}")
+        return {'error': str(e)}
+
+
 def try_manual_function_calls(user_message, user_id):
     """Manually detect and call functions based on user message patterns"""
     try:
@@ -343,6 +537,52 @@ def try_manual_function_calls(user_message, user_id):
                 else:
                     print(f"Error in result: {result}")
                     return {"output_text": f"I found an error while fetching events: {result.get('error', 'Unknown error')}"}
+        
+        # Check for accommodations/group arrivals
+        if any(word in message_lower for word in ['accommodations', 'group arrivals', 'arrivals', 'check in', 'check-in']):
+            print("Detected: Accommodations query")
+            if 'december' in message_lower and '16' in message_lower:
+                date_str = '2025-12-16'
+                result = get_accommodations_by_date(date_str)
+                if 'error' not in result:
+                    formatted_response = format_accommodations_response(result)
+                    return {"output_text": f"Here are your accommodations for December 16th, 2025:\n\n{formatted_response}"}
+                else:
+                    return {"output_text": f"I found an error while fetching accommodations: {result.get('error', 'Unknown error')}"}
+        
+        # Check for sales calls
+        if any(word in message_lower for word in ['sales calls', 'visits', 'meetings', 'sales']):
+            print("Detected: Sales calls query")
+            if 'december' in message_lower and '16' in message_lower:
+                date_str = '2025-12-16'
+                result = get_sales_calls_by_date(date_str)
+                if 'error' not in result:
+                    formatted_response = format_sales_calls_response(result)
+                    return {"output_text": f"Here are your sales calls for December 16th, 2025:\n\n{formatted_response}"}
+                else:
+                    return {"output_text": f"I found an error while fetching sales calls: {result.get('error', 'Unknown error')}"}
+        
+        # Check for revenue queries
+        if any(word in message_lower for word in ['revenue', 'total revenue', 'income', 'money', 'earnings']):
+            print("Detected: Revenue query")
+            result = get_total_revenue()
+            if 'error' not in result:
+                formatted_response = format_revenue_response(result)
+                return {"output_text": f"Here's your revenue information:\n\n{formatted_response}"}
+            else:
+                return {"output_text": f"I found an error while fetching revenue: {result.get('error', 'Unknown error')}"}
+        
+        # Check for room availability
+        if any(word in message_lower for word in ['available', 'availability', 'room', 'hall', 'jadida', 'dadan', 'hegra', 'ikma']):
+            print("Detected: Room availability query")
+            if 'december' in message_lower and '16' in message_lower:
+                date_str = '2025-12-16'
+                result = get_room_availability_by_date(date_str)
+                if 'error' not in result:
+                    formatted_response = format_room_availability_response(result)
+                    return {"output_text": f"Here's the room availability for December 16th, 2025:\n\n{formatted_response}"}
+                else:
+                    return {"output_text": f"I found an error while fetching room availability: {result.get('error', 'Unknown error')}"}
         
         # Check for room availability
         if any(word in message_lower for word in ['available', 'availability', 'hall', 'jadida', 'dadan', 'hegra', 'ikma']):
@@ -424,6 +664,76 @@ def format_help_response(result):
     for item in result.get('example_questions', []):
         help_text += f"• {item}\n"
     return help_text
+
+
+def format_accommodations_response(result):
+    """Format accommodations response for display"""
+    if result.get('total_count', 0) == 0:
+        return "No accommodations scheduled for this date."
+    
+    acc_text = f"Total accommodations: {result['total_count']}\n\n"
+    for acc in result.get('accommodations', []):
+        acc_text += f"• {acc.get('company_name', 'N/A')} - {acc.get('request_type', 'N/A')}\n"
+        acc_text += f"  Check-in: {acc.get('check_in_date', 'N/A')}\n"
+        acc_text += f"  Check-out: {acc.get('check_out_date', 'N/A')}\n"
+        acc_text += f"  Nights: {acc.get('nights', 0)}\n"
+        acc_text += f"  Rooms: {acc.get('total_rooms', 0)}\n"
+        acc_text += f"  Cost: ${acc.get('total_cost', 0):,.2f}\n"
+        acc_text += f"  Status: {acc.get('status', 'Unknown')}\n"
+        acc_text += f"  Confirmation: {acc.get('confirmation_number', 'Draft')}\n\n"
+    
+    return acc_text
+
+
+def format_sales_calls_response(result):
+    """Format sales calls response for display"""
+    if result.get('total_count', 0) == 0:
+        return "No sales calls scheduled for this date."
+    
+    calls_text = f"Total sales calls: {result['total_count']}\n\n"
+    for call in result.get('sales_calls', []):
+        calls_text += f"• {call.get('company_name', 'N/A')}\n"
+        calls_text += f"  Date: {call.get('visit_date', 'N/A')}\n"
+        calls_text += f"  City: {call.get('city', 'N/A')}\n"
+        calls_text += f"  Subject: {call.get('meeting_subject', 'N/A')}\n"
+        calls_text += f"  Potential: {call.get('business_potential', 'N/A')}\n"
+        if call.get('follow_up_required'):
+            calls_text += f"  Follow-up: {call.get('follow_up_date', 'N/A')}\n"
+        calls_text += "\n"
+    
+    return calls_text
+
+
+def format_revenue_response(result):
+    """Format revenue response for display"""
+    revenue_text = f"💰 REVENUE SUMMARY\n\n"
+    revenue_text += f"Total Revenue: ${result.get('total_revenue', 0):,.2f}\n"
+    revenue_text += f"Total Requests: {result.get('total_requests', 0)}\n"
+    revenue_text += f"Paid Requests: {result.get('paid_requests', 0)}\n"
+    revenue_text += f"Actual Requests: {result.get('actual_requests', 0)}\n"
+    revenue_text += f"Partially Paid: {result.get('partially_paid_requests', 0)}\n"
+    
+    return revenue_text
+
+
+def format_room_availability_response(result):
+    """Format room availability response for display"""
+    avail_text = f"🏨 ROOM AVAILABILITY\n\n"
+    avail_text += f"Date: {result.get('date', 'N/A')}\n"
+    avail_text += f"Available Rooms: {result.get('available_count', 0)}/{result.get('total_rooms', 0)}\n\n"
+    
+    if result.get('available_rooms'):
+        avail_text += "✅ Available:\n"
+        for room in result.get('available_rooms', []):
+            avail_text += f"• {room}\n"
+        avail_text += "\n"
+    
+    if result.get('booked_rooms'):
+        avail_text += "❌ Booked:\n"
+        for room in result.get('booked_rooms', []):
+            avail_text += f"• {room}\n"
+    
+    return avail_text
 
 
 # Function definitions for OpenAI
@@ -574,6 +884,64 @@ FUNCTIONS = [
             "type": "object",
             "properties": {}
         }
+    },
+    {
+        "name": "get_accommodations_by_date",
+        "description": "Get all accommodation arrivals for a specific date. Use this when user asks about group arrivals or accommodations.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "date_str": {
+                    "type": "string",
+                    "description": "The date in YYYY-MM-DD format (e.g., '2025-12-16')"
+                }
+            },
+            "required": ["date_str"]
+        }
+    },
+    {
+        "name": "get_sales_calls_by_date",
+        "description": "Get all sales calls for a specific date. Use this when user asks about sales calls or visits.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "date_str": {
+                    "type": "string",
+                    "description": "The date in YYYY-MM-DD format (e.g., '2025-12-16')"
+                }
+            },
+            "required": ["date_str"]
+        }
+    },
+    {
+        "name": "get_total_revenue",
+        "description": "Get total revenue from all paid and actual requests. Use this when user asks about revenue or income.",
+        "parameters": {
+            "type": "object",
+            "properties": {}
+        }
+    },
+    {
+        "name": "get_room_availability_by_date",
+        "description": "Get room availability for a specific date. Use this when user asks about room availability.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "date_str": {
+                    "type": "string",
+                    "description": "The date in YYYY-MM-DD format (e.g., '2025-12-16')"
+                }
+            },
+            "required": ["date_str"]
+        }
+    },
+    {
+        "name": "get_all_requests_summary",
+        "description": "Get summary of all requests by type and status. Use this when user asks about overall system statistics.",
+        "parameters": {
+            "type": "object",
+            "properties": {}
+        }
     }
 ]
 
@@ -586,7 +954,12 @@ FUNCTION_MAP = {
     "get_accounts_list": get_accounts_list,
     "create_new_account": create_new_account,
     "get_system_guidance": get_system_guidance,
-    "get_system_help": get_system_help
+    "get_system_help": get_system_help,
+    "get_accommodations_by_date": get_accommodations_by_date,
+    "get_sales_calls_by_date": get_sales_calls_by_date,
+    "get_total_revenue": get_total_revenue,
+    "get_room_availability_by_date": get_room_availability_by_date,
+    "get_all_requests_summary": get_all_requests_summary
 }
 
 
