@@ -71,12 +71,18 @@ This is a comprehensive hotel sales management system that handles:
 def get_events_by_date(date_str):
     """Get all events, arrivals, and activities for a specific date"""
     try:
+        print(f"=== GET EVENTS BY DATE DEBUG ===")
+        print(f"Date string: {date_str}")
+        
         target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        print(f"Parsed date: {target_date}")
         
         # Get event agendas for the date
         events = EventAgenda.objects.filter(
             date=target_date
         ).select_related('request', 'request__account')
+        
+        print(f"Found {events.count()} events for {target_date}")
         
         result = {
             'date': date_str,
@@ -86,12 +92,13 @@ def get_events_by_date(date_str):
         
         for event in events:
             event_data = {
-                'time': f"{event.start_time.strftime('%I:%M %p')} - {event.end_time.strftime('%I:%M %p')}",
-                'title': event.request.account.name if event.request.account else 'N/A',
-                'type': event.request.get_request_type_display(),
-                'room': event.meeting_room_name or 'N/A',
-                'guests': event.total_persons,
+                'event_name': event.request.account.company_name if event.request.account else 'N/A',
+                'meeting_room': event.meeting_room_name or 'N/A',
+                'start_time': event.start_time.strftime('%I:%M %p') if event.start_time else 'N/A',
+                'end_time': event.end_time.strftime('%I:%M %p') if event.end_time else 'N/A',
+                'guests': event.total_persons or 0,
                 'status': event.request.status,
+                'request_type': event.request.get_request_type_display(),
                 'request_id': event.request.id
             }
             result['events'].append(event_data)
@@ -326,9 +333,16 @@ def try_manual_function_calls(user_message, user_id):
             # Try to extract date
             if 'december' in message_lower and '16' in message_lower:
                 date_str = '2025-12-16'
+                print(f"Calling get_events_by_date with: {date_str}")
                 result = get_events_by_date(date_str)
+                print(f"Result: {result}")
                 if 'error' not in result:
-                    return {"output_text": f"Here are your events for December 16th, 2025:\n\n{format_events_response(result)}"}
+                    formatted_response = format_events_response(result)
+                    print(f"Formatted response: {formatted_response}")
+                    return {"output_text": f"Here are your events for December 16th, 2025:\n\n{formatted_response}"}
+                else:
+                    print(f"Error in result: {result}")
+                    return {"output_text": f"I found an error while fetching events: {result.get('error', 'Unknown error')}"}
         
         # Check for room availability
         if any(word in message_lower for word in ['available', 'availability', 'hall', 'jadida', 'dadan', 'hegra', 'ikma']):
