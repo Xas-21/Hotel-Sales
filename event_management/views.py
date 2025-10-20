@@ -827,17 +827,53 @@ def create_account_api(request):
         notes = request.POST.get('notes', '').strip()
         
         # Validate required fields
-        if not name or not account_type:
+        if not name:
             return JsonResponse({
                 'success': False,
-                'error': 'Company name and account type are required.'
+                'error': 'Please enter the company name.'
+            }, status=400)
+        
+        if not account_type:
+            return JsonResponse({
+                'success': False,
+                'error': 'Please select an account type.'
+            }, status=400)
+        
+        if not contact_person:
+            return JsonResponse({
+                'success': False,
+                'error': 'Please enter the contact person name.'
+            }, status=400)
+        
+        if not position:
+            return JsonResponse({
+                'success': False,
+                'error': 'Please enter the contact person position.'
+            }, status=400)
+        
+        if not phone:
+            return JsonResponse({
+                'success': False,
+                'error': 'Please enter the phone number.'
+            }, status=400)
+        
+        if not email:
+            return JsonResponse({
+                'success': False,
+                'error': 'Please enter the email address.'
+            }, status=400)
+        
+        if not city:
+            return JsonResponse({
+                'success': False,
+                'error': 'Please enter the city.'
             }, status=400)
         
         # Check if account with same name already exists
         if Account.objects.filter(name__iexact=name).exists():
             return JsonResponse({
                 'success': False,
-                'error': f'An account with the name "{name}" already exists.'
+                'error': f'A company with the name "{name}" already exists. Please choose a different name.'
             }, status=400)
         
         # Create new account
@@ -864,7 +900,7 @@ def create_account_api(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': f'Error creating account: {str(e)}'
+            'error': 'Unable to create account. Please check all fields and try again.'
         }, status=500)
 
 

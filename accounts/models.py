@@ -38,9 +38,9 @@ class Account(models.Model):
     email = models.EmailField(blank=True)
     
     # Enhanced fields for Phase 1D - TextField conversions and additional information
-    address = models.TextField(blank=True, help_text="Complete address including street, city, state, country")
-    notes = models.TextField(blank=True, help_text="Additional notes about this account")
-    website = models.URLField(blank=True, help_text="Company website URL")
+    address = models.TextField(blank=True, null=True, help_text="Complete address including street, city, state, country")
+    notes = models.TextField(blank=True, null=True, help_text="Additional notes about this account")
+    website = models.URLField(blank=True, null=True, help_text="Company website URL")
     
     created_at = models.DateTimeField(default=timezone.now)
     

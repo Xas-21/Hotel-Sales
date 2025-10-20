@@ -151,6 +151,38 @@
             background-color: #f8d7da;
             color: #721c24;
         }
+        
+        /* Searchable Account Dropdown Styles */
+        #modalAccountDropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            display: none;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+            background-color: white;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        
+        #modalAccountDropdown.show {
+            display: block;
+        }
+        
+        .account-option {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid #f8f9fa;
+        }
+        
+        .account-option:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .account-option:last-child {
+            border-bottom: none;
+        }
     </style>
 </head>
 <body>
@@ -400,13 +432,16 @@
                         <!-- Account Selection with Add New Button -->
                         <div class="mb-3">
                             <label class="form-label">Account</label>
-                            <div class="input-group">
-                                <select class="form-select" name="account" id="modalAccountSelect" required>
-                                    <option value="">Select Account</option>
+                            <div class="position-relative">
+                                <input type="text" class="form-control" id="modalAccountSearch" placeholder="Type to search accounts..." autocomplete="off" required>
+                                <input type="hidden" name="account" id="modalAccountSelect" required>
+                                <div class="dropdown-menu w-100" id="modalAccountDropdown" style="max-height: 200px; overflow-y: auto;">
                                     {% for account in accounts %}
-                                    <option value="{{ account.id }}">{{ account.name }}</option>
+                                    <a class="dropdown-item account-option" href="#" data-value="{{ account.id }}" data-text="{{ account.name }}">{{ account.name }}</a>
                                     {% endfor %}
-                                </select>
+                                </div>
+                            </div>
+                            <div class="text-center mt-2">
                                 <button type="button" class="btn btn-outline-primary" id="modalAddNewAccountBtn">
                                     <i class="fas fa-plus"></i> Add New
                                 </button>
@@ -889,12 +924,12 @@
                     modal.hide();
                     location.reload();
                 } else {
-                    alert(`Error: ${data.error || 'Unknown error'}`);
+                    alert(`Error creating event: ${data.error || 'Please check all fields and try again.'}`);
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Error creating event: ' + error.message);
+                alert('Error creating event: Please check your internet connection and try again.');
             })
             .finally(() => {
                 // Restore button state
@@ -927,7 +962,7 @@
                 })
                 .catch(error => {
                     console.error('API Error:', error);
-                    alert('API Error: ' + error.message);
+                    alert('Error loading data. Please refresh the page and try again.');
                 });
         }
 
@@ -946,6 +981,32 @@
                         if (removeBtn) removeBtn.style.display = 'block';
                     });
                     
+                    // Get the last day's date and times to calculate next day
+                    const lastDayRow = container.querySelector('.event-day-row:last-child');
+                    let nextDate = new Date();
+                    let startTime = '08:00';
+                    let endTime = '17:00';
+                    
+                    if (lastDayRow) {
+                        const lastDateInput = lastDayRow.querySelector('.modal-event-date');
+                        const lastStartTimeInput = lastDayRow.querySelector('.modal-event-start-time');
+                        const lastEndTimeInput = lastDayRow.querySelector('.modal-event-end-time');
+                        
+                        if (lastDateInput && lastDateInput.value) {
+                            nextDate = new Date(lastDateInput.value);
+                            nextDate.setDate(nextDate.getDate() + 1);
+                        }
+                        if (lastStartTimeInput && lastStartTimeInput.value) {
+                            startTime = lastStartTimeInput.value;
+                        }
+                        if (lastEndTimeInput && lastEndTimeInput.value) {
+                            endTime = lastEndTimeInput.value;
+                        }
+                    }
+                    
+                    // Format date for input (YYYY-MM-DD)
+                    const formattedDate = nextDate.toISOString().split('T')[0];
+                    
                     // Create new day row
                     const newRow = document.createElement('div');
                     newRow.className = 'event-day-row mb-3 p-3 border rounded';
@@ -954,19 +1015,19 @@
                             <div class="col-md-4">
                                 <div class="mb-3">
                                     <label class="form-label">Date</label>
-                                    <input type="date" class="form-control modal-event-date" name="event_dates[]" required>
+                                    <input type="date" class="form-control modal-event-date" name="event_dates[]" value="${formattedDate}" required>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="mb-3">
                                     <label class="form-label">Start Time</label>
-                                    <input type="time" class="form-control modal-event-start-time" name="start_times[]" required>
+                                    <input type="time" class="form-control modal-event-start-time" name="start_times[]" value="${startTime}" required>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="mb-3">
                                     <label class="form-label">End Time</label>
-                                    <input type="time" class="form-control modal-event-end-time" name="end_times[]" required>
+                                    <input type="time" class="form-control modal-event-end-time" name="end_times[]" value="${endTime}" required>
                                 </div>
                             </div>
                             <div class="col-md-2">
@@ -1137,6 +1198,51 @@
             return cookieValue;
         }
 
+        // Searchable Account Dropdown functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const modalAccountSearch = document.getElementById('modalAccountSearch');
+            const modalAccountSelect = document.getElementById('modalAccountSelect');
+            const modalAccountDropdown = document.getElementById('modalAccountDropdown');
+            const accountOptions = document.querySelectorAll('.account-option');
+            
+            // Show/hide dropdown and filter options
+            if (modalAccountSearch && modalAccountDropdown) {
+                modalAccountSearch.addEventListener('focus', function() {
+                    modalAccountDropdown.classList.add('show');
+                });
+                
+                modalAccountSearch.addEventListener('input', function() {
+                    const searchTerm = this.value.toLowerCase();
+                    accountOptions.forEach(option => {
+                        const text = option.textContent.toLowerCase();
+                        if (text.includes(searchTerm)) {
+                            option.style.display = 'block';
+                        } else {
+                            option.style.display = 'none';
+                        }
+                    });
+                    modalAccountDropdown.classList.add('show');
+                });
+                
+                // Handle option selection
+                accountOptions.forEach(option => {
+                    option.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        modalAccountSearch.value = this.textContent;
+                        modalAccountSelect.value = this.dataset.value;
+                        modalAccountDropdown.classList.remove('show');
+                    });
+                });
+                
+                // Hide dropdown when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!modalAccountSearch.contains(e.target) && !modalAccountDropdown.contains(e.target)) {
+                        modalAccountDropdown.classList.remove('show');
+                    }
+                });
+            }
+        });
+
         // Add New Account functionality
         document.addEventListener('DOMContentLoaded', function() {
             const addNewAccountBtn = document.getElementById('addNewAccountBtn');
@@ -1173,34 +1279,58 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            // Add new account to both select dropdowns
-                            const newOption = document.createElement('option');
-                            newOption.value = data.account_id;
-                            newOption.textContent = data.account_name;
-                            newOption.selected = true;
-                            accountSelect.appendChild(newOption);
+                            // Add new account to main account select if it exists
+                            if (accountSelect) {
+                                const newOption = document.createElement('option');
+                                newOption.value = data.account_id;
+                                newOption.textContent = data.account_name;
+                                newOption.selected = true;
+                                accountSelect.appendChild(newOption);
+                            }
                             
                             // Also add to modal account select if it exists
                             const modalAccountSelect = document.getElementById('modalAccountSelect');
-                            if (modalAccountSelect) {
-                                const modalNewOption = document.createElement('option');
-                                modalNewOption.value = data.account_id;
-                                modalNewOption.textContent = data.account_name;
-                                modalAccountSelect.appendChild(modalNewOption);
+                            const modalAccountDropdown = document.getElementById('modalAccountDropdown');
+                            if (modalAccountSelect && modalAccountDropdown) {
+                                // Update the hidden input value
+                                modalAccountSelect.value = data.account_id;
+                                
+                                // Add to dropdown options
+                                const newOption = document.createElement('a');
+                                newOption.className = 'dropdown-item account-option';
+                                newOption.href = '#';
+                                newOption.dataset.value = data.account_id;
+                                newOption.dataset.text = data.account_name;
+                                newOption.textContent = data.account_name;
+                                
+                                // Add click handler
+                                newOption.addEventListener('click', function(e) {
+                                    e.preventDefault();
+                                    const modalAccountSearch = document.getElementById('modalAccountSearch');
+                                    modalAccountSearch.value = this.textContent;
+                                    modalAccountSelect.value = this.dataset.value;
+                                    modalAccountDropdown.classList.remove('show');
+                                });
+                                
+                                modalAccountDropdown.appendChild(newOption);
                             }
                             
                             // Close modal and reset form
-                            addAccountModal.hide();
-                            form.reset();
+                            if (addAccountModal) {
+                                addAccountModal.hide();
+                            }
+                            if (form) {
+                                form.reset();
+                            }
                             
                             alert('Account created successfully!');
                         } else {
-                            alert('Error creating account: ' + (data.error || 'Unknown error'));
+                            alert('Error creating account: ' + (data.error || 'Please check all required fields and try again.'));
                         }
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        alert('Error creating account: ' + error.message);
+                        alert('Error creating account: Please check your internet connection and try again.');
                     })
                     .finally(() => {
                         // Restore button state
@@ -1378,7 +1508,7 @@
                         window.calendar.refetchEvents();
                     }
                 } else {
-                    alert('Error: ' + data.error);
+                    alert('Error cancelling request: ' + (data.error || 'Please try again.'));
                 }
             } catch (error) {
                 console.error('Error cancelling request:', error);
