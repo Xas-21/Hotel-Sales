@@ -160,6 +160,140 @@
             transform: translateY(-1px) !important;
             box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3) !important;
         }
+        
+        /* ===== RESPONSIVE DESIGN ===== */
+        
+        /* Tablet Styles (768px and below) */
+        @media (max-width: 768px) {
+            .hsrms-nav .container-fluid {
+                padding: 6px 12px;
+                flex-wrap: wrap;
+            }
+            
+            .hsrms-nav .navbar-brand {
+                font-size: 0.9rem;
+                margin-right: 0.5rem;
+            }
+            
+            .hsrms-nav .nav-link {
+                padding: 6px 8px;
+                font-size: 0.8rem;
+            }
+            
+            .hsrms-nav .dropdown-menu {
+                min-width: 150px;
+                font-size: 0.8rem;
+            }
+            
+            /* Admin tables responsive */
+            .results {
+                overflow-x: auto;
+            }
+            
+            .results table {
+                font-size: 0.8rem;
+            }
+            
+            .results th,
+            .results td {
+                padding: 0.25rem 0.5rem;
+            }
+            
+            /* Actions bar responsive */
+            .actions {
+                flex-direction: column;
+                align-items: stretch !important;
+                gap: 8px !important;
+            }
+            
+            .actions select {
+                min-width: 100% !important;
+                margin-bottom: 8px !important;
+            }
+        }
+        
+        /* Mobile Styles (480px and below) */
+        @media (max-width: 480px) {
+            .hsrms-nav .container-fluid {
+                padding: 4px 8px;
+            }
+            
+            .hsrms-nav .navbar-brand {
+                font-size: 0.8rem;
+            }
+            
+            .hsrms-nav .navbar-brand i {
+                display: none;
+            }
+            
+            .hsrms-nav .nav-link {
+                padding: 4px 6px;
+                font-size: 0.75rem;
+            }
+            
+            .hsrms-nav .nav-link span {
+                display: none;
+            }
+            
+            .hsrms-nav .dropdown-menu {
+                min-width: 120px;
+                font-size: 0.75rem;
+            }
+            
+            .hsrms-nav .dropdown-item {
+                padding: 4px 8px;
+                font-size: 0.75rem;
+            }
+            
+            .hsrms-nav .dropdown-item span {
+                display: none;
+            }
+            
+            /* Admin content mobile */
+            #content {
+                padding: 0.5rem;
+            }
+            
+            .results {
+                font-size: 0.7rem;
+            }
+            
+            .results th,
+            .results td {
+                padding: 0.125rem 0.25rem;
+            }
+            
+            /* Form fields mobile */
+            input[type="text"],
+            input[type="email"],
+            input[type="password"],
+            input[type="number"],
+            input[type="date"],
+            input[type="time"],
+            select,
+            textarea {
+                font-size: 16px; /* Prevents zoom on iOS */
+                width: 100%;
+            }
+            
+            /* Actions bar mobile */
+            .actions {
+                padding: 8px 10px !important;
+            }
+            
+            .actions select {
+                height: 44px !important;
+                font-size: 16px !important;
+            }
+            
+            .actions button[type="submit"],
+            .actions input[type="submit"],
+            .actions .button {
+                height: 44px !important;
+                font-size: 16px !important;
+                width: 100% !important;
+            }
+        }
     </style>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
