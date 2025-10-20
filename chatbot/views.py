@@ -353,6 +353,100 @@ def call_openai_api(messages, functions=None):
         return {"error": str(e)}
 
 
+def call_openai_api_with_functions(messages, functions, user_id):
+    """OpenAI API call with function calling for system integration"""
+    try:
+        # Check if API key is available
+        if not OPENAI_API_KEY:
+            return {"error": "OpenAI API key not configured. Please set OPENAI_API_KEY environment variable."}
+        
+        # Get the latest user message
+        user_message = messages[-1]["content"]
+        
+        # Prepare the request data with function calling
+        data = {
+            "model": "gpt-4",
+            "messages": messages,
+            "functions": functions,
+            "function_call": "auto",
+            "max_tokens": 1000,
+            "temperature": 0.7
+        }
+        
+        # Create the request
+        req = urllib.request.Request(
+            "https://api.openai.com/v1/chat/completions",
+            data=json.dumps(data).encode('utf-8'),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {OPENAI_API_KEY}"
+            },
+            method='POST'
+        )
+        
+        # Make the request
+        with urllib.request.urlopen(req, timeout=30) as response:
+            response_data = json.loads(response.read().decode('utf-8'))
+            
+            # Check if AI wants to call a function
+            if 'function_call' in response_data['choices'][0]['message']:
+                function_call = response_data['choices'][0]['message']['function_call']
+                function_name = function_call['name']
+                function_args = json.loads(function_call['arguments'])
+                
+                # Add user_id if function needs it
+                if function_name in ['get_user_requests', 'get_system_metrics']:
+                    function_args['user_id'] = user_id
+                
+                # Call the function
+                function_response = FUNCTION_MAP[function_name](**function_args)
+                
+                # Get final response from AI with function result
+                final_messages = messages.copy()
+                final_messages.append({
+                    "role": "assistant",
+                    "content": None,
+                    "function_call": function_call
+                })
+                final_messages.append({
+                    "role": "function",
+                    "name": function_name,
+                    "content": json.dumps(function_response)
+                })
+                
+                # Get final response
+                final_data = {
+                    "model": "gpt-4",
+                    "messages": final_messages,
+                    "max_tokens": 1000,
+                    "temperature": 0.7
+                }
+                
+                final_req = urllib.request.Request(
+                    "https://api.openai.com/v1/chat/completions",
+                    data=json.dumps(final_data).encode('utf-8'),
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {OPENAI_API_KEY}"
+                    },
+                    method='POST'
+                )
+                
+                with urllib.request.urlopen(final_req, timeout=30) as final_response:
+                    final_response_data = json.loads(final_response.read().decode('utf-8'))
+                    return {"output_text": final_response_data['choices'][0]['message']['content']}
+            else:
+                return {"output_text": response_data['choices'][0]['message']['content']}
+            
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8')
+        print(f"OpenAI API HTTP Error: {e.code} - {error_body}")
+        return {"error": f"HTTP {e.code}: {error_body}"}
+    except Exception as e:
+        print(f"OpenAI API error: {str(e)}")
+        return {"error": str(e)}
+
+
 @csrf_exempt
 @require_http_methods(["POST"])
 @login_required
@@ -371,8 +465,13 @@ def chat_api(request):
         messages.extend(chat_history)
         messages.append({"role": "user", "content": user_message})
         
-        # Simple API call
-        response = call_openai_api(messages, FUNCTIONS)
+        # Check if this is a function call request
+        if any(keyword in user_message.lower() for keyword in ['create', 'new', 'add', 'check', 'show', 'get', 'list', 'events', 'availability', 'account', 'request']):
+            # Use function calling for system integration
+            response = call_openai_api_with_functions(messages, FUNCTIONS, request.user.id)
+        else:
+            # Simple API call for general questions
+            response = call_openai_api(messages, FUNCTIONS)
         
         if 'error' in response:
             final_message = f"Sorry, I encountered an error: {response['error']}"
