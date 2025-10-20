@@ -1361,12 +1361,14 @@ def chat_api(request):
         response = call_openai_api_with_functions(messages, FUNCTIONS, request.user.id)
         print(f"Function calling response: {response}")
         
-        # If function calling fails or doesn't work, try manual function detection
-        if 'error' in response or 'I apologize' in response.get('output_text', '') or 'No response' in response.get('output_text', ''):
-            print("Function calling failed, trying manual function detection...")
-            manual_response = try_manual_function_calls(user_message, request.user.id)
-            if manual_response:
-                response = manual_response
+        # Always try manual function detection for debugging
+        print("Always trying manual function detection for debugging...")
+        manual_response = try_manual_function_calls(user_message, request.user.id)
+        if manual_response:
+            print(f"Manual function detection successful: {manual_response}")
+            response = manual_response
+        else:
+            print("Manual function detection failed, using OpenAI response")
         
         if 'error' in response:
             final_message = f"Sorry, I encountered an error: {response['error']}"
