@@ -79,7 +79,7 @@ def get_events_by_date(date_str):
         
         # Get event agendas for the date
         events = EventAgenda.objects.filter(
-            date=target_date
+            event_date=target_date
         ).select_related('request', 'request__account')
         
         print(f"Found {events.count()} events for {target_date}")
