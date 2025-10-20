@@ -339,12 +339,20 @@ def get_accommodations_by_date(date_str):
         
         print(f"Found {accommodations.count()} accommodations for {target_date}")
         
+        # Also check SeriesGroupEntry for series group arrivals
+        series_entries = SeriesGroupEntry.objects.filter(
+            arrival_date=target_date
+        ).select_related('request', 'request__account')
+        
+        print(f"Found {series_entries.count()} series group entries for {target_date}")
+        
         result = {
             'date': date_str,
             'accommodations': [],
-            'total_count': accommodations.count()
+            'total_count': accommodations.count() + series_entries.count()
         }
         
+        # Add regular accommodations
         for acc in accommodations:
             acc_data = {
                 'company_name': acc.account.name if acc.account else 'N/A',
@@ -357,6 +365,22 @@ def get_accommodations_by_date(date_str):
                 'status': acc.status,
                 'confirmation_number': acc.confirmation_number or 'Draft',
                 'request_id': acc.id
+            }
+            result['accommodations'].append(acc_data)
+        
+        # Add series group entries
+        for series in series_entries:
+            acc_data = {
+                'company_name': series.request.account.name if series.request.account else 'N/A',
+                'request_type': 'Series Group',
+                'check_in_date': series.arrival_date.strftime('%Y-%m-%d'),
+                'check_out_date': series.departure_date.strftime('%Y-%m-%d'),
+                'nights': series.nights or 0,
+                'total_rooms': series.number_of_rooms or 0,
+                'total_cost': float(series.get_total_cost()) if series.get_total_cost() else 0,
+                'status': series.request.status,
+                'confirmation_number': series.request.confirmation_number or 'Draft',
+                'request_id': series.request.id
             }
             result['accommodations'].append(acc_data)
         
@@ -590,10 +614,21 @@ def get_comprehensive_date_data(date_str):
         print(f"Date: {date_str}")
         
         # Get all data types
+        print("Getting events...")
         events_result = get_events_by_date(date_str)
+        print(f"Events result: {events_result}")
+        
+        print("Getting accommodations...")
         accommodations_result = get_accommodations_by_date(date_str)
+        print(f"Accommodations result: {accommodations_result}")
+        
+        print("Getting sales calls...")
         sales_calls_result = get_sales_calls_by_date(date_str)
+        print(f"Sales calls result: {sales_calls_result}")
+        
+        print("Getting room availability...")
         room_availability_result = get_room_availability_by_date(date_str)
+        print(f"Room availability result: {room_availability_result}")
         
         # Build comprehensive response
         response_parts = [f"📅 **COMPLETE SCHEDULE FOR {date_str}**\n"]
@@ -649,7 +684,11 @@ def try_manual_function_calls(user_message, user_id):
         if any(word in message_lower for word in ['what do i have', 'what\'s on', 'what is on', 'what have i', 'what do we have', 'show me', 'tell me about']):
             if date_str:
                 print("Detected: Comprehensive date query")
+                print(f"Date extracted: {date_str}")
                 return get_comprehensive_date_data(date_str)
+            else:
+                print("No date extracted from message")
+                return {"output_text": "I couldn't extract a date from your message. Please try asking with a specific date like 'What do I have on November 25th?'"}
         
         # Check for specific event queries
         if any(word in message_lower for word in ['events', 'meetings', 'conferences']):
