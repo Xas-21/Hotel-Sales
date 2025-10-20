@@ -8,14 +8,13 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Sum, Count
+from decimal import Decimal
 
 from requests.models import Request, EventAgenda, RoomEntry, SeriesGroupEntry
 from accounts.models import Account
 from sales_calls.models import SalesCall
 from agreements.models import Agreement
 from event_management.views import get_room_availability
-from django.db.models import Sum, Count, Q
-from decimal import Decimal
 
 # OpenAI API Configuration
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
