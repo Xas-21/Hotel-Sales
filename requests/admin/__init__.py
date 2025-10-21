@@ -262,7 +262,7 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     search_fields = ['confirmation_number', 'account__name', 'account__contact_person']
     readonly_fields = ['nights', 'total_cost', 'total_rooms', 'total_room_nights', 'created_at', 'updated_at', 
                       'get_adr_display', 'get_room_total_display', 'get_transportation_total_display', 
-                      'get_event_total_display', 'get_statistics_summary']
+                      'get_event_total_display', 'get_statistics_summary', 'get_cancellation_summary']
     inlines = [RoomEntryInline, TransportationInline, EventAgendaInline, SeriesGroupEntryInline]
     ordering = ['-created_at']
     actions = ['export_selected_requests']
@@ -275,9 +275,30 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     }
     
     def get_fieldsets(self, request, obj=None):
-        """Override to ensure Financial Summary section is always shown"""
-        # Always use original fieldsets to ensure Financial Summary section is visible
-        return self.get_original_fieldsets(request, obj)
+        """Override to ensure Financial Summary section is always shown and include conditional fieldsets"""
+        # Get the original fieldsets
+        fieldsets = self.get_original_fieldsets(request, obj)
+        
+        # Add conditional fieldsets (like cancellation details)
+        conditional_fieldsets = self.get_conditional_fieldsets(request, obj)
+        
+        # Insert conditional fieldsets after the Status & Payment Tracking section
+        if conditional_fieldsets:
+            # Find the index of the Status & Payment Tracking section
+            status_section_index = None
+            for i, (title, options) in enumerate(fieldsets):
+                if title == 'Status & Payment Tracking':
+                    status_section_index = i
+                    break
+            
+            if status_section_index is not None:
+                # Insert conditional fieldsets after the Status & Payment Tracking section
+                fieldsets = fieldsets[:status_section_index + 1] + conditional_fieldsets + fieldsets[status_section_index + 1:]
+            else:
+                # If Status section not found, append at the end
+                fieldsets.extend(conditional_fieldsets)
+        
+        return fieldsets
     
     def get_config_form_type(self, obj=None):
         """Get the form type for configuration lookup based on request type"""
@@ -341,11 +362,35 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
         
         if obj and obj.status == 'Cancelled':
             conditional_fieldsets.append(('Cancellation Details', {
-                'fields': ('cancellation_reason_fixed', 'cancellation_reason'),
+                'fields': ('cancellation_reason_fixed', 'cancellation_reason', 'get_cancellation_summary'),
                 'description': 'Cancellation information for this request'
             }))
         
         return conditional_fieldsets
+    
+    def get_cancellation_summary(self, obj):
+        """Display a summary of cancellation information"""
+        if obj and obj.status == 'Cancelled':
+            summary_parts = []
+            
+            if obj.cancellation_reason_fixed:
+                summary_parts.append(f"<strong>Reason:</strong> {obj.cancellation_reason_fixed.label}")
+                if obj.cancellation_reason_fixed.is_refundable:
+                    summary_parts.append("<span style='color: green;'>✓ Refundable</span>")
+                else:
+                    summary_parts.append("<span style='color: red;'>✗ Non-refundable</span>")
+            
+            if obj.cancellation_reason:
+                summary_parts.append(f"<strong>Additional Notes:</strong> {obj.cancellation_reason}")
+            
+            if summary_parts:
+                return format_html("<br>".join(summary_parts))
+            else:
+                return format_html("<em>No cancellation details provided</em>")
+        
+        return "N/A"
+    get_cancellation_summary.short_description = "Cancellation Summary"
+    get_cancellation_summary.allow_tags = True
     
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -572,42 +617,61 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     
     def cancel_request_view(self, request, object_id):
         """Handle request cancellation with popup form"""
-        obj = get_object_or_404(self.model, pk=object_id)
-        
-        if request.method == 'POST':
-            print(f"=== CANCEL REQUEST DEBUG ===")
-            print(f"POST data: {request.POST}")
-            print(f"Headers: {request.headers}")
+        try:
+            obj = get_object_or_404(self.model, pk=object_id)
             
-            # Get cancellation reason from form
-            cancellation_reason_fixed_id = request.POST.get('cancellation_reason_fixed')
-            cancellation_reason_text = request.POST.get('cancellation_reason', '')
-            
-            print(f"Cancellation reason fixed ID: {cancellation_reason_fixed_id}")
-            print(f"Cancellation reason text: {cancellation_reason_text}")
-            
-            # Update the request status to Cancelled
-            obj.status = 'Cancelled'
-            
-            # Set cancellation reason
-            if cancellation_reason_fixed_id:
-                from settings.models import CancellationReason
-                obj.cancellation_reason_fixed_id = cancellation_reason_fixed_id
-            obj.cancellation_reason = cancellation_reason_text
-            
-            obj.save()
-            print(f"Request {obj.confirmation_number} cancelled successfully")
-            
-            messages.success(request, f'Request {obj.confirmation_number} has been cancelled.')
+            if request.method == 'POST':
+                print(f"=== CANCEL REQUEST DEBUG ===")
+                print(f"POST data: {request.POST}")
+                print(f"Headers: {request.headers}")
+                
+                # Get cancellation reason from form
+                cancellation_reason_fixed_id = request.POST.get('cancellation_reason_fixed')
+                cancellation_reason_text = request.POST.get('cancellation_reason', '')
+                
+                print(f"Cancellation reason fixed ID: {cancellation_reason_fixed_id}")
+                print(f"Cancellation reason text: {cancellation_reason_text}")
+                
+                # Update the request status to Cancelled
+                obj.status = 'Cancelled'
+                
+                # Set cancellation reason
+                if cancellation_reason_fixed_id:
+                    from settings.models import CancellationReason
+                    try:
+                        cancellation_reason = CancellationReason.objects.get(id=cancellation_reason_fixed_id)
+                        obj.cancellation_reason_fixed = cancellation_reason
+                        print(f"Set cancellation reason: {cancellation_reason.label}")
+                    except CancellationReason.DoesNotExist:
+                        print(f"Warning: CancellationReason with ID {cancellation_reason_fixed_id} not found")
+                        messages.warning(request, f'Cancellation reason not found. Request cancelled without reason.')
+                obj.cancellation_reason = cancellation_reason_text
+                
+                obj.save()
+                print(f"Request {obj.confirmation_number} cancelled successfully")
+                
+                messages.success(request, f'Request {obj.confirmation_number} has been cancelled.')
+                
+                # Return JSON response for AJAX requests
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    print("Returning JSON response for AJAX")
+                    return JsonResponse({'success': True})
+                
+                # Redirect back to change page
+                print("Redirecting to change page")
+                return redirect('admin:requests_request_change', obj.pk)
+                
+        except Exception as e:
+            print(f"ERROR in cancel_request_view: {str(e)}")
+            import traceback
+            traceback.print_exc()
             
             # Return JSON response for AJAX requests
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                print("Returning JSON response for AJAX")
-                return JsonResponse({'success': True})
+                return JsonResponse({'success': False, 'error': str(e)})
             
-            # Redirect back to change page
-            print("Redirecting to change page")
-            return redirect('admin:requests_request_change', obj.pk)
+            messages.error(request, f'Error cancelling request: {str(e)}')
+            return redirect('admin:requests_request_change', object_id)
         
         # GET request - show cancellation form
         from settings.models import CancellationReason

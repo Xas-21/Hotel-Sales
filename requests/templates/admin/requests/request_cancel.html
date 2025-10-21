@@ -133,7 +133,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     window.close();
                 } else {
-                    alert('Cancellation failed. Please try again.');
+                    console.error('Cancellation failed:', data);
+                    alert('Cancellation failed: ' + (data.error || 'Unknown error'));
                 }
             })
             .catch(error => {
