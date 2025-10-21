@@ -54,23 +54,6 @@ class RoomOccupancy(models.Model):
         return f"{self.label} ({self.pax_count} pax)"
 
 
-class CancellationReason(models.Model):
-    """Admin-configurable cancellation reasons"""
-    code = models.CharField(max_length=50, unique=True, help_text="Unique identifier")
-    label = models.CharField(max_length=200, help_text="Reason description")
-    is_refundable = models.BooleanField(default=False, help_text="Allows refund")
-    active = models.BooleanField(default=True, help_text="Available for selection")
-    sort_order = models.PositiveIntegerField(default=0, help_text="Display order")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['sort_order', 'label']
-        verbose_name = "Cancellation Reason"
-        verbose_name_plural = "Cancellation Reasons"
-
-    def __str__(self):
-        return self.label
 
 
 class SystemFieldRequirement(models.Model):
@@ -239,7 +222,7 @@ class Request(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Draft')
     cancellation_reason = models.TextField(blank=True, help_text="Custom cancellation reason (when fixed reason not sufficient)")
     cancellation_reason_fixed = models.ForeignKey(
-        'CancellationReason', 
+        'settings.CancellationReason', 
         on_delete=models.SET_NULL, 
         null=True, 
         blank=True,

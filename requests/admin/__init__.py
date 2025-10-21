@@ -15,7 +15,7 @@ import csv
 from hotel_sales.currency_utils import format_currency
 from requests.models import (
     Request, CancelledRequest, RoomEntry, Transportation, EventAgenda, SeriesGroupEntry, SeriesRoomEntry,
-    RoomType, RoomOccupancy, CancellationReason, SystemFieldRequirement, SystemFormLayout,
+    RoomType, RoomOccupancy, SystemFieldRequirement, SystemFormLayout,
     RequestFieldRequirement, RequestFormLayout, DynamicModel, DynamicField, DynamicModelMigration, DynamicFieldValue,
     AccommodationRequest, EventOnlyRequest, EventWithRoomsRequest, SeriesGroupRequest
 )
@@ -575,32 +575,42 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
         obj = get_object_or_404(self.model, pk=object_id)
         
         if request.method == 'POST':
+            print(f"=== CANCEL REQUEST DEBUG ===")
+            print(f"POST data: {request.POST}")
+            print(f"Headers: {request.headers}")
+            
             # Get cancellation reason from form
             cancellation_reason_fixed_id = request.POST.get('cancellation_reason_fixed')
             cancellation_reason_text = request.POST.get('cancellation_reason', '')
+            
+            print(f"Cancellation reason fixed ID: {cancellation_reason_fixed_id}")
+            print(f"Cancellation reason text: {cancellation_reason_text}")
             
             # Update the request status to Cancelled
             obj.status = 'Cancelled'
             
             # Set cancellation reason
             if cancellation_reason_fixed_id:
-                from requests.models import CancellationReason
+                from settings.models import CancellationReason
                 obj.cancellation_reason_fixed_id = cancellation_reason_fixed_id
             obj.cancellation_reason = cancellation_reason_text
             
             obj.save()
+            print(f"Request {obj.confirmation_number} cancelled successfully")
             
             messages.success(request, f'Request {obj.confirmation_number} has been cancelled.')
             
             # Return JSON response for AJAX requests
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                print("Returning JSON response for AJAX")
                 return JsonResponse({'success': True})
             
             # Redirect back to change page
+            print("Redirecting to change page")
             return redirect('admin:requests_request_change', obj.pk)
         
         # GET request - show cancellation form
-        from requests.models import CancellationReason
+        from settings.models import CancellationReason
         cancellation_reasons = CancellationReason.objects.filter(active=True).order_by('sort_order')
         
         context = {
@@ -1404,3 +1414,4 @@ class DynamicFieldValueAdmin(admin.ModelAdmin):
         else:
             return str(value)
     get_value_display.short_description = "Value"
+

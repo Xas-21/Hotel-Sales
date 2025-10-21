@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'dashboard',
     'event_management',
     'chatbot',
+    'settings',
 ]
 
 MIDDLEWARE = [

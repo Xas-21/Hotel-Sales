@@ -105,10 +105,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const isPopup = window.opener !== null;
     
     if (isPopup) {
+        console.log('Popup detected, setting up AJAX form submission');
         form.addEventListener('submit', function(e) {
+            console.log('Form submission triggered');
             e.preventDefault();
             
             const formData = new FormData(form);
+            console.log('Form data:', Object.fromEntries(formData));
             
             fetch(window.location.href, {
                 method: 'POST',
@@ -117,14 +120,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     'X-Requested-With': 'XMLHttpRequest',
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('Response received:', response);
+                return response.json();
+            })
             .then(data => {
+                console.log('Response data:', data);
                 if (data.success) {
                     // Reload parent window and close popup
                     if (window.opener) {
                         window.opener.location.reload();
                     }
                     window.close();
+                } else {
+                    alert('Cancellation failed. Please try again.');
                 }
             })
             .catch(error => {
@@ -132,6 +141,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('An error occurred while cancelling the request.');
             });
         });
+    } else {
+        console.log('Not a popup, using normal form submission');
     }
 });
 </script>
