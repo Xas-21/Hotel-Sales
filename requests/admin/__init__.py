@@ -257,7 +257,7 @@ class RequestAdminForm(forms.ModelForm):
 class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     form = RequestAdminForm
     change_form_template = 'admin/requests/change_form.html'
-    list_display = ['confirmation_number', 'account', 'request_type', 'meal_plan', 'status', 'check_in_date', 'check_out_date', 'nights', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
+    list_display = ['confirmation_number', 'account', 'request_type', 'meal_plan', 'status', 'check_in_date', 'check_out_date', 'get_event_start_date', 'get_event_end_date', 'nights', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
     list_filter = ['request_type', 'meal_plan', StatusFilter, 'created_at', 'check_in_date']
     search_fields = ['confirmation_number', 'account__name', 'account__contact_person']
     readonly_fields = ['nights', 'total_cost', 'total_rooms', 'total_room_nights', 'created_at', 'updated_at', 
@@ -266,6 +266,11 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
     inlines = [RoomEntryInline, TransportationInline, EventAgendaInline, SeriesGroupEntryInline]
     ordering = ['-created_at']
     actions = ['export_selected_requests']
+    
+    def get_queryset(self, request):
+        """Optimize queryset to prefetch event agendas for event date columns"""
+        qs = super().get_queryset(request)
+        return qs.prefetch_related('event_agendas')
     
     # Force admin widgets for date/time fields to ensure calendar pickers display
     formfield_overrides = {
@@ -464,6 +469,26 @@ class BaseRequestAdmin(ConfigEnforcedAdminMixin, admin.ModelAdmin):
             return " | ".join(summary)
         return "No statistics available"
     get_statistics_summary.short_description = "Statistics Summary"
+    
+    def get_event_start_date(self, obj):
+        """Get the earliest event start date from EventAgenda"""
+        if obj.request_type in ['Event without Rooms', 'Event with Rooms']:
+            first_agenda = obj.event_agendas.order_by('event_date', 'start_time').first()
+            if first_agenda:
+                return first_agenda.event_date
+        return '-'
+    get_event_start_date.short_description = 'Event Start Date'
+    get_event_start_date.admin_order_field = 'event_agendas__event_date'
+    
+    def get_event_end_date(self, obj):
+        """Get the latest event end date from EventAgenda"""
+        if obj.request_type in ['Event without Rooms', 'Event with Rooms']:
+            last_agenda = obj.event_agendas.order_by('-event_date', '-end_time').first()
+            if last_agenda:
+                return last_agenda.event_date
+        return '-'
+    get_event_end_date.short_description = 'Event End Date'
+    get_event_end_date.admin_order_field = 'event_agendas__event_date'
     
     def export_selected_requests(self, request, queryset):
         """Export selected requests to CSV file with security safeguards and comprehensive details"""
@@ -927,7 +952,7 @@ class EventOnlyRequestAdmin(BaseRequestAdmin):
     inlines = [EventAgendaInline, TransportationInline]
     
     # Complete admin configuration matching AccommodationRequestAdmin
-    list_display = ['confirmation_number', 'account', 'status', 'request_received_date', 'total_cost', 'created_at']
+    list_display = ['confirmation_number', 'account', 'status', 'get_event_start_date', 'get_event_end_date', 'request_received_date', 'total_cost', 'created_at']
     list_filter = [StatusFilter, 'request_received_date', 'created_at']
     search_fields = ['confirmation_number', 'account__name', 'account__contact_person']
     readonly_fields = ['total_cost', 'created_at', 'updated_at', 
@@ -1114,7 +1139,7 @@ class EventWithRoomsRequestAdmin(BaseRequestAdmin):
     inlines = [EventAgendaInline, RoomEntryInline, TransportationInline]
     
     # Complete admin configuration matching AccommodationRequestAdmin
-    list_display = ['confirmation_number', 'account', 'meal_plan', 'status', 'check_in_date', 'check_out_date', 'nights', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
+    list_display = ['confirmation_number', 'account', 'meal_plan', 'status', 'check_in_date', 'check_out_date', 'get_event_start_date', 'get_event_end_date', 'nights', 'total_rooms', 'total_room_nights', 'total_cost', 'created_at']
     list_filter = ['meal_plan', StatusFilter, 'created_at', 'check_in_date']
     search_fields = ['confirmation_number', 'account__name', 'account__contact_person']
     readonly_fields = ['nights', 'total_cost', 'total_rooms', 'total_room_nights', 'created_at', 'updated_at', 

@@ -6,6 +6,7 @@ app_name = 'event_management'
 urlpatterns = [
     path('', views.event_management_dashboard, name='dashboard'),
     path('create/', views.create_event, name='create_event'),
+    path('export-report/', views.export_events_report, name='export_events_report'),
     path('api/check-availability/', views.check_availability, name='check_availability'),
     path('api/metrics/', views.event_metrics_api, name='event_metrics_api'),
     path('api/calendar-events/', views.calendar_events_api, name='calendar_events_api'),
