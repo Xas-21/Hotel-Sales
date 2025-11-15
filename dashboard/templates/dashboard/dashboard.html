@@ -984,7 +984,17 @@
                             <div class="col-12">
                                 <div class="card">
                                     <div class="card-header">
-                                        <h6 class="mb-0">Recent Requests</h6>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <h6 class="mb-0">Recent Requests</h6>
+                                            <div class="btn-group btn-group-sm" role="group" aria-label="Request status filters" style="flex-wrap: wrap;">
+                                                <button type="button" class="btn btn-outline-primary filter-btn" data-status="all" style="cursor: pointer; margin: 1px;">All</button>
+                                                <button type="button" class="btn btn-outline-warning filter-btn" data-status="Pending" style="cursor: pointer; margin: 1px;">Pending</button>
+                                                <button type="button" class="btn btn-outline-success filter-btn" data-status="Paid" style="cursor: pointer; margin: 1px;">Paid</button>
+                                                <button type="button" class="btn btn-outline-info filter-btn" data-status="Confirmed" style="cursor: pointer; margin: 1px;">Confirmed</button>
+                                                <button type="button" class="btn btn-outline-danger filter-btn" data-status="Cancelled" style="cursor: pointer; margin: 1px;">CXL</button>
+                                                <button type="button" class="btn btn-outline-secondary filter-btn" data-status="Draft" style="cursor: pointer; margin: 1px;">Draft</button>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="card-body">
                                         {% if recent_requests %}
@@ -2341,6 +2351,71 @@
                 window.location.href = url.toString();
             });
         });
+
+        // Simple and direct filter functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('=== FILTER INITIALIZATION ===');
+            
+            // Wait a moment for everything to load
+            setTimeout(function() {
+                const filterButtons = document.querySelectorAll('.filter-btn');
+                const requestItems = document.querySelectorAll('.list-group-item');
+                
+                console.log('Found buttons:', filterButtons.length);
+                console.log('Found items:', requestItems.length);
+                
+                // Add click handlers to all filter buttons
+                filterButtons.forEach(function(button) {
+                    button.addEventListener('click', function() {
+                        console.log('Button clicked:', this.textContent);
+                        
+                        const status = this.getAttribute('data-status');
+                        console.log('Filtering by:', status);
+                        
+                        // Update button styles
+                        filterButtons.forEach(function(btn) {
+                            btn.classList.remove('active');
+                        });
+                        this.classList.add('active');
+                        
+                        // Filter the items
+                        requestItems.forEach(function(item) {
+                            if (status === 'all') {
+                                item.style.display = 'flex';
+                            } else {
+                                const dropdown = item.querySelector('.status-dropdown');
+                                if (dropdown && dropdown.value === status) {
+                                    item.style.display = 'flex';
+                                } else {
+                                    item.style.display = 'none';
+                                }
+                            }
+                        });
+                        
+                        console.log('Filtering complete');
+                    });
+                });
+                
+                // Set "All" as active by default
+                const allButton = document.querySelector('.filter-btn[data-status="all"]');
+                if (allButton) {
+                    allButton.classList.add('active');
+                }
+                
+            }, 1000);
+        });
     </script>
+    
+    <style>
+        .filter-btn.active {
+            background-color: #007bff !important;
+            color: white !important;
+            border-color: #007bff !important;
+        }
+        .filter-btn:hover {
+            transform: scale(1.05);
+            transition: all 0.2s ease;
+        }
+    </style>
 </body>
 </html>
