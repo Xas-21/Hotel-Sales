@@ -30,6 +30,8 @@ def event_management_dashboard(request):
     
     # Get date range (default to show ALL events - no date restrictions)
     today = date.today()
+    default_report_start = date(today.year, 1, 1)
+    default_report_end = date(today.year, 12, 31)
     start_date = request.GET.get('start_date', '2020-01-01')  # Show all events from 2020 onwards
     end_date = request.GET.get('end_date', '2030-12-31')     # Show all events until 2030
     
@@ -94,6 +96,9 @@ def event_management_dashboard(request):
         'event_metrics': event_metrics,
         'room_availability': room_availability,
         **currency_context,  # Add currency context
+        'request_status_choices': Request.STATUS_CHOICES,
+        'report_default_start': default_report_start.strftime('%Y-%m-%d'),
+        'report_default_end': default_report_end.strftime('%Y-%m-%d'),
     }
     
     return render(request, 'event_management/dashboard.html', context)
@@ -1100,6 +1105,158 @@ def sanitize_csv_value(value):
     return str_value
 
 
+def build_event_report_rows(event_requests):
+    """
+    Build aggregated CSV rows for the supplied event requests and return summary totals.
+    """
+    rows = []
+    summary = {
+        'total_events': 0,
+        'event_revenue': Decimal('0.00'),
+        'room_revenue': Decimal('0.00'),
+        'combined_revenue': Decimal('0.00'),
+        'total_pax': 0,
+    }
+
+    for req in event_requests:
+        event_agendas = req.event_agendas.all().order_by('event_date', 'start_time')
+
+        if event_agendas.exists():
+            event_dates = [agenda.event_date for agenda in event_agendas]
+            event_start_date = min(event_dates)
+            event_end_date = max(event_dates)
+            number_of_days = (event_end_date - event_start_date).days + 1
+
+            all_meeting_rooms = set()
+            all_packages = set()
+            all_styles = set()
+            earliest_start_time = None
+            latest_end_time = None
+            total_pax_all_days = 0
+            event_name = None
+
+            for agenda in event_agendas:
+                if agenda.meeting_room_name:
+                    all_meeting_rooms.add(agenda.meeting_room_name)
+
+                if agenda.packages:
+                    all_packages.add(agenda.get_packages_display())
+
+                if agenda.style:
+                    all_styles.add(agenda.get_style_display())
+
+                if agenda.start_time:
+                    if earliest_start_time is None or agenda.start_time < earliest_start_time:
+                        earliest_start_time = agenda.start_time
+                if agenda.end_time:
+                    if latest_end_time is None or agenda.end_time > latest_end_time:
+                        latest_end_time = agenda.end_time
+
+                total_pax_all_days += agenda.total_persons or 0
+
+                if event_name is None:
+                    event_name = agenda.event_name or agenda.agenda_details
+
+            total_event_amount = req.get_event_total()
+            total_room_amount = req.get_room_total() if req.request_type == 'Event with Rooms' else Decimal('0.00')
+            combined_total = total_event_amount + total_room_amount
+
+            meeting_rooms_display = ', '.join(sorted(all_meeting_rooms)) if all_meeting_rooms else ''
+            packages_display = ', '.join(sorted(all_packages)) if all_packages else ''
+            styles_display = ', '.join(sorted(all_styles)) if all_styles else ''
+
+            row = [
+                sanitize_csv_value(req.confirmation_number),
+                sanitize_csv_value(req.get_request_type_display()),
+                sanitize_csv_value(req.account.name if req.account else 'No Account'),
+                sanitize_csv_value(req.account.account_type if req.account else ''),
+                sanitize_csv_value(req.account.contact_person if req.account else ''),
+                sanitize_csv_value(req.get_status_display()),
+                sanitize_csv_value(req.request_received_date.strftime('%Y-%m-%d') if req.request_received_date else ''),
+                sanitize_csv_value(event_start_date.strftime('%Y-%m-%d')),
+                sanitize_csv_value(event_end_date.strftime('%Y-%m-%d')),
+                sanitize_csv_value(earliest_start_time.strftime('%H:%M') if earliest_start_time else ''),
+                sanitize_csv_value(latest_end_time.strftime('%H:%M') if latest_end_time else ''),
+                sanitize_csv_value(number_of_days),
+                sanitize_csv_value(meeting_rooms_display),
+                sanitize_csv_value(event_name or ''),
+                sanitize_csv_value(total_pax_all_days),
+                sanitize_csv_value(packages_display),
+                sanitize_csv_value(styles_display),
+                sanitize_csv_value(f"{total_event_amount:.2f}"),
+                sanitize_csv_value(f"{total_room_amount:.2f}" if req.request_type == 'Event with Rooms' else '0.00'),
+                sanitize_csv_value(f"{combined_total:.2f}"),
+                sanitize_csv_value(req.check_in_date.strftime('%Y-%m-%d') if req.check_in_date and req.request_type == 'Event with Rooms' else ''),
+                sanitize_csv_value(req.check_out_date.strftime('%Y-%m-%d') if req.check_out_date and req.request_type == 'Event with Rooms' else ''),
+                sanitize_csv_value(req.nights if req.nights and req.request_type == 'Event with Rooms' else ''),
+                sanitize_csv_value(req.total_rooms if req.total_rooms and req.request_type == 'Event with Rooms' else ''),
+                sanitize_csv_value(req.total_room_nights if req.total_room_nights and req.request_type == 'Event with Rooms' else ''),
+                sanitize_csv_value(req.get_meal_plan_display() if req.meal_plan and req.request_type == 'Event with Rooms' else ''),
+                sanitize_csv_value(req.offer_acceptance_deadline.strftime('%Y-%m-%d') if req.offer_acceptance_deadline else ''),
+                sanitize_csv_value(req.deposit_deadline.strftime('%Y-%m-%d') if req.deposit_deadline else ''),
+                sanitize_csv_value(req.full_payment_deadline.strftime('%Y-%m-%d') if req.full_payment_deadline else ''),
+                sanitize_csv_value(f"{req.get_display_paid_amount():.2f}" if hasattr(req, 'get_display_paid_amount') and req.get_display_paid_amount() else '0.00'),
+                sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
+                sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
+                sanitize_csv_value(req.updated_at.strftime('%Y-%m-%d %H:%M') if req.updated_at else ''),
+                sanitize_csv_value(req.notes),
+            ]
+
+            pax_for_summary = total_pax_all_days
+        else:
+            total_event_amount = Decimal('0.00')
+            total_room_amount = req.get_room_total() if req.request_type == 'Event with Rooms' else Decimal('0.00')
+            combined_total = total_event_amount + total_room_amount
+
+            row = [
+                sanitize_csv_value(req.confirmation_number),
+                sanitize_csv_value(req.get_request_type_display()),
+                sanitize_csv_value(req.account.name if req.account else 'No Account'),
+                sanitize_csv_value(req.account.account_type if req.account else ''),
+                sanitize_csv_value(req.account.contact_person if req.account else ''),
+                sanitize_csv_value(req.get_status_display()),
+                sanitize_csv_value(req.request_received_date.strftime('%Y-%m-%d') if req.request_received_date else ''),
+                sanitize_csv_value(''),
+                sanitize_csv_value(''),
+                sanitize_csv_value(''),
+                sanitize_csv_value(''),
+                sanitize_csv_value(''),
+                sanitize_csv_value(''),
+                sanitize_csv_value('Event (No Details)'),
+                sanitize_csv_value(''),
+                sanitize_csv_value(''),
+                sanitize_csv_value(''),
+                sanitize_csv_value(f"{total_event_amount:.2f}"),
+                sanitize_csv_value(f"{total_room_amount:.2f}"),
+                sanitize_csv_value(f"{combined_total:.2f}"),
+                sanitize_csv_value(req.check_in_date.strftime('%Y-%m-%d') if req.check_in_date else ''),
+                sanitize_csv_value(req.check_out_date.strftime('%Y-%m-%d') if req.check_out_date else ''),
+                sanitize_csv_value(req.nights if req.nights else ''),
+                sanitize_csv_value(req.total_rooms if req.total_rooms else ''),
+                sanitize_csv_value(req.total_room_nights if req.total_room_nights else ''),
+                sanitize_csv_value(req.get_meal_plan_display() if req.meal_plan else ''),
+                sanitize_csv_value(req.offer_acceptance_deadline.strftime('%Y-%m-%d') if req.offer_acceptance_deadline else ''),
+                sanitize_csv_value(req.deposit_deadline.strftime('%Y-%m-%d') if req.deposit_deadline else ''),
+                sanitize_csv_value(req.full_payment_deadline.strftime('%Y-%m-%d') if req.full_payment_deadline else ''),
+                sanitize_csv_value(f"{req.get_display_paid_amount():.2f}" if hasattr(req, 'get_display_paid_amount') and req.get_display_paid_amount() else '0.00'),
+                sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
+                sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
+                sanitize_csv_value(req.updated_at.strftime('%Y-%m-%d %H:%M') if req.updated_at else ''),
+                sanitize_csv_value(req.notes),
+            ]
+
+            pax_for_summary = 0
+
+        rows.append(row)
+        summary['total_events'] += 1
+        summary['event_revenue'] += total_event_amount
+        summary['room_revenue'] += total_room_amount
+        summary['combined_revenue'] += combined_total
+        summary['total_pax'] += pax_for_summary
+
+    return rows, summary
+
+
 @login_required
 def export_events_report(request):
     """
@@ -1164,176 +1321,20 @@ def export_events_report(request):
     event_requests = Request.objects.filter(
         request_type__in=['Event without Rooms', 'Event with Rooms']
     ).select_related('account').prefetch_related('event_agendas', 'room_entries').order_by('request_received_date', 'id')
-    
-    total_events = 0
-    total_combined_revenue = Decimal('0.00')
-    
-    for req in event_requests:
-        # Get all event agendas for this request
-        event_agendas = req.event_agendas.all().order_by('event_date', 'start_time')
-        
-        if event_agendas.exists():
-            # Calculate event date range
-            event_dates = [agenda.event_date for agenda in event_agendas]
-            event_start_date = min(event_dates)
-            event_end_date = max(event_dates)
-            number_of_days = (event_end_date - event_start_date).days + 1
-            
-            # Aggregate event data across all days
-            all_meeting_rooms = set()
-            all_packages = set()
-            all_styles = set()
-            earliest_start_time = None
-            latest_end_time = None
-            total_pax_all_days = 0
-            event_name = None
-            
-            for agenda in event_agendas:
-                # Collect unique meeting rooms
-                if agenda.meeting_room_name:
-                    all_meeting_rooms.add(agenda.meeting_room_name)
-                
-                # Collect packages
-                if agenda.packages:
-                    all_packages.add(agenda.get_packages_display())
-                
-                # Collect styles
-                if agenda.style:
-                    all_styles.add(agenda.get_style_display())
-                
-                # Track earliest start time and latest end time
-                if agenda.start_time:
-                    if earliest_start_time is None or agenda.start_time < earliest_start_time:
-                        earliest_start_time = agenda.start_time
-                if agenda.end_time:
-                    if latest_end_time is None or agenda.end_time > latest_end_time:
-                        latest_end_time = agenda.end_time
-                
-                # Sum total pax across all days
-                total_pax_all_days += agenda.total_persons or 0
-                
-                # Get event name from first agenda
-                if event_name is None:
-                    event_name = agenda.event_name or agenda.agenda_details
-            
-            # Calculate totals
-            total_event_amount = req.get_event_total()  # Sum of all event costs across all days
-            total_room_amount = Decimal('0.00')
-            if req.request_type == 'Event with Rooms':
-                total_room_amount = req.get_room_total()  # Sum of all room costs across all nights
-            
-            combined_total = total_event_amount + total_room_amount
-            
-            # Format meeting rooms as comma-separated list
-            meeting_rooms_display = ', '.join(sorted(all_meeting_rooms)) if all_meeting_rooms else ''
-            packages_display = ', '.join(sorted(all_packages)) if all_packages else ''
-            styles_display = ', '.join(sorted(all_styles)) if all_styles else ''
-            
-            # Write ONE row per event (aggregated)
-            writer.writerow([
-                sanitize_csv_value(req.confirmation_number),
-                sanitize_csv_value(req.get_request_type_display()),
-                sanitize_csv_value(req.account.name if req.account else 'No Account'),
-                sanitize_csv_value(req.account.account_type if req.account else ''),
-                sanitize_csv_value(req.account.contact_person if req.account else ''),
-                sanitize_csv_value(req.get_status_display()),
-                sanitize_csv_value(req.request_received_date.strftime('%Y-%m-%d') if req.request_received_date else ''),
-                sanitize_csv_value(event_start_date.strftime('%Y-%m-%d')),
-                sanitize_csv_value(event_end_date.strftime('%Y-%m-%d')),
-                sanitize_csv_value(earliest_start_time.strftime('%H:%M') if earliest_start_time else ''),
-                sanitize_csv_value(latest_end_time.strftime('%H:%M') if latest_end_time else ''),
-                sanitize_csv_value(number_of_days),
-                sanitize_csv_value(meeting_rooms_display),
-                sanitize_csv_value(event_name or ''),
-                sanitize_csv_value(total_pax_all_days),
-                sanitize_csv_value(packages_display),
-                sanitize_csv_value(styles_display),
-                sanitize_csv_value(f"{total_event_amount:.2f}"),
-                sanitize_csv_value(f"{total_room_amount:.2f}" if req.request_type == 'Event with Rooms' else '0.00'),
-                sanitize_csv_value(f"{combined_total:.2f}"),
-                sanitize_csv_value(req.check_in_date.strftime('%Y-%m-%d') if req.check_in_date and req.request_type == 'Event with Rooms' else ''),
-                sanitize_csv_value(req.check_out_date.strftime('%Y-%m-%d') if req.check_out_date and req.request_type == 'Event with Rooms' else ''),
-                sanitize_csv_value(req.nights if req.nights and req.request_type == 'Event with Rooms' else ''),
-                sanitize_csv_value(req.total_rooms if req.total_rooms and req.request_type == 'Event with Rooms' else ''),
-                sanitize_csv_value(req.total_room_nights if req.total_room_nights and req.request_type == 'Event with Rooms' else ''),
-                sanitize_csv_value(req.get_meal_plan_display() if req.meal_plan and req.request_type == 'Event with Rooms' else ''),
-                sanitize_csv_value(req.offer_acceptance_deadline.strftime('%Y-%m-%d') if req.offer_acceptance_deadline else ''),
-                sanitize_csv_value(req.deposit_deadline.strftime('%Y-%m-%d') if req.deposit_deadline else ''),
-                sanitize_csv_value(req.full_payment_deadline.strftime('%Y-%m-%d') if req.full_payment_deadline else ''),
-                sanitize_csv_value(f"{req.get_display_paid_amount():.2f}" if hasattr(req, 'get_display_paid_amount') and req.get_display_paid_amount() else '0.00'),
-                sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
-                sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
-                sanitize_csv_value(req.updated_at.strftime('%Y-%m-%d %H:%M') if req.updated_at else ''),
-                sanitize_csv_value(req.notes),
-            ])
-            
-            total_events += 1
-            total_combined_revenue += combined_total
-        else:
-            # If no event agendas, still write a row with request info
-            total_event_amount = Decimal('0.00')
-            total_room_amount = req.get_room_total() if req.request_type == 'Event with Rooms' else Decimal('0.00')
-            combined_total = total_event_amount + total_room_amount
-            
-            writer.writerow([
-                sanitize_csv_value(req.confirmation_number),
-                sanitize_csv_value(req.get_request_type_display()),
-                sanitize_csv_value(req.account.name if req.account else 'No Account'),
-                sanitize_csv_value(req.account.account_type if req.account else ''),
-                sanitize_csv_value(req.account.contact_person if req.account else ''),
-                sanitize_csv_value(req.get_status_display()),
-                sanitize_csv_value(req.request_received_date.strftime('%Y-%m-%d') if req.request_received_date else ''),
-                sanitize_csv_value(''),
-                sanitize_csv_value(''),
-                sanitize_csv_value(''),
-                sanitize_csv_value(''),
-                sanitize_csv_value(''),
-                sanitize_csv_value(''),
-                sanitize_csv_value('Event (No Details)'),
-                sanitize_csv_value(''),
-                sanitize_csv_value(''),
-                sanitize_csv_value(''),
-                sanitize_csv_value(''),
-                sanitize_csv_value(''),
-                sanitize_csv_value(''),
-                sanitize_csv_value(''),
-                sanitize_csv_value(''),
-                sanitize_csv_value(''),  # Event Start Date
-                sanitize_csv_value(''),  # Event End Date
-                sanitize_csv_value(''),  # Earliest Start Time
-                sanitize_csv_value(''),  # Latest End Time
-                sanitize_csv_value(''),  # Number of Days
-                sanitize_csv_value(''),  # Meeting Rooms (All)
-                sanitize_csv_value('Event (No Details)'),  # Event Name
-                sanitize_csv_value(''),  # Total Number of Pax (All Days)
-                sanitize_csv_value(''),  # Packages
-                sanitize_csv_value(''),  # Styles
-                sanitize_csv_value(f"{total_event_amount:.2f}"),  # Total Event Amount (All Days)
-                sanitize_csv_value(f"{total_room_amount:.2f}"),  # Total Room Amount (All Nights)
-                sanitize_csv_value(f"{combined_total:.2f}"),  # Combined Total (Event + Rooms)
-                sanitize_csv_value(req.check_in_date.strftime('%Y-%m-%d') if req.check_in_date else ''),
-                sanitize_csv_value(req.check_out_date.strftime('%Y-%m-%d') if req.check_out_date else ''),
-                sanitize_csv_value(req.nights if req.nights else ''),
-                sanitize_csv_value(req.total_rooms if req.total_rooms else ''),
-                sanitize_csv_value(req.total_room_nights if req.total_room_nights else ''),
-                sanitize_csv_value(req.get_meal_plan_display() if req.meal_plan else ''),
-                sanitize_csv_value(req.offer_acceptance_deadline.strftime('%Y-%m-%d') if req.offer_acceptance_deadline else ''),
-                sanitize_csv_value(req.deposit_deadline.strftime('%Y-%m-%d') if req.deposit_deadline else ''),
-                sanitize_csv_value(req.full_payment_deadline.strftime('%Y-%m-%d') if req.full_payment_deadline else ''),
-                sanitize_csv_value(f"{req.get_display_paid_amount():.2f}" if hasattr(req, 'get_display_paid_amount') and req.get_display_paid_amount() else '0.00'),
-                sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
-                sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
-                sanitize_csv_value(req.updated_at.strftime('%Y-%m-%d %H:%M') if req.updated_at else ''),
-                sanitize_csv_value(req.notes),
-            ])
-            total_events += 1
-            total_combined_revenue += combined_total
-    
+
+    rows, summary = build_event_report_rows(event_requests)
+
+    for row in rows:
+        writer.writerow(row)
+
     # Write summary at the end
     writer.writerow([])
     writer.writerow(['SUMMARY:'])
-    writer.writerow(['Total Events:', total_events])
-    writer.writerow(['Total Combined Revenue (Event + Rooms):', f"{total_combined_revenue:.2f}"])
+    writer.writerow(['Total Events:', summary['total_events']])
+    writer.writerow(['Total Event Revenue (Events Only):', f"{summary['event_revenue']:.2f}"])
+    writer.writerow(['Total Accommodation Revenue (Rooms):', f"{summary['room_revenue']:.2f}"])
+    writer.writerow(['Total Combined Revenue (Event + Rooms):', f"{summary['combined_revenue']:.2f}"])
+    writer.writerow(['Total Pax (All Events):', summary['total_pax']])
     
     return response
 
@@ -1404,160 +1405,125 @@ def export_events_report_no_cxl(request):
         request_type__in=['Event without Rooms', 'Event with Rooms'],
         status__in=['Draft', 'Confirmed', 'Pending', 'Paid', 'Partially Paid', 'Actual']
     ).select_related('account').prefetch_related('event_agendas', 'room_entries').order_by('request_received_date', 'id')
-    
-    total_events = 0
-    total_combined_revenue = Decimal('0.00')
-    
-    for req in event_requests:
-        # Get all event agendas for this request
-        event_agendas = req.event_agendas.all().order_by('event_date', 'start_time')
-        
-        if event_agendas.exists():
-            # Calculate event date range
-            event_dates = [agenda.event_date for agenda in event_agendas]
-            event_start_date = min(event_dates)
-            event_end_date = max(event_dates)
-            number_of_days = (event_end_date - event_start_date).days + 1
-            
-            # Aggregate event data across all days
-            all_meeting_rooms = set()
-            all_packages = set()
-            all_styles = set()
-            earliest_start_time = None
-            latest_end_time = None
-            total_pax_all_days = 0
-            event_name = None
-            
-            for agenda in event_agendas:
-                # Collect unique meeting rooms
-                if agenda.meeting_room_name:
-                    all_meeting_rooms.add(agenda.meeting_room_name)
-                
-                # Collect packages
-                if agenda.packages:
-                    all_packages.add(agenda.get_packages_display())
-                
-                # Collect styles
-                if agenda.style:
-                    all_styles.add(agenda.get_style_display())
-                
-                # Track earliest start time and latest end time
-                if agenda.start_time:
-                    if earliest_start_time is None or agenda.start_time < earliest_start_time:
-                        earliest_start_time = agenda.start_time
-                if agenda.end_time:
-                    if latest_end_time is None or agenda.end_time > latest_end_time:
-                        latest_end_time = agenda.end_time
-                
-                # Sum total pax across all days
-                total_pax_all_days += agenda.total_persons or 0
-                
-                # Get event name from first agenda
-                if event_name is None:
-                    event_name = agenda.event_name or agenda.agenda_details
-            
-            # Calculate totals
-            total_event_amount = req.get_event_total()  # Sum of all event costs across all days
-            total_room_amount = Decimal('0.00')
-            if req.request_type == 'Event with Rooms':
-                total_room_amount = req.get_room_total()  # Sum of all room costs across all nights
-            
-            combined_total = total_event_amount + total_room_amount
-            
-            # Format meeting rooms as comma-separated list
-            meeting_rooms_display = ', '.join(sorted(all_meeting_rooms)) if all_meeting_rooms else ''
-            packages_display = ', '.join(sorted(all_packages)) if all_packages else ''
-            styles_display = ', '.join(sorted(all_styles)) if all_styles else ''
-            
-            # Write ONE row per event (aggregated)
-            writer.writerow([
-                sanitize_csv_value(req.confirmation_number),
-                sanitize_csv_value(req.get_request_type_display()),
-                sanitize_csv_value(req.account.name if req.account else 'No Account'),
-                sanitize_csv_value(req.account.account_type if req.account else ''),
-                sanitize_csv_value(req.account.contact_person if req.account else ''),
-                sanitize_csv_value(req.get_status_display()),
-                sanitize_csv_value(req.request_received_date.strftime('%Y-%m-%d') if req.request_received_date else ''),
-                sanitize_csv_value(event_start_date.strftime('%Y-%m-%d')),
-                sanitize_csv_value(event_end_date.strftime('%Y-%m-%d')),
-                sanitize_csv_value(earliest_start_time.strftime('%H:%M') if earliest_start_time else ''),
-                sanitize_csv_value(latest_end_time.strftime('%H:%M') if latest_end_time else ''),
-                sanitize_csv_value(number_of_days),
-                sanitize_csv_value(meeting_rooms_display),
-                sanitize_csv_value(event_name or ''),
-                sanitize_csv_value(total_pax_all_days),
-                sanitize_csv_value(packages_display),
-                sanitize_csv_value(styles_display),
-                sanitize_csv_value(f"{total_event_amount:.2f}"),
-                sanitize_csv_value(f"{total_room_amount:.2f}" if req.request_type == 'Event with Rooms' else '0.00'),
-                sanitize_csv_value(f"{combined_total:.2f}"),
-                sanitize_csv_value(req.check_in_date.strftime('%Y-%m-%d') if req.check_in_date and req.request_type == 'Event with Rooms' else ''),
-                sanitize_csv_value(req.check_out_date.strftime('%Y-%m-%d') if req.check_out_date and req.request_type == 'Event with Rooms' else ''),
-                sanitize_csv_value(req.nights if req.nights and req.request_type == 'Event with Rooms' else ''),
-                sanitize_csv_value(req.total_rooms if req.total_rooms and req.request_type == 'Event with Rooms' else ''),
-                sanitize_csv_value(req.total_room_nights if req.total_room_nights and req.request_type == 'Event with Rooms' else ''),
-                sanitize_csv_value(req.get_meal_plan_display() if req.meal_plan and req.request_type == 'Event with Rooms' else ''),
-                sanitize_csv_value(req.offer_acceptance_deadline.strftime('%Y-%m-%d') if req.offer_acceptance_deadline else ''),
-                sanitize_csv_value(req.deposit_deadline.strftime('%Y-%m-%d') if req.deposit_deadline else ''),
-                sanitize_csv_value(req.full_payment_deadline.strftime('%Y-%m-%d') if req.full_payment_deadline else ''),
-                sanitize_csv_value(f"{req.get_display_paid_amount():.2f}" if hasattr(req, 'get_display_paid_amount') and req.get_display_paid_amount() else '0.00'),
-                sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
-                sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
-                sanitize_csv_value(req.updated_at.strftime('%Y-%m-%d %H:%M') if req.updated_at else ''),
-                sanitize_csv_value(req.notes),
-            ])
-            
-            total_events += 1
-            total_combined_revenue += combined_total
-        else:
-            # If no event agendas, still write a row with request info
-            total_event_amount = Decimal('0.00')
-            total_room_amount = req.get_room_total() if req.request_type == 'Event with Rooms' else Decimal('0.00')
-            combined_total = total_event_amount + total_room_amount
-            
-            writer.writerow([
-                sanitize_csv_value(req.confirmation_number),
-                sanitize_csv_value(req.get_request_type_display()),
-                sanitize_csv_value(req.account.name if req.account else 'No Account'),
-                sanitize_csv_value(req.account.account_type if req.account else ''),
-                sanitize_csv_value(req.account.contact_person if req.account else ''),
-                sanitize_csv_value(req.get_status_display()),
-                sanitize_csv_value(req.request_received_date.strftime('%Y-%m-%d') if req.request_received_date else ''),
-                sanitize_csv_value(''),  # Event Start Date
-                sanitize_csv_value(''),  # Event End Date
-                sanitize_csv_value(''),  # Earliest Start Time
-                sanitize_csv_value(''),  # Latest End Time
-                sanitize_csv_value(''),  # Number of Days
-                sanitize_csv_value(''),  # Meeting Rooms (All)
-                sanitize_csv_value('Event (No Details)'),  # Event Name
-                sanitize_csv_value(''),  # Total Number of Pax (All Days)
-                sanitize_csv_value(''),  # Packages
-                sanitize_csv_value(''),  # Styles
-                sanitize_csv_value(f"{total_event_amount:.2f}"),  # Total Event Amount (All Days)
-                sanitize_csv_value(f"{total_room_amount:.2f}"),  # Total Room Amount (All Nights)
-                sanitize_csv_value(f"{combined_total:.2f}"),  # Combined Total (Event + Rooms)
-                sanitize_csv_value(req.check_in_date.strftime('%Y-%m-%d') if req.check_in_date else ''),
-                sanitize_csv_value(req.check_out_date.strftime('%Y-%m-%d') if req.check_out_date else ''),
-                sanitize_csv_value(req.nights if req.nights else ''),
-                sanitize_csv_value(req.total_rooms if req.total_rooms else ''),
-                sanitize_csv_value(req.total_room_nights if req.total_room_nights else ''),
-                sanitize_csv_value(req.get_meal_plan_display() if req.meal_plan else ''),
-                sanitize_csv_value(req.offer_acceptance_deadline.strftime('%Y-%m-%d') if req.offer_acceptance_deadline else ''),
-                sanitize_csv_value(req.deposit_deadline.strftime('%Y-%m-%d') if req.deposit_deadline else ''),
-                sanitize_csv_value(req.full_payment_deadline.strftime('%Y-%m-%d') if req.full_payment_deadline else ''),
-                sanitize_csv_value(f"{req.get_display_paid_amount():.2f}" if hasattr(req, 'get_display_paid_amount') and req.get_display_paid_amount() else '0.00'),
-                sanitize_csv_value(f"{req.deposit_amount:.2f}" if req.deposit_amount else '0.00'),
-                sanitize_csv_value(req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else ''),
-                sanitize_csv_value(req.updated_at.strftime('%Y-%m-%d %H:%M') if req.updated_at else ''),
-                sanitize_csv_value(req.notes),
-            ])
-            total_events += 1
-            total_combined_revenue += combined_total
-    
+
+    rows, summary = build_event_report_rows(event_requests)
+
+    for row in rows:
+        writer.writerow(row)
+
     # Write summary at the end
     writer.writerow([])
     writer.writerow(['SUMMARY:'])
-    writer.writerow(['Total Events:', total_events])
-    writer.writerow(['Total Combined Revenue (Event + Rooms):', f"{total_combined_revenue:.2f}"])
+    writer.writerow(['Total Events:', summary['total_events']])
+    writer.writerow(['Total Event Revenue (Events Only):', f"{summary['event_revenue']:.2f}"])
+    writer.writerow(['Total Accommodation Revenue (Rooms):', f"{summary['room_revenue']:.2f}"])
+    writer.writerow(['Total Combined Revenue (Event + Rooms):', f"{summary['combined_revenue']:.2f}"])
+    writer.writerow(['Total Pax (All Events):', summary['total_pax']])
     
+    return response
+
+
+@login_required
+def export_events_report_custom(request):
+    """
+    Export customizable event report with optional date filters and status exclusions.
+    """
+    import csv
+    from requests.models import Request
+    from django.db.models import Q
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    response['Content-Disposition'] = 'attachment; filename="events_custom_report.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'Confirmation Number',
+        'Request Type',
+        'Account Name',
+        'Account Type',
+        'Contact Person',
+        'Status',
+        'Request Received Date',
+        'Event Start Date',
+        'Event End Date',
+        'Earliest Start Time',
+        'Latest End Time',
+        'Number of Days',
+        'Meeting Rooms (All)',
+        'Event Name',
+        'Total Number of Pax (All Days)',
+        'Packages',
+        'Styles',
+        'Total Event Amount (All Days)',
+        'Total Room Amount (All Nights)',
+        'Combined Total (Event + Rooms)',
+        'Check In Date',
+        'Check Out Date',
+        'Nights',
+        'Total Rooms',
+        'Total Room Nights',
+        'Meal Plan',
+        'Offer Acceptance Deadline',
+        'Deposit Deadline',
+        'Full Payment Deadline',
+        'Paid Amount',
+        'Deposit Amount',
+        'Created At',
+        'Updated At',
+        'Notes',
+    ])
+
+    start_date = None
+    end_date = None
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+
+    try:
+        if start_date_str:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        start_date = None
+
+    try:
+        if end_date_str:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        end_date = None
+
+    exclude_statuses = [status for status in request.GET.getlist('exclude_statuses') if status]
+
+    event_requests = Request.objects.filter(
+        request_type__in=['Event without Rooms', 'Event with Rooms']
+    ).select_related('account').prefetch_related('event_agendas', 'room_entries')
+
+    if start_date:
+        event_requests = event_requests.filter(
+            Q(event_agendas__event_date__gte=start_date) |
+            Q(event_agendas__isnull=True, request_received_date__gte=start_date)
+        )
+
+    if end_date:
+        event_requests = event_requests.filter(
+            Q(event_agendas__event_date__lte=end_date) |
+            Q(event_agendas__isnull=True, request_received_date__lte=end_date)
+        )
+
+    if exclude_statuses:
+        event_requests = event_requests.exclude(status__in=exclude_statuses)
+
+    event_requests = event_requests.order_by('request_received_date', 'id').distinct()
+
+    rows, summary = build_event_report_rows(event_requests)
+
+    for row in rows:
+        writer.writerow(row)
+
+    writer.writerow([])
+    writer.writerow(['SUMMARY:'])
+    writer.writerow(['Total Events:', summary['total_events']])
+    writer.writerow(['Total Event Revenue (Events Only):', f"{summary['event_revenue']:.2f}"])
+    writer.writerow(['Total Accommodation Revenue (Rooms):', f"{summary['room_revenue']:.2f}"])
+    writer.writerow(['Total Combined Revenue (Event + Rooms):', f"{summary['combined_revenue']:.2f}"])
+    writer.writerow(['Total Pax (All Events):', summary['total_pax']])
+
     return response

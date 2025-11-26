@@ -350,6 +350,9 @@
                         <a href="{% url 'event_management:export_events_report_no_cxl' %}" class="btn btn-outline-success">
                             <i class="fas fa-file-export me-1"></i>Export no CXL
                         </a>
+                        <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#customExportModal">
+                            <i class="fas fa-sliders-h me-1"></i>Custom Export
+                        </button>
                         <button class="btn btn-outline-secondary" onclick="refreshCalendar()">
                             <i class="fas fa-sync-alt me-1"></i>Refresh
                         </button>
@@ -824,6 +827,66 @@
             </div>
         </div>
     </div>
+
+<!-- Custom Export Modal -->
+<div class="modal fade" id="customExportModal" tabindex="-1" aria-labelledby="customExportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="get" action="{% url 'event_management:export_events_report_custom' %}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="customExportModalLabel">Custom Event Report</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">From Date</label>
+                            <input type="date" class="form-control" name="start_date" value="{{ report_default_start }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">To Date</label>
+                            <input type="date" class="form-control" name="end_date" value="{{ report_default_end }}">
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0">Exclude Statuses</h6>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-sm btn-link text-decoration-none" id="exportStatusSelectAll">
+                                    Select all
+                                </button>
+                                <button type="button" class="btn btn-sm btn-link text-decoration-none" id="exportStatusClearAll">
+                                    Clear all
+                                </button>
+                            </div>
+                        </div>
+                        <div class="row g-2">
+                            {% for value, label in request_status_choices %}
+                            <div class="col-md-4 col-sm-6">
+                                <div class="form-check">
+                                    <input class="form-check-input export-status-checkbox" type="checkbox" name="exclude_statuses" value="{{ value }}" id="excludeStatus{{ forloop.counter }}">
+                                    <label class="form-check-label" for="excludeStatus{{ forloop.counter }}">
+                                        Exclude {{ label }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="alert alert-info mt-4">
+                        <strong>Summary Included:</strong> total events, event revenue, accommodation revenue, combined revenue, and total pax (per event, not per day).
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-file-download me-1"></i>Download CSV
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
     <!-- Include Quick Actions Panel -->
     {% include 'dashboard/quick_actions.html' %}
@@ -1668,6 +1731,24 @@
         // Load recent requests on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadRecentRequests();
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectAllBtn = document.getElementById('exportStatusSelectAll');
+            const clearAllBtn = document.getElementById('exportStatusClearAll');
+            const statusCheckboxes = document.querySelectorAll('.export-status-checkbox');
+
+            if (selectAllBtn) {
+                selectAllBtn.addEventListener('click', function() {
+                    statusCheckboxes.forEach(cb => cb.checked = true);
+                });
+            }
+
+            if (clearAllBtn) {
+                clearAllBtn.addEventListener('click', function() {
+                    statusCheckboxes.forEach(cb => cb.checked = false);
+                });
+            }
         });
     </script>
 
