@@ -14,24 +14,27 @@
         </div>
         <div class="card-body" id="quick-actions-body">
             <div class="d-grid gap-2">
-                <a href="{% url 'admin:requests_request_add' %}" class="btn btn-primary btn-sm">
-                    <i class="fas fa-plus me-2"></i>New Request
-                </a>
-                
-                <!-- Specialized Request Types -->
-                <div class="btn-group-vertical w-100 mt-1" role="group">
-                    <a href="{% url 'admin:requests_accommodationrequest_add' %}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-bed me-2"></i>Accommodation Request
-                    </a>
-                    <a href="/event-management/#createEventModal" class="btn btn-outline-primary btn-sm" onclick="openEventModal()">
-                        <i class="fas fa-calendar-check me-2"></i>Event Only Request
-                    </a>
-                    <a href="{% url 'admin:requests_eventwithroomsrequest_add' %}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-calendar-plus me-2"></i>Event with Rooms
-                    </a>
-                    <a href="{% url 'admin:requests_seriesgrouprequest_add' %}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-layer-group me-2"></i>Series Group Request
-                    </a>
+                <div class="w-100">
+                    <button class="btn btn-primary btn-sm w-100 d-flex align-items-center justify-content-between" type="button" data-bs-toggle="collapse" data-bs-target="#qa-new-request-group" aria-expanded="false" aria-controls="qa-new-request-group">
+                        <span><i class="fas fa-plus me-2"></i>New Request</span>
+                        <i class="fas fa-chevron-down small"></i>
+                    </button>
+                    <div class="collapse mt-1" id="qa-new-request-group">
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'admin:requests_accommodationrequest_add' %}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-bed me-2"></i>Accommodation Request
+                            </a>
+                            <a href="/event-management/#createEventModal" class="btn btn-outline-primary btn-sm" onclick="openEventModal()">
+                                <i class="fas fa-calendar-check me-2"></i>Event Only Request
+                            </a>
+                            <a href="{% url 'admin:requests_eventwithroomsrequest_add' %}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-calendar-plus me-2"></i>Event with Rooms
+                            </a>
+                            <a href="{% url 'admin:requests_seriesgrouprequest_add' %}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-layer-group me-2"></i>Series Group Request
+                            </a>
+                        </div>
+                    </div>
                 </div>
                 
                 <a href="{% url 'admin:accounts_account_add' %}" class="btn btn-success btn-sm">
@@ -40,9 +43,22 @@
                 <a href="{% url 'admin:sales_calls_salescall_add' %}" class="btn btn-info btn-sm">
                     <i class="fas fa-phone me-2"></i>New Sales Call
                 </a>
-                <a href="{% url 'admin:agreements_agreement_add' %}" class="btn btn-warning btn-sm">
-                    <i class="fas fa-file-contract me-2"></i>New Agreement
-                </a>
+                <div class="w-100">
+                    <button class="btn btn-warning btn-sm w-100 d-flex align-items-center justify-content-between" type="button" data-bs-toggle="collapse" data-bs-target="#qa-agreement-group" aria-expanded="false" aria-controls="qa-agreement-group">
+                        <span><i class="fas fa-file-contract me-2"></i>Agreements</span>
+                        <i class="fas fa-chevron-down small"></i>
+                    </button>
+                    <div class="collapse mt-1" id="qa-agreement-group">
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'admin:agreements_agreement_add' %}" class="btn btn-warning btn-sm">
+                                <i class="fas fa-file-signature me-2"></i>Register Agreement
+                            </a>
+                            <button class="btn btn-outline-warning btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#generateAgreementModal">
+                                <i class="fas fa-file-export me-2"></i>Generate Agreement
+                            </button>
+                        </div>
+                    </div>
+                </div>
                 <hr class="my-2">
                 <a href="/dashboard/" class="btn btn-outline-secondary btn-sm">
                     <i class="fas fa-chart-line me-2"></i>Dashboard
@@ -58,10 +74,138 @@
     </div>
 </div>
 
+<!-- Generate Agreement Modal -->
+<div class="modal fade" id="generateAgreementModal" tabindex="-1" aria-labelledby="generateAgreementLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="generateAgreementLabel"><i class="fas fa-file-export me-2"></i>Generate Agreement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="generate-agreement-form" class="generate-agreement-form" novalidate>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Agreement Type</label>
+                            <select id="agreement-type-select" class="form-select" required>
+                                <option value="">Select agreement type</option>
+                                <option value="TA">TA Agreement</option>
+                                <option value="TO">TO Agreement</option>
+                                <option value="CO">CO Agreement</option>
+                                <option value="MICE">MICE Agreement</option>
+                                <option value="Event">Event Agreement</option>
+                            </select>
+                            <div class="invalid-feedback">Please choose an agreement type.</div>
+                        </div>
+                        
+                        <!-- Common fields (TA / TO / CO + shared across all) -->
+                        <div class="col-md-6 d-none" data-field-group="common">
+                            <label class="form-label fw-semibold">Company.name</label>
+                            <input type="text" class="form-control" name="company_name" required>
+                            <div class="invalid-feedback">Company name is required.</div>
+                        </div>
+                        <div class="col-md-6 d-none" data-field-group="common">
+                            <label class="form-label fw-semibold">Name</label>
+                            <input type="text" class="form-control" name="contact_name" required>
+                            <div class="invalid-feedback">Name is required.</div>
+                        </div>
+                        <div class="col-md-6 d-none" data-field-group="common">
+                            <label class="form-label fw-semibold">Address</label>
+                            <input type="text" class="form-control" name="address" required>
+                            <div class="invalid-feedback">Address is required.</div>
+                        </div>
+                        <div class="col-md-6 d-none" data-field-group="common">
+                            <label class="form-label fw-semibold">Position</label>
+                            <input type="text" class="form-control" name="position" required>
+                            <div class="invalid-feedback">Position is required.</div>
+                        </div>
+                        <div class="col-md-6 d-none" data-field-group="common">
+                            <label class="form-label fw-semibold">City</label>
+                            <input type="text" class="form-control" name="city" required>
+                            <div class="invalid-feedback">City is required.</div>
+                        </div>
+                        <div class="col-md-6 d-none" data-field-group="common">
+                            <label class="form-label fw-semibold">Phone</label>
+                            <input type="text" class="form-control" name="phone" required>
+                            <div class="invalid-feedback">Phone is required.</div>
+                        </div>
+                        <div class="col-md-6 d-none" data-field-group="common">
+                            <label class="form-label fw-semibold">Country</label>
+                            <input type="text" class="form-control" name="country" required>
+                            <div class="invalid-feedback">Country is required.</div>
+                        </div>
+                        <div class="col-md-6 d-none" data-field-group="common">
+                            <label class="form-label fw-semibold">Email</label>
+                            <input type="email" class="form-control" name="email" required>
+                            <div class="invalid-feedback">Valid email is required.</div>
+                        </div>
+                        <div class="col-md-6 d-none" data-field-group="common" data-field-name="agreement_date">
+                            <label class="form-label fw-semibold">Date</label>
+                            <input type="date" class="form-control" name="agreement_date" required>
+                            <div class="invalid-feedback">Date is required.</div>
+                        </div>
+                        
+                        <!-- Event / MICE extra fields -->
+                        <div class="col-md-6 d-none" data-field-group="event">
+                            <label class="form-label fw-semibold">Meeting Name</label>
+                            <input type="text" class="form-control" name="meeting_name">
+                            <div class="invalid-feedback">Meeting name is required.</div>
+                        </div>
+                        <div class="col-md-6 d-none" data-field-group="event">
+                            <label class="form-label fw-semibold">Start Date</label>
+                            <input type="date" class="form-control" name="start_date">
+                            <div class="invalid-feedback">Start date is required.</div>
+                        </div>
+                        <div class="col-md-6 d-none" data-field-group="event">
+                            <label class="form-label fw-semibold">End Date</label>
+                            <input type="date" class="form-control" name="end_date">
+                            <div class="invalid-feedback">End date is required.</div>
+                        </div>
+                        <div class="col-md-6 d-none" data-field-group="event">
+                            <label class="form-label fw-semibold">Today Date</label>
+                            <input type="date" class="form-control" name="today_date" id="agreement-today-date">
+                            <div class="invalid-feedback">Today's date is required.</div>
+                        </div>
+
+                        <!-- Send to -->
+                        <div class="col-12 d-none" data-field-group="common">
+                            <label class="form-label fw-semibold">Send To (email)</label>
+                            <input type="email" class="form-control" name="send_to" required>
+                            <div class="invalid-feedback">Destination email is required.</div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <small class="text-muted me-auto">All fields are required. API wiring will be added next.</small>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="submit" form="generate-agreement-form" class="btn btn-warning" id="generate-agreement-submit">
+                    <i class="fas fa-magic me-2"></i>Generate
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
 #quick-actions-panel {
     transition: all 0.3s ease;
     cursor: move;
+}
+
+#generateAgreementModal .modal-content {
+    border-radius: 16px;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+}
+
+#generateAgreementModal .form-label {
+    margin-bottom: 4px;
+}
+
+#generateAgreementModal .form-control, 
+#generateAgreementModal .form-select {
+    border-radius: 10px;
 }
 
 #quick-actions-panel.collapsed #quick-actions-body {
@@ -296,5 +440,329 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.href = '/event-management/#createEventModal';
         }
     };
+
+    // Agreement modal dynamic fields
+    const agreementTypeSelect = document.getElementById('agreement-type-select');
+    const agreementForm = document.getElementById('generate-agreement-form');
+    const agreementSubmit = document.getElementById('generate-agreement-submit');
+    const todayInput = document.getElementById('agreement-today-date');
+    const commonGroups = document.querySelectorAll('[data-field-group="common"]');
+    const eventGroups = document.querySelectorAll('[data-field-group="event"]');
+    const eventTypes = ['MICE', 'Event'];
+    const baseTypes = ['TA', 'TO', 'CO'];
+
+    const formatPrettyDate = (dateStr) => {
+        const targetDate = dateStr ? new Date(dateStr) : new Date();
+        if (Number.isNaN(targetDate.getTime())) return '';
+        const day = targetDate.getDate();
+        const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        const suffix = (day%10===1 && day!==11)?'st':(day%10===2 && day!==12)?'nd':(day%10===3 && day!==13)?'rd':'th';
+        return `${day}${suffix} ${months[targetDate.getMonth()]} ${targetDate.getFullYear()}`;
+    };
+
+    const toggleGroups = (groups, show) => {
+        groups.forEach(group => {
+            group.classList.toggle('d-none', !show);
+            group.querySelectorAll('input, select, textarea').forEach(input => {
+                if (show) {
+                    input.removeAttribute('disabled');
+                    input.required = true;
+                } else {
+                    input.setAttribute('disabled', 'disabled');
+                    input.required = false;
+                    input.value = '';
+                }
+            });
+        });
+    };
+
+    const refreshAgreementFields = () => {
+        const selected = agreementTypeSelect ? agreementTypeSelect.value : '';
+        const showCommon = eventTypes.includes(selected) || baseTypes.includes(selected);
+        const showEvent = eventTypes.includes(selected);
+
+        toggleGroups(commonGroups, showCommon);
+        toggleGroups(eventGroups, showEvent);
+
+        // Hide Date field for Event and MICE agreements
+        const dateFieldGroup = document.querySelector('[data-field-name="agreement_date"]');
+        if (dateFieldGroup) {
+            if (eventTypes.includes(selected)) {
+                // Hide Date field for Event/MICE
+                dateFieldGroup.classList.add('d-none');
+                const dateInput = dateFieldGroup.querySelector('input[name="agreement_date"]');
+                if (dateInput) {
+                    dateInput.setAttribute('disabled', 'disabled');
+                    dateInput.required = false;
+                    dateInput.value = '';
+                }
+            } else if (baseTypes.includes(selected)) {
+                // Show Date field for TA/TO/CO
+                dateFieldGroup.classList.remove('d-none');
+                const dateInput = dateFieldGroup.querySelector('input[name="agreement_date"]');
+                if (dateInput) {
+                    dateInput.removeAttribute('disabled');
+                    dateInput.required = true;
+                }
+            }
+        }
+
+        if (todayInput && showEvent && !todayInput.value) {
+            todayInput.valueAsDate = new Date();
+        }
+    };
+
+    agreementTypeSelect?.addEventListener('change', refreshAgreementFields);
+
+    agreementForm?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        agreementForm.classList.add('was-validated');
+        if (!agreementForm.checkValidity()) {
+            return;
+        }
+        const type = agreementTypeSelect?.value || '';
+        const formData = new FormData(agreementForm);
+        
+        // Base payload for CO, TA, TO agreements
+        const basePayload = {
+            'Company.name': formData.get('company_name')?.trim(),
+            'Name': formData.get('contact_name')?.trim(),
+            'Address': formData.get('address')?.trim(),
+            'Position': formData.get('position')?.trim(),
+            'City': formData.get('city')?.trim(),
+            'Phone': formData.get('phone')?.trim(),
+            'Country': formData.get('country')?.trim(),
+            'Email': formData.get('email')?.trim(),
+            'Date': formatPrettyDate(formData.get('agreement_date')),
+        };
+        
+        // Event Agreement payload
+        const eventPayload = {
+            'Company.Name': formData.get('company_name')?.trim(),
+            'Meeting.name': formData.get('meeting_name')?.trim(),
+            'Start.date': formatPrettyDate(formData.get('start_date')),
+            'End.date': formatPrettyDate(formData.get('end_date')),
+            'Today': formatPrettyDate(formData.get('today_date')),
+            'Name': formData.get('contact_name')?.trim(),
+            'Position': formData.get('position')?.trim(),
+            'Address': formData.get('address')?.trim(),
+            'Phone': formData.get('phone')?.trim(),
+            'Email': formData.get('email')?.trim(),
+            'City': formData.get('city')?.trim(),
+            'Country': formData.get('country')?.trim(),
+        };
+        
+        // MICE Agreement payload
+        const micePayload = {
+            'Meeting.name': formData.get('meeting_name')?.trim(),
+            'Start.date': formatPrettyDate(formData.get('start_date')),
+            'End.date': formatPrettyDate(formData.get('end_date')),
+            'Today': formatPrettyDate(formData.get('today_date')),
+            'Company.Name': formData.get('company_name')?.trim(),
+            'Name': formData.get('contact_name')?.trim(),
+            'Position': formData.get('position')?.trim(),
+            'Address': formData.get('address')?.trim(),
+            'Phone': formData.get('phone')?.trim(),
+            'Email': formData.get('email')?.trim(),
+            'City': formData.get('city')?.trim(),
+            'Country': formData.get('country')?.trim(),
+        };
+
+        const disableSubmit = () => {
+            if (agreementSubmit) {
+                agreementSubmit.disabled = true;
+                agreementSubmit.innerHTML = '<i class="fas fa-hourglass-half me-2"></i>Generating...';
+            }
+        };
+        const enableSubmit = () => {
+            if (agreementSubmit) {
+                agreementSubmit.disabled = false;
+                agreementSubmit.innerHTML = '<i class="fas fa-magic me-2"></i>Generate';
+            }
+        };
+
+        const closeModal = () => {
+            const modalEl = document.getElementById('generateAgreementModal');
+            const modalInstance = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
+            modalInstance?.hide();
+        };
+
+        const handleSuccess = (downloadUrl, emailSentTo, apiMessage) => {
+            enableSubmit();
+            closeModal();
+            let successMsg = 'Document Generated Successfully';
+            if (emailSentTo) {
+                successMsg += `\n\nEmail has been sent to: ${emailSentTo}`;
+                successMsg += '\n\nPlease check your inbox (and spam/junk folder if not received).';
+            }
+            if (apiMessage && apiMessage.toLowerCase().includes('email')) {
+                successMsg += `\n\nAPI Message: ${apiMessage}`;
+            }
+            if (downloadUrl) {
+                window.open(downloadUrl, '_blank', 'noopener');
+                alert(successMsg);
+            } else {
+                alert(`${successMsg}\n\nNote: No download URL was returned.`);
+            }
+        };
+
+        const handleFailure = (msg) => {
+            enableSubmit();
+            alert(msg || 'Failed to generate agreement. Please try again.');
+        };
+
+        const callDocumentero = async (payload) => {
+            disableSubmit();
+            const emailTo = payload.email || null;
+            console.log('Sending request to Documentero API:', payload);
+            try {
+                const res = await fetch('https://app.documentero.com/api', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+                console.log('Documentero API Response:', data);
+                console.log('Full Response Status:', res.status);
+                if (data?.status === 200 && data?.data) {
+                    // Check if response message indicates email was sent
+                    const responseMsg = data?.message || '';
+                    console.log('API Response Message:', responseMsg);
+                    console.log('Email sent to:', emailTo);
+                    handleSuccess(data.data, emailTo, responseMsg);
+                } else {
+                    console.error('API Error Response:', data);
+                    handleFailure(data?.message || 'Unexpected response from document service.');
+                }
+            } catch (err) {
+                console.error('Document generation error', err);
+                handleFailure('Network or server error while generating agreement.');
+            }
+        };
+
+        // Validate email format helper
+        const validateEmail = (email) => {
+            if (!email) {
+                alert('Please fill in the "Send To" email field.');
+                return false;
+            }
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                alert('Please enter a valid email address in the "Send To" field.');
+                return false;
+            }
+            return true;
+        };
+
+        const sendToEmail = formData.get('send_to')?.trim();
+        if (!validateEmail(sendToEmail)) {
+            return;
+        }
+
+        // Agreement type configurations
+        const agreementConfigs = {
+            'CO': {
+                document: 'tmwbsPuxbbSP7euLxPcr',
+                apiKey: 'C7ZFGXY-K3QUMRA-VQ62GMY-MZKOB2I',
+                format: 'pdf',
+                data: basePayload,
+            },
+            'TA': {
+                document: '56ze0wc6NQbtYrBfHBv9',
+                apiKey: 'C7ZFGXY-K3QUMRA-VQ62GMY-MZKOB2I',
+                format: 'pdf',
+                data: basePayload,
+            },
+            'TO': {
+                document: 'U9247W91w5sXh7Q2ZugH',
+                apiKey: 'C7ZFGXY-K3QUMRA-VQ62GMY-MZKOB2I',
+                format: 'pdf',
+                data: basePayload,
+            },
+            'Event': {
+                document: 'U91CnjPsp09wXtqQhlmm',
+                apiKey: '2E5MVGA-XUIE4MI-QCSHVEY-WEPWLBI',
+                format: 'docx',
+                data: eventPayload,
+            },
+            'MICE': {
+                document: 'tkY1UGkXKcKDImTERuZp',
+                apiKey: '2E5MVGA-XUIE4MI-QCSHVEY-WEPWLBI',
+                format: 'docx',
+                data: micePayload,
+            },
+        };
+
+        const config = agreementConfigs[type];
+        if (!config) {
+            handleFailure('Please select an agreement type.');
+            return;
+        }
+
+        // Get contact name and extract first name
+        const contactName = formData.get('contact_name')?.trim() || 'Valued Partner';
+        const firstName = contactName.split(' ')[0];
+        const companyName = formData.get('company_name')?.trim() || 'Company';
+
+        // Generate email subject
+        const emailSubject = `Shaden Resort AlUla - ${companyName} Agreement`;
+
+        // Generate email body based on agreement type
+        const getEmailBody = (agreementType) => {
+            let agreementSpecificText = '';
+            
+            switch(agreementType) {
+                case 'TA':
+                    agreementSpecificText = 'Please find attached agreement, which includes both high and low season rates to support your annual tour planning.';
+                    break;
+                case 'TO':
+                    agreementSpecificText = 'Please find attached agreement, which includes both high and low season rates to support your annual tour planning.';
+                    break;
+                case 'CO':
+                    agreementSpecificText = 'Please find attached corporate agreement with our preferred rates and terms for your business travel needs. This agreement is designed to provide you with competitive rates and flexible booking options for your corporate stays.';
+                    break;
+                case 'MICE':
+                    agreementSpecificText = 'Please find attached MICE agreement outlining our meeting and event facilities, rates, and terms. This agreement covers our conference rooms, event spaces, and accommodation packages tailored for your business events and group bookings.';
+                    break;
+                case 'Event':
+                    agreementSpecificText = 'Please find attached event agreement detailing our event facilities, catering options, and accommodation packages. This agreement includes all the necessary information for planning your upcoming event at Shaden Resort AlUla.';
+                    break;
+                default:
+                    agreementSpecificText = 'Please find attached agreement for your review.';
+            }
+
+            return `Dear ${firstName},<br><br>` +
+                `Thank you for choosing Shaden Resort Managed by ACCOR.<br><br>` +
+                `${agreementSpecificText}<br><br>` +
+                `We kindly ask you to review and return the signed copy at your earliest convenience maximum by 2 days.<br><br>` +
+                `Should you need any further details or clarification, I'm always here to assist.<br><br>` +
+                `Looking forward to a fruitful collaboration.<br><br>` +
+                `Warm regards,<br><br>` +
+                `Abdullah Saleh<br>` +
+                `Sales Manager - Shaden Resort<br>` +
+                `+966 559990187`;
+        };
+
+        const payload = {
+            ...config,
+            email: sendToEmail,
+            emailSubject: emailSubject,
+            emailMessage: getEmailBody(type),
+            emailSender: 'Hotel Sales System',
+        };
+
+        console.log('Prepared payload for', type, 'with email:', sendToEmail);
+        callDocumentero(payload);
+
+        handleFailure('Please select an agreement type.');
+        if (agreementSubmit) {
+            agreementSubmit.disabled = false;
+            agreementSubmit.innerHTML = '<i class="fas fa-magic me-2"></i>Generate';
+        }
+    });
+
+    refreshAgreementFields();
 });
 </script>
